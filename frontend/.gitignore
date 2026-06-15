@@ -1,0 +1,28 @@
+# --- Dependencies & Caches ---
+node_modules/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+pip-log.txt
+
+# --- Environment & Secrets ---
+.env
+.env.local
+.env.*.local
+backend/.env
+
+# --- Build Artifacts ---
+dist/
+build/
+*.egg-info/
+
+# --- IDE & OS Files ---
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# --- Sensitive Documentation ---
+backend/SECURITY_FIXES.md

@@ -1,0 +1,13 @@
+fastapi
+uvicorn
+kubernetes_asyncio
+httpx
+pydantic
+pydantic-settings
+python-dotenv
+scikit-learn
+redis
+websockets
+
+pytest~=8.2.2
+pytest-asyncio~=0.23.7
