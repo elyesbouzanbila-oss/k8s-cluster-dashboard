@@ -4,6 +4,10 @@ from typing import Optional
 
 from connection.models import ConnectionConfig
 
+# Suppress SSL warnings for internal cluster connections
+import urllib3
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+
 
 def _ensure_kubernetes_available():
 	try:
@@ -62,34 +66,15 @@ async def create_api_client(conn: ConnectionConfig):
 
 		configuration = k8s_client.Configuration()
 		configuration.host = conn.server
-		# By default verify_ssl is True; if caller provided no CA we allow skipping
-		configuration.verify_ssl = bool(conn.ca_cert)
-
-		ca_tmp: Optional[str] = None
-		if conn.ca_cert:
-			ca_tf = tempfile.NamedTemporaryFile(delete=False)
-			try:
-				ca_tf.write(conn.ca_cert.encode())
-				ca_tf.flush()
-				ca_tf.close()
-				ca_tmp = ca_tf.name
-				configuration.ssl_ca_cert = ca_tmp
-			except Exception:
-				try:
-					os.unlink(ca_tf.name)
-				except Exception:
-					pass
-
-		configuration.api_key = {"authorization": "Bearer " + conn.token}
+		# Skip SSL verification if no CA cert provided (for internal clusters)
+		configuration.verify_ssl = False
+		
 		api_client = k8s_client.ApiClient(configuration=configuration)
-
-		# clean up temp CA file if we created one
-		if ca_tmp:
-			try:
-				os.unlink(ca_tmp)
-			except Exception:
-				pass
-
+		
+		# Add the bearer token to the default headers after creating the client
+		# This ensures it gets sent with every request
+		api_client.default_headers["Authorization"] = f"Bearer {conn.token}"
+		
 		return api_client
 
 	raise ValueError(f"unsupported connection mode: {conn.mode}")

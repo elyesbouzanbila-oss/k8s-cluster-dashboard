@@ -1,5 +1,11 @@
 from pydantic import BaseModel, Field
 from typing import Literal, Optional
+import os
+from dotenv import load_dotenv
+
+
+# Load .env file so os.getenv() can access environment variables
+load_dotenv()
 
 
 class ConnectionConfig(BaseModel):
@@ -12,17 +18,42 @@ class ConnectionConfig(BaseModel):
 	"""
 
 	mode: Literal["kubeconfig", "token", "incluster"] = Field(
-		"kubeconfig", description="Connection mode"
+		default="kubeconfig",
+		description="Connection mode"
 	)
 	kubeconfig: Optional[str] = Field(
-		None, description="Raw kubeconfig YAML (use instead of a file)"
+		default=None,
+		description="Raw kubeconfig YAML (use instead of a file)"
 	)
 	kubeconfig_path: Optional[str] = Field(
-		None, description="Path to a kubeconfig file on disk"
+		default=None,
+		description="Path to a kubeconfig file on disk"
 	)
-	server: Optional[str] = Field(None, description="API server URL (token mode)")
-	token: Optional[str] = Field(None, description="Bearer token (token mode)")
+	server: Optional[str] = Field(
+		default=None,
+		description="API server URL (token mode)"
+	)
+	token: Optional[str] = Field(
+		default=None,
+		description="Bearer token (token mode)"
+	)
 	ca_cert: Optional[str] = Field(
-		None, description="CA certificate PEM (optional for token mode)"
+		default=None,
+		description="CA certificate PEM (optional for token mode)"
 	)
 	namespace: Optional[str] = Field("default", description="Cluster namespace")
+
+	class Config:
+		extra = "ignore"  # Allow extra fields from environment but ignore them
+
+	@classmethod
+	def from_env(cls) -> "ConnectionConfig":
+		"""Create ConnectionConfig from environment variables."""
+		return cls(
+			mode=os.getenv("K8S_MODE", "kubeconfig"),
+			server=os.getenv("K8S_SERVER"),
+			token=os.getenv("K8S_TOKEN"),
+			ca_cert=os.getenv("K8S_CA_CERT"),
+			kubeconfig=os.getenv("K8S_KUBECONFIG"),
+			kubeconfig_path=os.getenv("K8S_KUBECONFIG_PATH"),
+		)

@@ -2,14 +2,14 @@ from fastapi import APIRouter, Depends
 from typing import List, Dict, Any
 
 from connection.models import ConnectionConfig
-from dependencies import get_k8s_client
+from dependencies import get_k8s_client, get_connection_config
 
 router = APIRouter()
 
 
 @router.get("/pods")
 async def list_pods(
-	connection: ConnectionConfig = Depends(),
+	connection: ConnectionConfig = Depends(get_connection_config),
 	api_client=Depends(get_k8s_client),
 ) -> Dict[str, Any]:
 	"""Return a lightweight list of pods across namespaces."""
@@ -39,7 +39,7 @@ async def list_pods(
 
 @router.get("/topology")
 async def get_topology(
-	connection: ConnectionConfig = Depends(), api_client=Depends(get_k8s_client)
+	connection: ConnectionConfig = Depends(get_connection_config), api_client=Depends(get_k8s_client)
 ):
 	"""Return a simple topology: nodes (pods + services) and edges placeholder.
 

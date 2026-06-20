@@ -29,8 +29,13 @@ async def verify_api_key(
 	return settings
 
 
+async def get_connection_config() -> ConnectionConfig:
+	"""Get Kubernetes connection configuration from environment."""
+	return ConnectionConfig.from_env()
+
+
 async def get_k8s_client(
-	connection: ConnectionConfig = Depends(),
+	connection: ConnectionConfig = Depends(get_connection_config),
 	_: Settings = Depends(verify_api_key)
 ) -> AsyncGenerator:
 	"""FastAPI dependency that yields a configured Kubernetes ApiClient.

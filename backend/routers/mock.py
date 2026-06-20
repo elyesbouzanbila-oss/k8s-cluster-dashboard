@@ -84,12 +84,12 @@ MOCK_PRIVILEGED = [
     }
 ]
 
-@router.get("/api/network/pods")
+@router.get("/mock/pods")
 async def get_pods_mock(settings: str = Depends(verify_api_key)):
     """Return mock pods"""
     return {"items": MOCK_PODS}
 
-@router.get("/api/network/topology")
+@router.get("/mock/topology")
 async def get_topology_mock(settings: str = Depends(verify_api_key)):
     """Return mock topology"""
     nodes = []
@@ -118,12 +118,12 @@ async def get_topology_mock(settings: str = Depends(verify_api_key)):
     
     return {"nodes": nodes, "edges": []}
 
-@router.get("/api/security/rbac")
+@router.get("/mock/rbac")
 async def get_rbac_mock(settings: str = Depends(verify_api_key)):
     """Return mock RBAC"""
     return MOCK_RBAC
 
-@router.get("/api/security/privileged")
+@router.get("/mock/privileged")
 async def get_privileged_mock(settings: str = Depends(verify_api_key)):
     """Return mock privileged pods"""
     return MOCK_PRIVILEGED

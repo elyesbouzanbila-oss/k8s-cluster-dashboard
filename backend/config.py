@@ -9,6 +9,14 @@ class Settings(BaseSettings):
     REDIS_URL: str = "redis://redis:6379/0"
     API_KEY: str 
     FRONTEND_URL: str = "http://localhost:5173"
+    
+    # K8s connection settings
+    K8S_MODE: str = "kubeconfig"
+    K8S_SERVER: Optional[str] = None
+    K8S_TOKEN: Optional[str] = None
+    K8S_CA_CERT: Optional[str] = None
+    K8S_KUBECONFIG: Optional[str] = None
+    K8S_KUBECONFIG_PATH: Optional[str] = None
 
     class Config:
         env_file = ".env"
