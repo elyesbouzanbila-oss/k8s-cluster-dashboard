@@ -1,0 +1,43 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dashboard-backend
+  labels:
+    app: dashboard-backend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: dashboard-backend
+  template:
+    metadata:
+      labels:
+        app: dashboard-backend
+    spec:
+      serviceAccountName: dashboard-sa
+      containers:
+        - name: backend
+          image: dashboard-backend:latest
+          imagePullPolicy: Never
+          ports:
+            - containerPort: 8000
+              protocol: TCP
+          env:
+            - name: K8S_MODE
+              value: "incluster"
+            - name: API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: dashboard-api-key
+                  key: api-key
+            - name: FRONTEND_URL
+              value: "http://dashboard-frontend:5173"
+            - name: REDIS_URL
+              value: "redis://dashboard-redis:6379/0"
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "100m"
+            limits:
+              memory: "256Mi"
+              cpu: "500m"

@@ -1,10 +1,7 @@
----
-# Frontend Deployment
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: dashboard-frontend
-  namespace: k8s-dashboard
   labels:
     app: dashboard-frontend
 spec:
@@ -19,14 +16,12 @@ spec:
     spec:
       containers:
         - name: frontend
-          # Uses the same Dockerfile but built with VITE_API_URL pointing to backend
           image: dashboard-frontend:latest
-          imagePullPolicy: IfNotPresent
+          imagePullPolicy: Never
           ports:
             - containerPort: 5173
               protocol: TCP
           env:
-            # Point to the backend service inside the cluster
             - name: VITE_API_URL
               value: "http://dashboard-backend:8000"
             - name: VITE_API_KEY
@@ -41,20 +36,3 @@ spec:
             limits:
               memory: "128Mi"
               cpu: "200m"
----
-# Frontend Service (NodePort for external access)
-apiVersion: v1
-kind: Service
-metadata:
-  name: dashboard-frontend
-  namespace: k8s-dashboard
-spec:
-  selector:
-    app: dashboard-frontend
-  ports:
-    - port: 5173
-      targetPort: 5173
-      protocol: TCP
-      name: http
-      nodePort: 30080
-  type: NodePort

@@ -5,6 +5,13 @@ namespace: k8s-dashboard
 
 resources:
   - namespace.yaml
-  - backend.yaml
-  - frontend.yaml
-  - redis.yaml
+  - sa.yaml
+  - clusterrole.yaml
+  - clusterrolebinding.yaml
+  - secret.yaml
+  - deploy-backend.yaml
+  - svc-backend.yaml
+  - deploy-frontend.yaml
+  - svc-frontend.yaml
+  - deploy-redis.yaml
+  - svc-redis.yaml

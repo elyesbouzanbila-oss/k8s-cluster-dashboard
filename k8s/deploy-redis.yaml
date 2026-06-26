@@ -1,10 +1,7 @@
----
-# Redis Deployment
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: dashboard-redis
-  namespace: k8s-dashboard
   labels:
     app: dashboard-redis
 spec:
@@ -20,6 +17,7 @@ spec:
       containers:
         - name: redis
           image: redis:alpine
+          imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 6379
               protocol: TCP
@@ -30,19 +28,3 @@ spec:
             limits:
               memory: "64Mi"
               cpu: "100m"
----
-# Redis Service
-apiVersion: v1
-kind: Service
-metadata:
-  name: dashboard-redis
-  namespace: k8s-dashboard
-spec:
-  selector:
-    app: dashboard-redis
-  ports:
-    - port: 6379
-      targetPort: 6379
-      protocol: TCP
-      name: redis
-  type: ClusterIP
