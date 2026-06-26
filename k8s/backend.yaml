@@ -1,0 +1,127 @@
+---
+# ServiceAccount — auto-mounted token used by load_incluster_config()
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: dashboard-sa
+  namespace: k8s-dashboard
+---
+# ClusterRole — read access to all resources the dashboard needs
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: dashboard-role
+rules:
+  # Network discovery
+  - apiGroups: [""]
+    resources: [pods, services, nodes, endpoints, namespaces]
+    verbs: [get, list, watch]
+  # Security / RBAC
+  - apiGroups: [rbac.authorization.k8s.io]
+    resources:
+      [clusterrolebindings, rolebindings, clusterroles, roles]
+    verbs: [get, list]
+  - apiGroups: [""]
+    resources: [serviceaccounts, secrets]
+    verbs: [get, list]
+  # Metrics (if metrics-server is installed)
+  - apiGroups: ["metrics.k8s.io"]
+    resources: [pods, nodes]
+    verbs: [get, list, watch]
+  # Config / Storage
+  - apiGroups: ["storage.k8s.io"]
+    resources: [storageclasses]
+    verbs: [get, list]
+  - apiGroups: ["networking.k8s.io"]
+    resources: [networkpolicies]
+    verbs: [get, list]
+---
+# ClusterRoleBinding — bind the ServiceAccount to the ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: dashboard-binding
+subjects:
+  - kind: ServiceAccount
+    name: dashboard-sa
+    namespace: k8s-dashboard
+roleRef:
+  kind: ClusterRole
+  name: dashboard-role
+  apiGroup: rbac.authorization.k8s.io
+---
+# API Key secret
+apiVersion: v1
+kind: Secret
+metadata:
+  name: dashboard-api-key
+  namespace: k8s-dashboard
+type: Opaque
+stringData:
+  api-key: "change-me-to-a-secure-key"
+---
+# Backend Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dashboard-backend
+  namespace: k8s-dashboard
+  labels:
+    app: dashboard-backend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: dashboard-backend
+  template:
+    metadata:
+      labels:
+        app: dashboard-backend
+    spec:
+      serviceAccountName: dashboard-sa
+      containers:
+        - name: backend
+          image: dashboard-backend:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8000
+              protocol: TCP
+          env:
+            # In-cluster mode — no token/cert needed
+            - name: K8S_MODE
+              value: "incluster"
+            # API key for frontend-to-backend auth
+            - name: API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: dashboard-api-key
+                  key: api-key
+            # CORS: allow frontend service
+            - name: FRONTEND_URL
+              value: "http://dashboard-frontend:5173"
+            # Redis connection
+            - name: REDIS_URL
+              value: "redis://dashboard-redis:6379/0"
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "100m"
+            limits:
+              memory: "256Mi"
+              cpu: "500m"
+---
+# Backend Service (ClusterIP — accessed by frontend internally)
+apiVersion: v1
+kind: Service
+metadata:
+  name: dashboard-backend
+  namespace: k8s-dashboard
+spec:
+  selector:
+    app: dashboard-backend
+  ports:
+    - port: 8000
+      targetPort: 8000
+      protocol: TCP
+      name: http
+  type: ClusterIP
