@@ -8,7 +8,9 @@ import { MetricsPanel } from './components/MetricsPanel'
 import { StoragePanel } from './components/StoragePanel'
 import type { Pod, TopologyNode, TopologyEdge, ThreatEvent, RbacBinding, PrivilegedPod, NodeMetric, StorageData } from './types'
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000'
+// Use relative URLs (nginx proxies /api/*, /metrics/*, /config/* to backend in-cluster)
+// For local dev, set VITE_API_URL=http://localhost:8000
+const API_BASE_URL = import.meta.env.VITE_API_URL || ''
 const API_KEY = import.meta.env.VITE_API_KEY || 'your-secret-api-key-change-this'
 
 const SOFT_REFRESH_MS = 15_000   // 15s — lightweight (pods only)
@@ -305,7 +307,8 @@ function App() {
       wsRef.current = null
     }
 
-    const wsUrl = `${API_BASE_URL.replace('http', 'ws')}/api/threats/ws/threats?api_key=${API_KEY}`
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+    const wsUrl = `${protocol}//${window.location.host}/api/threats/ws/threats?api_key=${API_KEY}`
     const ws = new WebSocket(wsUrl)
     wsRef.current = ws
 

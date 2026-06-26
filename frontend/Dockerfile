@@ -8,16 +8,14 @@ RUN npm ci
 
 COPY . .
 
-# Use placeholders that the entrypoint script will replace at runtime
-ARG VITE_API_URL=__VITE_API_URL__
+# API key is still used for authentication headers
 ARG VITE_API_KEY=__VITE_API_KEY__
-
 RUN npm run build
 
 # ---- Production Stage ----
 FROM nginx:alpine
 
-# Copy nginx config
+# Copy nginx config (with reverse proxy to backend)
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 
 # Copy built assets from build stage

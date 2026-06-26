@@ -22,8 +22,7 @@ spec:
             - containerPort: 5173
               protocol: TCP
           env:
-            - name: VITE_API_URL
-              value: "http://dashboard-backend:8000"
+            # API key for backend auth (injected into JS at build time)
             - name: VITE_API_KEY
               valueFrom:
                 secretKeyRef:
