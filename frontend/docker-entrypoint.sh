@@ -10,9 +10,10 @@ API_KEY="${VITE_API_KEY:-}"
 
 if [ -n "$API_KEY" ]; then
   echo "[entrypoint] Injecting VITE_API_KEY into built assets..."
-  # Use perl for reliable in-place replacement (BusyBox sed -i is unreliable)
-  find /usr/share/nginx/html -type f \( -name '*.js' -o -name '*.html' \) -exec \
-    perl -pi -e 's|__VITE_API_KEY__|$ENV{VITE_API_KEY}|g' {} +
+  # Avoid BusyBox sed -i (broken in nginx:alpine) — use temp-file redirect
+  for f in $(find /usr/share/nginx/html -type f \( -name '*.js' -o -name '*.html' \)); do
+    sed "s|__VITE_API_KEY__|${API_KEY}|g" "$f" > "${f}.tmp" && mv "${f}.tmp" "$f"
+  done
 else
   echo "[entrypoint] WARNING: VITE_API_KEY is not set – API calls will fail."
 fi
