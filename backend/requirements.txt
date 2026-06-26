@@ -1,6 +1,7 @@
 fastapi
 uvicorn
 kubernetes_asyncio
+kubernetes
 httpx
 pydantic
 pydantic-settings

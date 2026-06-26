@@ -1,78 +1,151 @@
+/* Topology Graph Container */
 .topology-container {
   display: flex;
   flex-direction: column;
   height: 600px;
-  background-color: var(--surface-color);
+  background: linear-gradient(135deg, var(--bg-color) 0%, rgba(59, 130, 246, 0.02) 100%);
   border: 1px solid var(--border-color);
-  border-radius: 8px;
+  border-radius: 12px;
   overflow: hidden;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
 }
 
+/* Graph Canvas */
 .topology-graph {
   flex: 1;
-  background-color: var(--bg-color);
+  background: linear-gradient(180deg, #0f172a 0%, #1e293b 100%);
   border-bottom: 1px solid var(--border-color);
+  position: relative;
 }
 
+/* Legend Section */
 .topology-legend {
-  display: flex;
+  display: grid;
+  grid-template-columns: auto 1fr;
   gap: 20px;
-  padding: 12px 16px;
+  padding: 14px 16px;
   background-color: var(--surface-color);
   border-bottom: 1px solid var(--border-color);
-  flex-wrap: wrap;
+  overflow-x: auto;
+}
+
+.legend-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.legend-title {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  letter-spacing: 0.5px;
+  margin-bottom: 2px;
 }
 
 .legend-item {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 13px;
+  font-size: 12px;
+  color: var(--text-primary);
+  white-space: nowrap;
 }
 
-.legend-circle {
-  width: 20px;
-  height: 20px;
+/* Legend Shapes */
+.legend-shape {
+  min-width: 24px;
+  min-height: 24px;
+  border-radius: 3px;
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  background: linear-gradient(135deg, #3B82F6 0%, #2563EB 100%);
+}
+
+.legend-shape.pod {
   border-radius: 50%;
-  background-color: var(--primary-color);
-  border: 2px solid var(--border-color);
+  background: linear-gradient(135deg, #3B82F6 0%, #2563EB 100%);
 }
 
-.legend-circle.pod {
-  background-color: #0066cc;
+.legend-shape.service {
+  border-radius: 4px;
+  background: linear-gradient(135deg, #3B82F6 0%, #2563EB 100%);
 }
 
-.legend-circle.service {
-  background-color: #00aa44;
+/* Legend Color Indicator */
+.legend-color {
+  min-width: 20px;
+  min-height: 20px;
+  border-radius: 3px;
+  border: 1.5px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
-.legend-square {
-  width: 20px;
-  height: 20px;
-  background-color: var(--primary-color);
-  border: 2px solid var(--border-color);
-}
-
-.legend-square.service {
-  background-color: #00aa44;
-}
-
+/* Info Section */
 .topology-info {
   padding: 12px 16px;
-  background-color: rgba(0, 102, 204, 0.05);
+  background-color: rgba(15, 23, 42, 0.5);
   border-top: 1px solid var(--border-color);
   font-size: 12px;
   color: var(--text-secondary);
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 20px;
+  align-items: center;
 }
 
-.topology-info p {
-  margin: 4px 0;
+.info-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.info-row.hint {
+  grid-column: 1 / -1;
+  color: var(--text-tertiary);
+  font-style: italic;
+  margin-top: 4px;
+}
+
+.info-label {
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.info-value {
+  color: #3B82F6;
+  font-weight: 500;
   font-family: 'Courier New', monospace;
 }
 
-.topology-info .hint {
-  color: var(--text-tertiary);
-  font-style: italic;
+/* Cytoscape Node Styling (JS-controlled but CSS for fallbacks) */
+:root {
+  --primary-color: #3B82F6;
+  --success-color: #10B981;
+  --warning-color: #F59E0B;
+  --danger-color: #EF4444;
+  --border-color: #334155;
+  --bg-color: #0f172a;
+  --surface-color: #1e293b;
+  --text-primary: #f1f5f9;
+  --text-secondary: #cbd5e1;
+  --text-tertiary: #94a3b8;
+}
+
+/* Responsive Design */
+@media (max-width: 1024px) {
+  .topology-container {
+    height: 500px;
+  }
+  
+  .topology-legend {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+  
+  .legend-item {
+    font-size: 11px;
+  }
 }
 
 @media (max-width: 768px) {
@@ -80,13 +153,63 @@
     height: 400px;
   }
   
-  .legend-item {
-    font-size: 11px;
+  .topology-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
   }
   
-  .legend-circle,
-  .legend-square {
-    width: 16px;
-    height: 16px;
+  .legend-section {
+    display: flex;
+    flex-direction: row;
+    gap: 12px;
+    align-items: center;
   }
+  
+  .legend-title {
+    display: none;
+  }
+  
+  .topology-info {
+    grid-template-columns: 1fr;
+    gap: 8px;
+    font-size: 11px;
+  }
+}
+
+/* Smooth animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.topology-container {
+  animation: fadeIn 0.3s ease-in;
+}
+
+/* Tooltip-like effect on hover */
+.topology-graph:hover {
+  background: linear-gradient(180deg, #0f172a 0%, #1e293b 100%);
+}
+
+/* Scrollbar Styling */
+.topology-legend::-webkit-scrollbar {
+  height: 4px;
+}
+
+.topology-legend::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.1);
+}
+
+.topology-legend::-webkit-scrollbar-thumb {
+  background: rgba(59, 130, 246, 0.4);
+  border-radius: 2px;
+}
+
+.topology-legend::-webkit-scrollbar-thumb:hover {
+  background: rgba(59, 130, 246, 0.6);
 }

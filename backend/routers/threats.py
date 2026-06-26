@@ -13,10 +13,8 @@ async def falco_webhook(
 	event: FalcoEvent,
 	settings: Settings = Depends(verify_api_key)
 ) -> dict:
-    """Receive Falco events (JSON) from webhook and publish to Redis channel.
-    
-    Requires X-API-Key header.
-    """
+    #Receive Falco events (JSON) from webhook and publish to Redis channel.
+    #Requires X-API-Key header.
     service = ThreatService(settings)
     await service.publish_falco_event(event)
     return {"status": "ok"}
@@ -24,10 +22,10 @@ async def falco_webhook(
 
 @router.websocket("/ws/threats")
 async def ws_threats(ws: WebSocket, settings: Settings = Depends(get_settings_dep)):
-    """WebSocket endpoint for real-time threat events.
+    #WebSocket endpoint for real-time threat events.
     
-    Query param: ?api_key=YOUR_API_KEY
-    """
+    #Query param: ?api_key=YOUR_API_KEY
+    
     # Get API key from query params
     query_params = ws.query_params
     api_key = query_params.get("api_key")
