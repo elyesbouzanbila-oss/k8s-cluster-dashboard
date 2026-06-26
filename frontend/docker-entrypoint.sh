@@ -11,8 +11,9 @@ API_KEY="${VITE_API_KEY:-}"
 if [ -n "$API_KEY" ]; then
   echo "[entrypoint] Injecting VITE_API_KEY into built assets..."
   # Replace placeholder in all JS/HTML files under the nginx root
+  # Use empty '' backup suffix for BusyBox sed compatibility (nginx:alpine)
   find /usr/share/nginx/html -type f \( -name '*.js' -o -name '*.html' \) -exec \
-    sed -i "s|__VITE_API_KEY__|${API_KEY}|g" {} +
+    sed -i '' "s|__VITE_API_KEY__|${API_KEY}|g" {} +
 else
   echo "[entrypoint] WARNING: VITE_API_KEY is not set – API calls will fail."
 fi
