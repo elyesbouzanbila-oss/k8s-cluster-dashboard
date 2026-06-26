@@ -32,7 +32,7 @@ async def create_api_client(conn: ConnectionConfig):
 
 	if conn.mode == "incluster":
 		# Use the serviceaccount mounted credentials
-		await k8s_config.load_incluster_config()
+		k8s_config.load_incluster_config()
 		return k8s_client.ApiClient()
 
 	if conn.mode == "kubeconfig":
