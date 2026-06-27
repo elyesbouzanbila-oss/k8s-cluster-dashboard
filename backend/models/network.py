@@ -12,12 +12,17 @@ class PodNetwork(BaseModel):
 
 class TopologyNode(BaseModel):
     id: str
-    type: Literal["pod", "service"]
-    namespace: str
+    type: Literal["node", "pod", "service"]
+    namespace: Optional[str] = None
     name: str
     ip: Optional[str] = None
+    labels: Optional[Dict[str, str]] = None
+    node_name: Optional[str] = None
+    role: Optional[Literal["master", "worker"]] = None
+    capacity: Optional[Dict[str, str]] = None
 
 class TopologyEdge(BaseModel):
+    id: str
     source: str
     target: str
     label: Optional[str] = None

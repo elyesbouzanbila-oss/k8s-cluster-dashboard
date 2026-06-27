@@ -16,6 +16,8 @@ export interface TopologyNode {
   ip?: string
   labels?: Record<string, string>
   node_name?: string
+  role?: 'master' | 'worker'
+  capacity?: Record<string, string>
 }
 
 export interface TopologyEdge {

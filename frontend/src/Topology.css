@@ -1,124 +1,212 @@
-/* Topology Graph Container */
+/* ─── Topology Container ──────────────────────────────────────── */
 .topology-container {
   display: flex;
   flex-direction: column;
-  height: 600px;
-  background: linear-gradient(135deg, var(--bg-color) 0%, rgba(59, 130, 246, 0.02) 100%);
-  border: 1px solid var(--border-color);
+  border: 1px solid var(--border);
   border-radius: 12px;
   overflow: hidden;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
 }
 
-/* Graph Canvas */
-.topology-graph {
-  flex: 1;
-  background: linear-gradient(180deg, #0f172a 0%, #1e293b 100%);
-  border-bottom: 1px solid var(--border-color);
-  position: relative;
+/* ─── Stats Bar ───────────────────────────────────────────────── */
+.topology-stats-bar {
+  display: flex;
+  gap: 20px;
+  padding: 10px 16px;
+  background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+  border-bottom: 1px solid var(--border);
+  overflow-x: auto;
 }
 
-/* Legend Section */
+.stat {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  font-weight: 500;
+}
+
+.stat-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.master-dot { background-color: #EC4899; }
+.worker-dot { background-color: #3B82F6; }
+.pod-dot { background-color: #10B981; }
+.service-dot { background-color: #8B5CF6; }
+.edge-dot {
+  background-color: transparent;
+  width: 0;
+  height: 0;
+  border-left: 5px solid transparent;
+  border-right: 5px solid transparent;
+  border-top: 7px solid rgba(148, 163, 184, 0.6);
+}
+
+/* ─── Graph Canvas ────────────────────────────────────────────── */
+.topology-graph-wrapper {
+  position: relative;
+  height: 580px;
+  background: linear-gradient(180deg, #0a0e1a 0%, #131a2e 100%);
+  border-bottom: 1px solid var(--border);
+}
+
+.topology-graph {
+  width: 100%;
+  height: 100%;
+}
+
+/* ─── Toast Info Bar ──────────────────────────────────────────── */
+.topology-toast {
+  position: absolute;
+  bottom: 12px;
+  left: 50%;
+  transform: translateX(-50%) translateY(20px);
+  background: rgba(15, 23, 42, 0.92);
+  backdrop-filter: blur(8px);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 18px;
+  font-size: 12px;
+  color: var(--text);
+  white-space: nowrap;
+  opacity: 0;
+  transition: all 0.3s ease;
+  pointer-events: none;
+  max-width: 90%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-family: 'SF Mono', 'Courier New', monospace;
+}
+
+.topology-toast.visible {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+/* ─── Legend ──────────────────────────────────────────────────── */
 .topology-legend {
-  display: grid;
-  grid-template-columns: auto 1fr;
-  gap: 20px;
-  padding: 14px 16px;
-  background-color: var(--surface-color);
-  border-bottom: 1px solid var(--border-color);
+  display: flex;
+  gap: 28px;
+  padding: 12px 16px;
+  background-color: var(--surface);
+  border-bottom: 1px solid var(--border);
   overflow-x: auto;
+  flex-wrap: wrap;
 }
 
 .legend-section {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 5px;
+  min-width: 130px;
 }
 
 .legend-title {
-  font-size: 11px;
-  font-weight: 600;
+  font-size: 10px;
+  font-weight: 700;
   text-transform: uppercase;
-  color: var(--text-secondary);
-  letter-spacing: 0.5px;
-  margin-bottom: 2px;
+  color: var(--text-tertiary);
+  letter-spacing: 0.8px;
+  margin-bottom: 3px;
 }
 
 .legend-item {
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-size: 12px;
-  color: var(--text-primary);
+  gap: 7px;
+  font-size: 11px;
+  color: var(--text-secondary);
   white-space: nowrap;
+}
+
+.legend-ip {
+  color: var(--text-tertiary);
+  font-family: 'SF Mono', 'Courier New', monospace;
+  font-size: 10px;
+}
+
+.legend-pod-count {
+  color: var(--text-tertiary);
+  font-size: 10px;
+}
+
+/* Legend Colors */
+.legend-color {
+  min-width: 10px;
+  min-height: 10px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(255, 255, 255, 0.15);
+  flex-shrink: 0;
+}
+
+.legend-color.master-bg {
+  border-color: rgba(236, 72, 153, 0.4);
+}
+
+.legend-color.worker-bg {
+  border-color: rgba(59, 130, 246, 0.4);
+}
+
+.service-color {
+  background-color: #8B5CF6;
+  border-radius: 3px;
+  min-width: 12px;
+  min-height: 12px;
 }
 
 /* Legend Shapes */
 .legend-shape {
-  min-width: 24px;
-  min-height: 24px;
-  border-radius: 3px;
-  border: 2px solid rgba(255, 255, 255, 0.2);
-  background: linear-gradient(135deg, #3B82F6 0%, #2563EB 100%);
-}
-
-.legend-shape.pod {
-  border-radius: 50%;
-  background: linear-gradient(135deg, #3B82F6 0%, #2563EB 100%);
-}
-
-.legend-shape.service {
-  border-radius: 4px;
-  background: linear-gradient(135deg, #3B82F6 0%, #2563EB 100%);
-}
-
-/* Legend Color Indicator */
-.legend-color {
-  min-width: 20px;
-  min-height: 20px;
+  min-width: 18px;
+  min-height: 18px;
+  flex-shrink: 0;
   border-radius: 3px;
   border: 1.5px solid rgba(255, 255, 255, 0.2);
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
-/* Info Section */
-.topology-info {
-  padding: 12px 16px;
+.legend-shape.cluster-master {
+  background: rgba(236, 72, 153, 0.15);
+  border-color: rgba(236, 72, 153, 0.5);
+  border-style: dashed;
+  border-radius: 5px;
+}
+
+.legend-shape.cluster-worker {
+  background: rgba(59, 130, 246, 0.12);
+  border-color: rgba(59, 130, 246, 0.4);
+  border-style: dashed;
+  border-radius: 5px;
+}
+
+.legend-shape.pod-legend {
+  background: linear-gradient(135deg, #10B981, #059669);
+  border-radius: 50%;
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.legend-shape.service-legend {
+  background: linear-gradient(135deg, #8B5CF6, #7C3AED);
+  border-radius: 4px;
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+/* ─── Hint Bar ────────────────────────────────────────────────── */
+.topology-hint {
+  padding: 10px 16px;
   background-color: rgba(15, 23, 42, 0.5);
-  border-top: 1px solid var(--border-color);
-  font-size: 12px;
-  color: var(--text-secondary);
-  display: grid;
-  grid-template-columns: auto 1fr;
-  gap: 20px;
-  align-items: center;
-}
-
-.info-row {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-}
-
-.info-row.hint {
-  grid-column: 1 / -1;
+  font-size: 11px;
   color: var(--text-tertiary);
+  text-align: center;
   font-style: italic;
-  margin-top: 4px;
+  letter-spacing: 0.3px;
 }
 
-.info-label {
-  font-weight: 600;
-  color: var(--text-secondary);
-}
-
-.info-value {
-  color: #3B82F6;
-  font-weight: 500;
-  font-family: 'Courier New', monospace;
-}
-
-/* Cytoscape Node Styling (JS-controlled but CSS for fallbacks) */
+/* ─── CSS Variables (for consistency with app) ────────────────── */
 :root {
   --primary-color: #3B82F6;
   --success-color: #10B981;
@@ -132,71 +220,17 @@
   --text-tertiary: #94a3b8;
 }
 
-/* Responsive Design */
-@media (max-width: 1024px) {
-  .topology-container {
-    height: 500px;
-  }
-  
-  .topology-legend {
-    grid-template-columns: 1fr;
-    gap: 12px;
-  }
-  
-  .legend-item {
-    font-size: 11px;
-  }
-}
-
-@media (max-width: 768px) {
-  .topology-container {
-    height: 400px;
-  }
-  
-  .topology-legend {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 16px;
-  }
-  
-  .legend-section {
-    display: flex;
-    flex-direction: row;
-    gap: 12px;
-    align-items: center;
-  }
-  
-  .legend-title {
-    display: none;
-  }
-  
-  .topology-info {
-    grid-template-columns: 1fr;
-    gap: 8px;
-    font-size: 11px;
-  }
-}
-
-/* Smooth animations */
+/* ─── Smooth Animation ───────────────────────────────────────── */
 @keyframes fadeIn {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 .topology-container {
   animation: fadeIn 0.3s ease-in;
 }
 
-/* Tooltip-like effect on hover */
-.topology-graph:hover {
-  background: linear-gradient(180deg, #0f172a 0%, #1e293b 100%);
-}
-
-/* Scrollbar Styling */
+/* ─── Scrollbar ───────────────────────────────────────────────── */
 .topology-legend::-webkit-scrollbar {
   height: 4px;
 }
@@ -206,10 +240,74 @@
 }
 
 .topology-legend::-webkit-scrollbar-thumb {
-  background: rgba(59, 130, 246, 0.4);
+  background: rgba(59, 130, 246, 0.3);
   border-radius: 2px;
 }
 
-.topology-legend::-webkit-scrollbar-thumb:hover {
-  background: rgba(59, 130, 246, 0.6);
+.topology-stats-bar::-webkit-scrollbar {
+  height: 3px;
+}
+
+.topology-stats-bar::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.1);
+}
+
+.topology-stats-bar::-webkit-scrollbar-thumb {
+  background: rgba(59, 130, 246, 0.25);
+  border-radius: 2px;
+}
+
+/* ─── Responsive ──────────────────────────────────────────────── */
+@media (max-width: 1024px) {
+  .topology-graph-wrapper {
+    height: 450px;
+  }
+
+  .topology-legend {
+    gap: 16px;
+  }
+
+  .legend-section {
+    min-width: 100px;
+  }
+}
+
+@media (max-width: 768px) {
+  .topology-graph-wrapper {
+    height: 380px;
+  }
+
+  .topology-stats-bar {
+    gap: 12px;
+    padding: 8px 12px;
+    flex-wrap: wrap;
+  }
+
+  .stat {
+    font-size: 11px;
+  }
+
+  .topology-legend {
+    padding: 10px 12px;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .legend-section {
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+    min-width: auto;
+  }
+
+  .legend-title {
+    width: 100%;
+    margin-bottom: 0;
+  }
+
+  .topology-hint {
+    font-size: 10px;
+    padding: 8px 12px;
+  }
 }
