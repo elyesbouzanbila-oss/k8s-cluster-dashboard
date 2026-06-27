@@ -15,11 +15,7 @@ spec:
         app: dashboard-frontend
     spec:
       nodeSelector:
-        node-role.kubernetes.io/control-plane: ""
-      tolerations:
-        - key: node-role.kubernetes.io/control-plane
-          operator: Exists
-          effect: NoSchedule
+        kubernetes.io/hostname: masternode
       containers:
         - name: frontend
           image: dashboard-frontend:latest
