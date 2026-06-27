@@ -8,7 +8,6 @@ Real-time Kubernetes cluster monitoring with interactive topology visualization,
 - **Security Tab**: RBAC analysis and privileged pod detection  
 - **Threats Tab**: Real-time threat streaming via WebSocket
 - **Live Cluster Data**: Connected to your Kubernetes cluster at 192.168.3.20
-- **Dark UI**: Modern, lightweight interface with namespace-based color coding
 
 ## Quick Start
 
