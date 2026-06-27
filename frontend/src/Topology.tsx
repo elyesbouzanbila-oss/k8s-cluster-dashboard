@@ -53,11 +53,11 @@ export function Topology({ nodes, edges }: TopologyProps) {
   const cyRef = useRef<cytoscape.Core | null>(null)
 
   // Derived data for info panel
-  const clusterNodes = useMemo(() => nodes.filter(n => n.type === 'node'), [nodes])
-  const masterNodes = useMemo(() => clusterNodes.filter(n => n.role === 'master'), [clusterNodes])
-  const workerNodes = useMemo(() => clusterNodes.filter(n => n.role === 'worker'), [clusterNodes])
-  const podNodes = useMemo(() => nodes.filter(n => n.type === 'pod'), [nodes])
-  const serviceNodes = useMemo(() => nodes.filter(n => n.type === 'service'), [nodes])
+  const clusterNodes = nodes.filter(n => n.type === 'node')
+  const masterNodes = clusterNodes.filter(n => n.role === 'master')
+  const workerNodes = clusterNodes.filter(n => n.role === 'worker')
+  const podNodes = nodes.filter(n => n.type === 'pod')
+  const serviceNodes = nodes.filter(n => n.type === 'service')
 
   useEffect(() => {
     if (!containerRef.current || nodes.length === 0) return
@@ -332,25 +332,26 @@ export function Topology({ nodes, edges }: TopologyProps) {
     // ── Run a cose layout on children (pods) within parents to distribute them ──
     cy.nodes('[type="clusternode"]').each((parentNode: any) => {
       const children = parentNode.children()
-      if (children.length === 0) return              // Distribute children in a grid within the parent
-              const parentPos = parentNode.position()
-              const bw = parentNode.outerWidth() - 60
-              const bh = parentNode.outerHeight() - 70
-              const startX = parentPos.x - bw / 2 + 30
-              const startY = parentPos.y - bh / 2 + 40
-              const cols = Math.min(3, children.length)
-              const rows = Math.ceil(children.length / cols)
-              const cellW = bw / cols
-              const cellH = bh / Math.max(rows, 1)
+      if (children.length === 0) return
+      // Distribute children in a grid within the parent
+      const parentPos = parentNode.position()
+      const bw = parentNode.outerWidth() - 60
+      const bh = parentNode.outerHeight() - 70
+      const startX = parentPos.x - bw / 2 + 30
+      const startY = parentPos.y - bh / 2 + 40
+      const cols = Math.min(3, children.length)
+      const rows = Math.ceil(children.length / cols)
+      const cellW = bw / cols
+      const cellH = bh / Math.max(rows, 1)
 
-              children.forEach((child: any, idx: number) => {
-                const col = idx % cols
-                const row = Math.floor(idx / cols)
-                child.position({
-                  x: startX + col * cellW + cellW / 2,
-                  y: startY + row * cellH + cellH / 2,
-                })
-              })
+      children.forEach((child: any, idx: number) => {
+        const col = idx % cols
+        const row = Math.floor(idx / cols)
+        child.position({
+          x: startX + col * cellW + cellW / 2,
+          y: startY + row * cellH + cellH / 2,
+        })
+      })
     })
 
     // ── Interactivity ──
@@ -382,7 +383,6 @@ export function Topology({ nodes, edges }: TopologyProps) {
     cy.on('tap', 'node', (event: any) => {
       const node = event.target
       const d = node.data()
-      const p = node.position()
       const info: string[] = []
 
       if (d.type === 'clusternode') {
