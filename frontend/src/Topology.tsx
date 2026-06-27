@@ -1,4 +1,4 @@
-import { useEffect, useRef, useMemo } from 'react'
+import { useEffect, useRef } from 'react'
 import cytoscape from 'cytoscape'
 import './Topology.css'
 
