@@ -14,6 +14,8 @@ spec:
       labels:
         app: dashboard-frontend
     spec:
+      nodeSelector:
+        node-role.kubernetes.io/control-plane: ""
       containers:
         - name: frontend
           image: dashboard-frontend:latest
