@@ -292,67 +292,27 @@ export function Topology({ nodes, edges }: TopologyProps) {
         },
       ],
       layout: {
-        name: 'preset',
-        fit: true,
-        padding: 30,
+        name: 'cose',
         animate: true,
-        animationDuration: 400,
+        animationDuration: 500,
+        fit: true,
+        padding: 40,
+        nodeRepulsion: () => 12000,
+        nodeOverlap: 20,
+        idealEdgeLength: () => 100,
+        edgeElasticity: () => 100,
+        nestingFactor: 0.8,
+        gravity: 0.3,
+        numIter: 1000,
+        initialTemp: 200,
+        coolingFactor: 0.95,
+        minTemp: 1.0,
+        avoidOverlap: true,
+        handleDisconnected: true,
       } as any,
     })
 
     cyRef.current = cy
-
-    // ── Manual layout: position compound nodes and services ──
-    const placeNode = (id: string, x: number, y: number) => {
-      const el = cy.getElementById(id)
-      if (el.length) el.position({ x, y })
-    }
-
-    const masterList = clusterNodeEntries.filter(n => n.role === 'master')
-    const workerList = clusterNodeEntries.filter(n => n.role === 'worker')
-
-    // Position master node(s) at top center
-    const centerX = 400
-    if (masterList.length > 0) {
-      masterList.forEach((n, i) => placeNode(n.id, centerX + i * 360, 220))
-    }
-
-    // Position worker nodes below
-    const workerCount = workerList.length
-    workerList.forEach((n, i) => {
-      const offsetX = (i - (workerCount - 1) / 2) * 360
-      placeNode(n.id, centerX + offsetX, 520)
-    })
-
-    // Position services on the right side
-    serviceEntries.forEach((svc, i) => {
-      placeNode(svc.id, 900, 180 + i * 100)
-    })
-
-    // ── Run a cose layout on children (pods) within parents to distribute them ──
-    cy.nodes('[type="clusternode"]').each((parentNode: any) => {
-      const children = parentNode.children()
-      if (children.length === 0) return
-      // Distribute children in a grid within the parent
-      const parentPos = parentNode.position()
-      const bw = parentNode.outerWidth() - 60
-      const bh = parentNode.outerHeight() - 70
-      const startX = parentPos.x - bw / 2 + 30
-      const startY = parentPos.y - bh / 2 + 40
-      const cols = Math.min(3, children.length)
-      const rows = Math.ceil(children.length / cols)
-      const cellW = bw / cols
-      const cellH = bh / Math.max(rows, 1)
-
-      children.forEach((child: any, idx: number) => {
-        const col = idx % cols
-        const row = Math.floor(idx / cols)
-        child.position({
-          x: startX + col * cellW + cellW / 2,
-          y: startY + row * cellH + cellH / 2,
-        })
-      })
-    })
 
     // ── Interactivity ──
     cy.on('mouseover', 'node[type="pod"], node[type="service"]', (event: any) => {
