@@ -6,6 +6,9 @@ WORKDIR /app
 COPY package.json package-lock.json* ./
 RUN npm install --omit=optional --no-audit --no-fund
 
+# Install native binding for Alpine (musl) — otherwise rolldown fails
+RUN npm install @rolldown/binding-linux-x64-musl --no-save --no-audit --no-fund
+
 COPY . .
 
 # API key is still used for authentication headers
