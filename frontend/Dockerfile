@@ -4,10 +4,11 @@ FROM node:22-alpine AS build
 WORKDIR /app
 
 COPY package.json package-lock.json* ./
-RUN npm install --omit=optional --no-audit --no-fund
+RUN npm cache clean --force && \
+    npm install --omit=optional --no-audit --no-fund --network-timeout=300000 --maxsockets=3
 
 # Install native binding for Alpine (musl) — otherwise rolldown fails
-RUN npm install @rolldown/binding-linux-x64-musl --no-save --no-audit --no-fund
+RUN npm install @rolldown/binding-linux-x64-musl --no-save --no-audit --no-fund --network-timeout=300000
 
 COPY . .
 
