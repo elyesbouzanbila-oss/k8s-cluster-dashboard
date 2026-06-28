@@ -292,27 +292,86 @@ export function Topology({ nodes, edges }: TopologyProps) {
         },
       ],
       layout: {
-        name: 'cose',
-        animate: true,
-        animationDuration: 500,
-        fit: true,
-        padding: 40,
-        nodeRepulsion: () => 12000,
-        nodeOverlap: 20,
-        idealEdgeLength: () => 100,
-        edgeElasticity: () => 100,
-        nestingFactor: 0.8,
-        gravity: 0.3,
-        numIter: 1000,
-        initialTemp: 200,
-        coolingFactor: 0.95,
-        minTemp: 1.0,
-        avoidOverlap: true,
-        handleDisconnected: true,
+        name: 'preset',
+        fit: false,  // We'll fit manually after positioning
       } as any,
     })
 
     cyRef.current = cy
+
+    // ── Dynamic manual layout based on container size ──
+    const containerWidth = containerRef.current.clientWidth || 1000
+    const nodeW = 320
+    const nodeH = 260
+    const gapX = 30
+    const gapY = 40
+
+    // Separate nodes by type
+    const masters = cy.nodes('[type="clusternode"][role="master"]')
+    const workers = cy.nodes('[type="clusternode"][role="worker"]')
+    const services = cy.nodes('[type="service"]')
+
+    // Calculate the total width each row needs
+    const rowWidth = (count: number) => Math.max(0, count * (nodeW + gapX) - gapX)
+    const masterRowW = rowWidth(masters.length)
+    const workerRowW = rowWidth(workers.length)
+    const svcAreaW = services.length > 0 ? 150 : 0
+    const maxRowW = Math.max(masterRowW, workerRowW) + svcAreaW
+
+    // Center everything in the container
+    const leftMargin = Math.max(20, (containerWidth - maxRowW) / 2)
+
+    // Y positions for each row
+    const masterY = nodeH / 2 + 20
+    const workerY = masterY + nodeH / 2 + gapY + nodeH / 2
+
+    // ── Position master nodes (top row, centered) ──
+    const mStartX = leftMargin + (maxRowW - svcAreaW - masterRowW) / 2 + nodeW / 2
+    masters.forEach((n: any, i: number) => {
+      n.position({ x: mStartX + i * (nodeW + gapX), y: masterY })
+    })
+
+    // ── Position worker nodes (second row, centered) ──
+    const wStartX = leftMargin + (maxRowW - svcAreaW - workerRowW) / 2 + nodeW / 2
+    workers.forEach((n: any, i: number) => {
+      n.position({ x: wStartX + i * (nodeW + gapX), y: workerY })
+    })
+
+    // ── Position services (right column) ──
+    const svcX = leftMargin + maxRowW - svcAreaW + 30 + 45
+    services.forEach((n: any, i: number) => {
+      n.position({ x: svcX, y: 80 + i * 90 })
+    })
+
+    // ── Arrange children (pods) in a grid inside each compound node ──
+    cy.nodes('[type="clusternode"]').each((parent: any) => {
+      const children = parent.children()
+      if (children.length === 0) return
+
+      const pPos = parent.position()
+      const innerW = nodeW - 40
+      const innerH = nodeH - 70
+      const cols = Math.min(Math.max(1, Math.ceil(Math.sqrt(children.length))), 4)
+      const rows = Math.ceil(children.length / cols)
+      const cellW = Math.min(innerW / cols, 100)
+      const cellH = Math.min(innerH / rows, 80)
+      const gridW = cols * cellW
+      const gridH = rows * cellH
+      const startX = pPos.x - gridW / 2 + cellW / 2
+      const startY = pPos.y - gridH / 2 + cellH / 2 + 10
+
+      children.forEach((child: any, idx: number) => {
+        const col = idx % cols
+        const row = Math.floor(idx / cols)
+        child.position({
+          x: startX + col * cellW,
+          y: startY + row * cellH,
+        })
+      })
+    })
+
+    // Fit the viewport to show all nodes
+    cy.fit(undefined, 30)
 
     // ── Interactivity ──
     cy.on('mouseover', 'node[type="pod"], node[type="service"]', (event: any) => {
