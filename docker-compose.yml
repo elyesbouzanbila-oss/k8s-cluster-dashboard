@@ -27,6 +27,7 @@ services:
       - /app/node_modules
     environment:
       - VITE_API_URL=http://localhost:8000
+      - VITE_API_KEY=${API_KEY:-your-secret-api-key-change-this}
     depends_on:
       - dashboard-backend
 
