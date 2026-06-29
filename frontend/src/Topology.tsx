@@ -74,6 +74,13 @@ export function Topology({ nodes, edges }: TopologyProps) {
       y: number
     }
 
+    type AnchorNode = {
+      id: string
+      parent: string
+      x: number
+      y: number
+    }
+
     const computePositions = (containerWidth: number) => {
       const clusterW = 520
       const clusterMinH = 320
@@ -90,6 +97,7 @@ export function Topology({ nodes, edges }: TopologyProps) {
       const serviceGapX = 22
       const serviceGapY = 24
       const serviceAreaGap = serviceEntries.length > 0 ? 120 : 0
+      const compoundPadding = 20
 
       const masters = clusterNodeEntries.filter(n => n.role === 'master')
       const workers = clusterNodeEntries.filter(n => n.role === 'worker')
@@ -121,6 +129,7 @@ export function Topology({ nodes, edges }: TopologyProps) {
 
       const positions: Record<string, { x: number; y: number }> = {}
       const layoutNodes: Record<string, LayoutNode> = {}
+      const anchorPositions: AnchorNode[] = []
 
       const placeClusterRow = (row: TopologyNode[], topY: number, rowAreaW: number) => {
         const rowStartX = startX + (clusterAreaW - rowAreaW) / 2
@@ -131,6 +140,15 @@ export function Topology({ nodes, edges }: TopologyProps) {
           const y = topY + height / 2
           positions[node.id] = { x, y }
           layoutNodes[node.id] = { ...node, width, height, x, y }
+
+          const anchorX = width / 2 - compoundPadding
+          const anchorY = height / 2 - compoundPadding
+          anchorPositions.push(
+            { id: `${node.id}:anchor:tl`, parent: node.id, x: x - anchorX, y: y - anchorY },
+            { id: `${node.id}:anchor:tr`, parent: node.id, x: x + anchorX, y: y - anchorY },
+            { id: `${node.id}:anchor:br`, parent: node.id, x: x + anchorX, y: y + anchorY },
+            { id: `${node.id}:anchor:bl`, parent: node.id, x: x - anchorX, y: y + anchorY },
+          )
         })
       }
 
@@ -190,11 +208,11 @@ export function Topology({ nodes, edges }: TopologyProps) {
         }
       })
 
-      return { positions, childPositions, layoutNodes }
+      return { positions, childPositions, layoutNodes, anchorPositions }
     }
 
     const containerWidth = containerRef.current.clientWidth || 1000
-    const { positions, childPositions, layoutNodes } = computePositions(containerWidth)
+    const { positions, childPositions, layoutNodes, anchorPositions } = computePositions(containerWidth)
 
     // ─── Build elements with CORRECT positions from the start ────
     const elements: cytoscape.ElementDefinition[] = [
@@ -212,6 +230,14 @@ export function Topology({ nodes, edges }: TopologyProps) {
         },
         position: positions[node.id] || { x: 0, y: 0 },
       })),
+      ...anchorPositions.map(anchor => ({
+        data: {
+          id: anchor.id,
+          type: 'cluster-anchor',
+          parent: anchor.parent,
+        },
+        position: { x: anchor.x, y: anchor.y },
+      })),
       ...podEntries.map(pod => ({
         data: {
           id: pod.id,
@@ -221,6 +247,7 @@ export function Topology({ nodes, edges }: TopologyProps) {
           ip: pod.ip,
           node_name: pod.node_name,
           labels: pod.labels,
+          parent: pod.node_name ? `node:${pod.node_name}` : undefined,
         },
         position: childPositions[pod.id],
       })),
@@ -272,6 +299,7 @@ export function Topology({ nodes, edges }: TopologyProps) {
             'width': 'data(width)',
             'height': 'data(height)',
             'z-index': 1,
+            'z-compound-depth': 'bottom',
           } as any,
         },
         {
@@ -298,6 +326,7 @@ export function Topology({ nodes, edges }: TopologyProps) {
             'width': 'data(width)',
             'height': 'data(height)',
             'z-index': 1,
+            'z-compound-depth': 'bottom',
             'opacity': 0.45,
           } as any,
         },
@@ -326,6 +355,7 @@ export function Topology({ nodes, edges }: TopologyProps) {
             'width': 'data(width)',
             'height': 'data(height)',
             'z-index': 1,
+            'z-compound-depth': 'bottom',
           } as any,
         },
         {
@@ -352,7 +382,19 @@ export function Topology({ nodes, edges }: TopologyProps) {
             'width': 'data(width)',
             'height': 'data(height)',
             'z-index': 1,
+            'z-compound-depth': 'bottom',
             'opacity': 0.45,
+          } as any,
+        },
+        {
+          selector: 'node[type="cluster-anchor"]',
+          style: {
+            'width': 1,
+            'height': 1,
+            'opacity': 0,
+            'events': 'no',
+            'label': '',
+            'z-index': 0,
           } as any,
         },
         {
@@ -481,13 +523,22 @@ export function Topology({ nodes, edges }: TopologyProps) {
         if (!cyRef.current || !containerRef.current) return
         const cyi = cyRef.current
         const w = containerRef.current.clientWidth || 1000
-        const { positions: newPos, childPositions: newChildPos } = computePositions(w)
+        const {
+          positions: newPos,
+          childPositions: newChildPos,
+          anchorPositions: newAnchorPositions,
+        } = computePositions(w)
+        const newAnchorPos = newAnchorPositions.reduce((acc, anchor) => {
+          acc[anchor.id] = { x: anchor.x, y: anchor.y }
+          return acc
+        }, {} as Record<string, { x: number; y: number }>)
 
         // Apply new positions to all nodes
         cyi.nodes().forEach((n: any) => {
           const id = n.id()
           if (newPos[id]) n.position(newPos[id])
           if (newChildPos[id]) n.position(newChildPos[id])
+          if (newAnchorPos[id]) n.position(newAnchorPos[id])
         })
         cyi.fit(undefined, 30)
       }, 200)
