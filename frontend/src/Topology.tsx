@@ -196,7 +196,6 @@ export function Topology({ nodes, edges }: TopologyProps) {
             },
             'border-color': (ele: any) => ele.data('color') || '#6366F1',
             'border-width': 2,
-            'border-style': 'solid',
             'border-opacity': 0.5,
             'label': (ele: any) => {
               const label = ele.data('label') || ''
@@ -355,7 +354,6 @@ export function Topology({ nodes, edges }: TopologyProps) {
       const nsWidth = 300
       const nsHeight = 220
       const gapX = 30
-      const gapY = 30
       const rowGap = 40
 
       // Separate nodes by type
