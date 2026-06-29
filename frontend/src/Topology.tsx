@@ -343,12 +343,11 @@ export function Topology({ nodes, edges }: TopologyProps) {
       n.position({ x: svcX, y: 80 + i * 90 })
     })
 
-    // ── Arrange children (pods) in a grid inside each compound node ──
+    // ── Arrange children (pods) in a grid inside each compound node ──      // NOTE: Cytoscape.js child positions are RELATIVE to their parent's center.
     cy.nodes('[type="clusternode"]').each((parent: any) => {
       const children = parent.children()
       if (children.length === 0) return
 
-      const pPos = parent.position()
       const innerW = nodeW - 40
       const innerH = nodeH - 70
       const cols = Math.min(Math.max(1, Math.ceil(Math.sqrt(children.length))), 4)
@@ -357,8 +356,9 @@ export function Topology({ nodes, edges }: TopologyProps) {
       const cellH = Math.min(innerH / rows, 80)
       const gridW = cols * cellW
       const gridH = rows * cellH
-      const startX = pPos.x - gridW / 2 + cellW / 2
-      const startY = pPos.y - gridH / 2 + cellH / 2 + 10
+      // Use coordinates relative to parent center (not absolute)
+      const startX = -gridW / 2 + cellW / 2
+      const startY = -gridH / 2 + cellH / 2 + 10
 
       children.forEach((child: any, idx: number) => {
         const col = idx % cols
