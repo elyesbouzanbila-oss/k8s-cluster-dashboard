@@ -722,6 +722,72 @@ body {
   color: var(--danger);
 }
 
+/* ─── Namespace Sections (Network Panel) ─────────────────────── */
+.ns-sections {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.ns-section {
+  background-color: var(--surface);
+  border: 1px solid var(--border);
+  border-left: 4px solid;
+  border-radius: var(--radius);
+  overflow: hidden;
+  transition: border-color 0.2s ease;
+}
+
+.ns-section:hover {
+  border-color: var(--border-hover);
+}
+
+.ns-section-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 14px 18px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+  transition: background-color 0.15s ease;
+  text-align: left;
+}
+
+.ns-section-header:hover {
+  background-color: rgba(255, 255, 255, 0.04);
+}
+
+.ns-chevron {
+  flex-shrink: 0;
+  transition: transform 0.2s ease;
+  opacity: 0.6;
+}
+
+.ns-section-title {
+  flex: 1;
+  min-width: 0;
+  text-transform: uppercase;
+  font-size: 13px;
+  letter-spacing: 0.6px;
+}
+
+.ns-section-count {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-tertiary);
+  opacity: 0.7;
+  flex-shrink: 0;
+}
+
+.ns-section .pod-list {
+  padding: 0 16px 16px;
+}
+
 /* ─── Pod Cards ───────────────────────────────────────────────── */
 .pod-list {
   display: grid;
