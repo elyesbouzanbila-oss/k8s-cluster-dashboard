@@ -13,6 +13,7 @@ interface TopologyNode {
   role?: 'master' | 'worker'
   node_ip?: string
   capacity?: Record<string, string>
+  ready?: boolean
 }
 
 interface TopologyEdge {
@@ -58,6 +59,7 @@ export function Topology({ nodes, edges }: TopologyProps) {
   const workerNodes = clusterNodes.filter(n => n.role === 'worker')
   const podNodes = nodes.filter(n => n.type === 'pod')
   const serviceNodes = nodes.filter(n => n.type === 'service')
+  const offlineNodes = clusterNodes.filter(n => n.ready === false)
 
   useEffect(() => {
     if (!containerRef.current || nodes.length === 0) return
@@ -77,6 +79,7 @@ export function Topology({ nodes, edges }: TopologyProps) {
           role: node.role,
           ip: node.ip,
           capacity: node.capacity,
+          ready: node.ready !== false ? 'true' : 'false',
         },
         position: { x: 0, y: 0 },
       })),
@@ -118,9 +121,9 @@ export function Topology({ nodes, edges }: TopologyProps) {
       container: containerRef.current,
       elements,
       style: [
-        // ── Compound cluster node (master) ──
+        // ── Compound cluster node (master, online) ──
         {
-          selector: 'node[type="clusternode"][role="master"]',
+          selector: 'node[type="clusternode"][role="master"][ready="true"]',
           style: {
             'background-color': COLORS.masterBg,
             'border-color': COLORS.masterBorder,
@@ -147,9 +150,38 @@ export function Topology({ nodes, edges }: TopologyProps) {
             'height': '260px',
           } as any,
         },
-        // ── Compound cluster node (worker) ──
+        // ── Compound cluster node (master, offline) ──
         {
-          selector: 'node[type="clusternode"][role="worker"]',
+          selector: 'node[type="clusternode"][role="master"][ready="false"]',
+          style: {
+            'background-color': 'rgba(100, 100, 100, 0.06)',
+            'border-color': 'rgba(239, 68, 68, 0.35)',
+            'border-width': 2,
+            'border-style': 'solid',
+            'border-opacity': 0.6,
+            'label': (ele: any) => {
+              const name = ele.data('label') || ''
+              return `${name}\n(OFFLINE)`
+            },
+            'color': 'rgba(239, 68, 68, 0.6)',
+            'font-size': '13px',
+            'font-weight': '700',
+            'text-valign': 'top',
+            'text-halign': 'center',
+            'text-wrap': 'wrap',
+            'padding': '20px',
+            'shape': 'round-rectangle',
+            'text-margin-y': 4,
+            'min-width': '280px',
+            'min-height': '200px',
+            'width': '320px',
+            'height': '260px',
+            'opacity': 0.45,
+          } as any,
+        },
+        // ── Compound cluster node (worker, online) ──
+        {
+          selector: 'node[type="clusternode"][role="worker"][ready="true"]',
           style: {
             'background-color': COLORS.workerBg,
             'border-color': COLORS.workerBorder,
@@ -174,6 +206,35 @@ export function Topology({ nodes, edges }: TopologyProps) {
             'min-height': '200px',
             'width': '320px',
             'height': '260px',
+          } as any,
+        },
+        // ── Compound cluster node (worker, offline) ──
+        {
+          selector: 'node[type="clusternode"][role="worker"][ready="false"]',
+          style: {
+            'background-color': 'rgba(100, 100, 100, 0.06)',
+            'border-color': 'rgba(239, 68, 68, 0.35)',
+            'border-width': 2,
+            'border-style': 'solid',
+            'border-opacity': 0.6,
+            'label': (ele: any) => {
+              const name = ele.data('label') || ''
+              return `${name}\n(OFFLINE)`
+            },
+            'color': 'rgba(239, 68, 68, 0.6)',
+            'font-size': '13px',
+            'font-weight': '700',
+            'text-valign': 'top',
+            'text-halign': 'center',
+            'text-wrap': 'wrap',
+            'padding': '20px',
+            'shape': 'round-rectangle',
+            'text-margin-y': 4,
+            'min-width': '280px',
+            'min-height': '200px',
+            'width': '320px',
+            'height': '260px',
+            'opacity': 0.45,
           } as any,
         },
         // ── Pod nodes inside compound parents ──
@@ -369,6 +430,9 @@ export function Topology({ nodes, edges }: TopologyProps) {
     // Run initial layout
     layoutGraph(cy, containerRef.current)
 
+    // Reveal the graph after layout is done (prevents flash of all-zero positions)
+    containerRef.current.style.visibility = 'visible'
+
     // ── ResizeObserver: re-layout on container size change (debounced) ──
     let resizeTimer: ReturnType<typeof setTimeout> | null = null
     const onContainerResize = () => {
@@ -409,7 +473,9 @@ export function Topology({ nodes, edges }: TopologyProps) {
       const info: string[] = []
 
       if (d.type === 'clusternode') {
-        info.push(`🖥️  Node: ${d.label}`)
+        const isOnline = d.ready !== 'false'
+        info.push(`${isOnline ? '🟢' : '🔴'}  Node: ${d.label}`)
+        if (!isOnline) info.push(`⚠️  Status: Offline`)
         info.push(`🎯 Role: ${d.role === 'master' ? 'Control Plane (Master)' : 'Worker'}`)
         if (d.ip) info.push(`🌐 IP: ${d.ip}`)
         if (d.capacity) {
@@ -480,7 +546,7 @@ export function Topology({ nodes, edges }: TopologyProps) {
         </div>
         <div className="stat">
           <span className="stat-dot worker-dot" />
-          <span>Workers: {workerNodes.length}</span>
+          <span>Workers: {workerNodes.length}{offlineNodes.length > 0 && ` (${offlineNodes.length} offline)`}</span>
         </div>
         <div className="stat">
           <span className="stat-dot pod-dot" />

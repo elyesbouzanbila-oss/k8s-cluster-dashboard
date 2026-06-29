@@ -89,12 +89,20 @@ async def get_topology(
 					ip = addr.address
 					break
 
+			# Determine if node is ready
+			ready = True
+			for condition in n.status.conditions or []:
+				if condition.type == "Ready":
+					ready = condition.status == "True"
+					break
+
 			nodes.append({
 				"id": f"node:{name}",
 				"type": "node",
 				"name": name,
 				"role": role,
 				"ip": ip,
+				"ready": ready,
 				"capacity": {
 					"cpu": str(n.status.capacity.get("cpu", "")),
 					"memory": str(n.status.capacity.get("memory", ""))

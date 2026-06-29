@@ -7,7 +7,8 @@ MOCK_NODES = [
         "ip": "192.168.1.10",
         "kubelet_version": "v1.28.2",
         "os_image": "Ubuntu 22.04 LTS",
-        "capacity": {"cpu": "4", "memory": "16Gi"}
+        "capacity": {"cpu": "4", "memory": "16Gi"},
+        "ready": True
     },
     {
         "name": "worker-1",
@@ -15,7 +16,8 @@ MOCK_NODES = [
         "ip": "192.168.1.20",
         "kubelet_version": "v1.28.2",
         "os_image": "Ubuntu 22.04 LTS",
-        "capacity": {"cpu": "8", "memory": "32Gi"}
+        "capacity": {"cpu": "8", "memory": "32Gi"},
+        "ready": True
     },
     {
         "name": "worker-2",
@@ -23,7 +25,8 @@ MOCK_NODES = [
         "ip": "192.168.1.21",
         "kubelet_version": "v1.28.2",
         "os_image": "Ubuntu 22.04 LTS",
-        "capacity": {"cpu": "8", "memory": "32Gi"}
+        "capacity": {"cpu": "8", "memory": "32Gi"},
+        "ready": False
     }
 ]
 
@@ -160,7 +163,8 @@ def build_mock_topology():
             "ip": n["ip"],
             "kubelet_version": n.get("kubelet_version"),
             "os_image": n.get("os_image"),
-            "capacity": n.get("capacity")
+            "capacity": n.get("capacity"),
+            "ready": n.get("ready", True)
         })
 
     services_data = []
