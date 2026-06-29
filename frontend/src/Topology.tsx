@@ -67,74 +67,134 @@ export function Topology({ nodes, edges }: TopologyProps) {
     const serviceEntries = nodes.filter(n => n.type === 'service')
 
     // ─── Pre-compute ALL positions BEFORE creating cytoscape ─────
+    type LayoutNode = TopologyNode & {
+      width: number
+      height: number
+      x: number
+      y: number
+    }
+
     const computePositions = (containerWidth: number) => {
-      const nodeW = 320
-      const nodeH = 260
-      const gapX = 30
-      const gapY = 40
+      const clusterW = 340
+      const clusterMinH = 260
+      const clusterGapX = 36
+      const rowGapY = 56
+      const outerPad = 48
+      const podW = 78
+      const podH = 56
+      const podGapX = 18
+      const podGapY = 18
+      const clusterHeaderH = 72
+      const serviceW = 118
+      const serviceH = 66
+      const serviceGapX = 22
+      const serviceGapY = 24
+      const serviceAreaGap = serviceEntries.length > 0 ? 78 : 0
 
       const masters = clusterNodeEntries.filter(n => n.role === 'master')
       const workers = clusterNodeEntries.filter(n => n.role === 'worker')
       const services = serviceEntries
 
-      const rowWidth = (count: number) => Math.max(0, count * (nodeW + gapX) - gapX)
+      const podCounts = clusterNodeEntries.reduce((acc, node) => {
+        acc[node.id] = podEntries.filter(p => p.node_name === node.name).length
+        return acc
+      }, {} as Record<string, number>)
+
+      const clusterHeight = (node: TopologyNode) => {
+        const count = podCounts[node.id] || 0
+        const cols = Math.max(1, Math.floor((clusterW - 48 + podGapX) / (podW + podGapX)))
+        const rows = Math.ceil(count / cols)
+        const podAreaH = rows > 0 ? rows * podH + Math.max(0, rows - 1) * podGapY : 0
+        return Math.max(clusterMinH, clusterHeaderH + podAreaH + 40)
+      }
+
+      const rowWidth = (count: number) => Math.max(0, count * (clusterW + clusterGapX) - clusterGapX)
       const masterRowW = rowWidth(masters.length)
       const workerRowW = rowWidth(workers.length)
-      const svcAreaW = services.length > 0 ? 150 : 0
-      const maxRowW = Math.max(masterRowW, workerRowW) + svcAreaW
-      const leftMargin = Math.max(20, (containerWidth - maxRowW) / 2)
-      const masterY = nodeH / 2 + 20
-      const workerY = masterY + nodeH / 2 + gapY + nodeH / 2
+      const clusterAreaW = Math.max(masterRowW, workerRowW, clusterW)
+      const serviceCols = services.length > 0
+        ? Math.max(1, Math.min(2, Math.floor((containerWidth * 0.28) / (serviceW + serviceGapX))))
+        : 0
+      const serviceAreaW = serviceCols > 0 ? serviceCols * serviceW + Math.max(0, serviceCols - 1) * serviceGapX : 0
+      const contentW = clusterAreaW + serviceAreaGap + serviceAreaW
+      const startX = Math.max(outerPad, (containerWidth - contentW) / 2)
 
       const positions: Record<string, { x: number; y: number }> = {}
+      const layoutNodes: Record<string, LayoutNode> = {}
 
-      const mStartX = leftMargin + (maxRowW - svcAreaW - masterRowW) / 2 + nodeW / 2
-      masters.forEach((n, i) => {
-        positions[n.id] = { x: mStartX + i * (nodeW + gapX), y: masterY }
+      const placeClusterRow = (row: TopologyNode[], topY: number, rowAreaW: number) => {
+        const rowStartX = startX + (clusterAreaW - rowAreaW) / 2
+        row.forEach((node, i) => {
+          const width = clusterW
+          const height = clusterHeight(node)
+          const x = rowStartX + i * (clusterW + clusterGapX) + width / 2
+          const y = topY + height / 2
+          positions[node.id] = { x, y }
+          layoutNodes[node.id] = { ...node, width, height, x, y }
+        })
+      }
+
+      const masterTopY = outerPad
+      placeClusterRow(masters, masterTopY, masterRowW)
+
+      const masterRowH = masters.length > 0 ? Math.max(...masters.map(clusterHeight)) : 0
+      const workerTopY = masterTopY + masterRowH + (workers.length > 0 ? rowGapY : 0)
+      placeClusterRow(workers, workerTopY, workerRowW)
+
+      const serviceStartX = startX + clusterAreaW + serviceAreaGap
+      services.forEach((node, i) => {
+        const col = serviceCols > 0 ? i % serviceCols : 0
+        const row = serviceCols > 0 ? Math.floor(i / serviceCols) : i
+        positions[node.id] = {
+          x: serviceStartX + col * (serviceW + serviceGapX) + serviceW / 2,
+          y: outerPad + row * (serviceH + serviceGapY) + serviceH / 2,
+        }
       })
 
-      const wStartX = leftMargin + (maxRowW - svcAreaW - workerRowW) / 2 + nodeW / 2
-      workers.forEach((n, i) => {
-        positions[n.id] = { x: wStartX + i * (nodeW + gapX), y: workerY }
-      })
-
-      const svcX = leftMargin + maxRowW - svcAreaW + 30 + 45
-      services.forEach((n, i) => {
-        positions[n.id] = { x: svcX, y: 80 + i * 90 }
-      })
-
-      // Pre-compute child positions (relative to parent center)
       const childPositions: Record<string, { x: number; y: number }> = {}
       masters.concat(workers).forEach(parent => {
+        const parentLayout = layoutNodes[parent.id]
+        if (!parentLayout) return
+
         const children = podEntries.filter(p => p.node_name === parent.name)
         if (children.length === 0) return
 
-        const innerW = nodeW - 40
-        const innerH = nodeH - 70
-        const cols = Math.min(Math.max(1, Math.ceil(Math.sqrt(children.length))), 4)
+        const innerW = parentLayout.width - 48
+        const cols = Math.max(1, Math.floor((innerW + podGapX) / (podW + podGapX)))
         const rows = Math.ceil(children.length / cols)
-        const cellW = Math.min(innerW / cols, 100)
-        const cellH = Math.min(innerH / rows, 80)
-        const gridW = cols * cellW
-        const gridH = rows * cellH
-        const startX = -gridW / 2 + cellW / 2
-        const startY = -gridH / 2 + cellH / 2 + 10
+        const gridW = cols * podW + Math.max(0, cols - 1) * podGapX
+        const gridH = rows * podH + Math.max(0, rows - 1) * podGapY
+        const podStartX = parentLayout.x - gridW / 2 + podW / 2
+        const podStartY = parentLayout.y - parentLayout.height / 2 + clusterHeaderH + (parentLayout.height - clusterHeaderH - gridH) / 2 + podH / 2
 
         children.forEach((child, idx) => {
           const col = idx % cols
           const row = Math.floor(idx / cols)
           childPositions[child.id] = {
-            x: startX + col * cellW,
-            y: startY + row * cellH,
+            x: podStartX + col * (podW + podGapX),
+            y: podStartY + row * (podH + podGapY),
           }
         })
       })
 
-      return { positions, childPositions }
+      const orphanPods = podEntries.filter(p => !childPositions[p.id])
+      const workerRowH = workers.length > 0 ? Math.max(...workers.map(clusterHeight)) : 0
+      const orphanTopY = workerTopY + workerRowH + (orphanPods.length > 0 ? rowGapY : 0)
+      const orphanCols = Math.max(1, Math.floor(clusterAreaW / (podW + podGapX)))
+      orphanPods.forEach((pod, i) => {
+        const col = i % orphanCols
+        const row = Math.floor(i / orphanCols)
+        childPositions[pod.id] = {
+          x: startX + col * (podW + podGapX) + podW / 2,
+          y: orphanTopY + row * (podH + podGapY) + podH / 2,
+        }
+      })
+
+      return { positions, childPositions, layoutNodes }
     }
 
     const containerWidth = containerRef.current.clientWidth || 1000
-    const { positions, childPositions } = computePositions(containerWidth)
+    const { positions, childPositions, layoutNodes } = computePositions(containerWidth)
 
     // ─── Build elements with CORRECT positions from the start ────
     const elements: cytoscape.ElementDefinition[] = [
@@ -147,6 +207,8 @@ export function Topology({ nodes, edges }: TopologyProps) {
           ip: node.ip,
           capacity: node.capacity,
           ready: node.ready !== false ? 'true' : 'false',
+          width: layoutNodes[node.id]?.width || 340,
+          height: layoutNodes[node.id]?.height || 260,
         },
         position: positions[node.id] || { x: 0, y: 0 },
       })),
@@ -159,7 +221,6 @@ export function Topology({ nodes, edges }: TopologyProps) {
           ip: pod.ip,
           node_name: pod.node_name,
           labels: pod.labels,
-          parent: pod.node_name ? `node:${pod.node_name}` : undefined,
         },
         position: childPositions[pod.id],
       })),
@@ -210,8 +271,8 @@ export function Topology({ nodes, edges }: TopologyProps) {
             'text-margin-y': 4,
             'min-width': '280px',
             'min-height': '200px',
-            'width': '320px',
-            'height': '260px',
+            'width': (ele: any) => ele.data('width') || 340,
+            'height': (ele: any) => ele.data('height') || 260,
           } as any,
         },
         {
@@ -237,8 +298,8 @@ export function Topology({ nodes, edges }: TopologyProps) {
             'text-margin-y': 4,
             'min-width': '280px',
             'min-height': '200px',
-            'width': '320px',
-            'height': '260px',
+            'width': (ele: any) => ele.data('width') || 340,
+            'height': (ele: any) => ele.data('height') || 260,
             'opacity': 0.45,
           } as any,
         },
@@ -266,8 +327,8 @@ export function Topology({ nodes, edges }: TopologyProps) {
             'text-margin-y': 4,
             'min-width': '280px',
             'min-height': '200px',
-            'width': '320px',
-            'height': '260px',
+            'width': (ele: any) => ele.data('width') || 340,
+            'height': (ele: any) => ele.data('height') || 260,
           } as any,
         },
         {
@@ -293,8 +354,8 @@ export function Topology({ nodes, edges }: TopologyProps) {
             'text-margin-y': 4,
             'min-width': '280px',
             'min-height': '200px',
-            'width': '320px',
-            'height': '260px',
+            'width': (ele: any) => ele.data('width') || 340,
+            'height': (ele: any) => ele.data('height') || 260,
             'opacity': 0.45,
           } as any,
         },
@@ -319,9 +380,10 @@ export function Topology({ nodes, edges }: TopologyProps) {
             'border-color': 'rgba(255, 255, 255, 0.3)',
             'border-opacity': 0.5,
             'shape': 'ellipse',
-            'width': '72px',
+            'width': '78px',
             'height': '56px',
             'min-zoomed-font-size': 6,
+            'z-index': 20,
           } as any,
         },
         {
@@ -344,9 +406,10 @@ export function Topology({ nodes, edges }: TopologyProps) {
             'border-width': 2,
             'border-color': 'rgba(255, 255, 255, 0.35)',
             'shape': 'round-rectangle',
-            'width': '90px',
-            'height': '60px',
+            'width': '118px',
+            'height': '66px',
             'min-zoomed-font-size': 7,
+            'z-index': 15,
           } as any,
         },
         {
@@ -470,7 +533,7 @@ export function Topology({ nodes, edges }: TopologyProps) {
         if (d.capacity) {
           info.push(`💻 CPU: ${d.capacity.cpu || '?'}  |  RAM: ${d.capacity.memory || '?'}`)
         }
-        const childCount = node.children().length
+        const childCount = podEntries.filter(p => p.node_name === d.label).length
         info.push(`📦 Pods: ${childCount}`)
       } else if (d.type === 'pod') {
         info.push(`📦 Pod: ${d.label}`)
