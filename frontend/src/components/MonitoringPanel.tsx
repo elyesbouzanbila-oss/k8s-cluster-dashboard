@@ -62,11 +62,10 @@ function formatCPU(cpu: number): string {
 }
 
 // ─── Time-Series Chart ─────────────────────────────────────────
-function TimeSeriesChart({ series, title, unit, color }: {
+function TimeSeriesChart({ series, title, unit }: {
   series: PromSeries[]
   title: string
   unit: 'cpu' | 'memory'
-  color: string
 }) {
   if (!series.length || !series[0].values.length) {
     return (
@@ -130,7 +129,7 @@ function TimeSeriesChart({ series, title, unit, color }: {
               ticks: {
                 color: '#8b949e',
                 font: { size: 10 },
-                callback: (val) => formatValue(val as number),
+                callback: (val) => formatValue(typeof val === 'number' ? val : 0),
               },
               grid: {
                 color: 'rgba(255,255,255,0.05)',
