@@ -154,7 +154,7 @@ function TimeSeriesChart({ series, title, unit }: {
               titleColor: '#e6edf3',
               bodyColor: '#8b949e',
               callbacks: {
-                label: (ctx) => `${ctx.dataset.label}: ${formatValue(ctx.parsed.y)}`,
+                label: (ctx) => `${ctx.dataset.label}: ${formatValue(ctx.parsed.y ?? 0)}`,
               },
             },
           },
