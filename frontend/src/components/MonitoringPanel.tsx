@@ -129,7 +129,7 @@ function TimeSeriesChart({ series, title, unit }: {
               ticks: {
                 color: '#8b949e',
                 font: { size: 10 },
-                callback: (val) => formatValue(typeof val === 'number' ? val : 0),
+                callback: (val: number | string) => formatValue(typeof val === 'number' ? val : 0),
               },
               grid: {
                 color: 'rgba(255,255,255,0.05)',
@@ -215,8 +215,8 @@ function PodDetailCharts({ namespace, pod }: { namespace: string; pod: string })
 
   return (
     <div className="monitoring-pod-charts">
-      <TimeSeriesChart series={cpuSeries} title="CPU Usage" unit="cpu" color="#3b82f6" />
-      <TimeSeriesChart series={memSeries} title="Memory Usage" unit="memory" color="#10b981" />
+      <TimeSeriesChart series={cpuSeries} title="CPU Usage" unit="cpu" />
+      <TimeSeriesChart series={memSeries} title="Memory Usage" unit="memory" />
     </div>
   )
 }
@@ -289,8 +289,8 @@ function NamespaceOverviewCharts({ namespace }: { namespace: string }) {
         <div className="monitoring-chart-loading"><div className="spinner" /></div>
       ) : (
         <div className="monitoring-ns-charts-grid">
-          <TimeSeriesChart series={cpuSeries} title="CPU by Pod" unit="cpu" color="#3b82f6" />
-          <TimeSeriesChart series={memSeries} title="Memory by Pod" unit="memory" color="#10b981" />
+          <TimeSeriesChart series={cpuSeries} title="CPU by Pod" unit="cpu" />
+          <TimeSeriesChart series={memSeries} title="Memory by Pod" unit="memory" />
         </div>
       )}
     </div>
