@@ -97,3 +97,24 @@ export interface StorageData {
   storageClasses: StorageClass[]
   persistentVolumeClaims: PVC[]
 }
+
+export interface PromSeriesPoint {
+  timestamp: number  // Unix seconds
+  value: number
+}
+
+export interface PromSeries {
+  label: string         // container name or pod name
+  values: PromSeriesPoint[]
+}
+
+export interface PrometheusResponse {
+  status: 'success' | 'mock' | 'error'
+  data: {
+    resultType: string
+    result: Array<{
+      metric: Record<string, string>
+      values: Array<[number, string]>
+    }>
+  } | null
+}

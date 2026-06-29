@@ -18,6 +18,10 @@ class Settings(BaseSettings):
     K8S_KUBECONFIG: Optional[str] = None
     K8S_KUBECONFIG_PATH: Optional[str] = None
 
+    # Prometheus connection settings
+    PROMETHEUS_URL: str = "http://prometheus-k8s.monitoring.svc:9090"
+    PROMETHEUS_TIMEOUT: int = 10
+
     class Config:
         env_file = ".env"
 

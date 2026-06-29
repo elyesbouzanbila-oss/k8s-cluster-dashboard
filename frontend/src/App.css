@@ -1559,6 +1559,285 @@ body {
   }
 }
 
+/* ─── ≡ MONITORING (Prometheus time-series charts) ≡ ────────── */
+.monitoring-section {}
+
+.monitoring-subtitle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--text-tertiary);
+  margin-bottom: 24px;
+  line-height: 1.5;
+}
+
+.monitoring-ns-list {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.monitoring-ns-block {
+  border: 1px solid var(--border);
+  border-left: 4px solid;
+  border-radius: var(--radius-lg);
+  background-color: var(--surface);
+  overflow: hidden;
+  transition: border-color 0.2s ease;
+}
+
+.monitoring-ns-block:hover {
+  border-color: var(--border-hover);
+}
+
+.monitoring-ns-toggle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 14px 20px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background-color 0.15s ease;
+  text-align: left;
+}
+
+.monitoring-ns-toggle:hover {
+  background-color: rgba(255, 255, 255, 0.04);
+}
+
+.monitoring-chevron {
+  flex-shrink: 0;
+  transition: transform 0.2s ease;
+  opacity: 0.5;
+  color: var(--text-tertiary);
+}
+
+.monitoring-ns-name {
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  font-size: 13px;
+  flex: 1;
+  min-width: 0;
+}
+
+.monitoring-ns-count {
+  font-size: 12px;
+  color: var(--text-tertiary);
+  font-weight: 500;
+  flex-shrink: 0;
+}
+
+.monitoring-ns-content {
+  border-top: 1px solid var(--border);
+  padding: 16px;
+}
+
+/* ── Namespace Overview Charts ─────────────────────────── */
+.monitoring-ns-charts {}
+
+.monitoring-ns-charts-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+  gap: 12px;
+}
+
+.monitoring-ns-charts-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.monitoring-duration-picker {
+  display: flex;
+  gap: 4px;
+  background-color: rgba(255, 255, 255, 0.04);
+  border-radius: 6px;
+  padding: 3px;
+}
+
+.duration-btn {
+  padding: 4px 10px;
+  background: none;
+  border: none;
+  border-radius: 4px;
+  color: var(--text-tertiary);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  font-family: 'SF Mono', 'Courier New', monospace;
+}
+
+.duration-btn:hover {
+  color: var(--text);
+}
+
+.duration-btn.active {
+  background-color: var(--primary);
+  color: white;
+}
+
+.monitoring-ns-charts-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+/* ── Individual Chart ──────────────────────────────────── */
+.monitoring-chart {
+  background-color: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+  min-height: 200px;
+}
+
+.monitoring-chart-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
+.monitoring-chart canvas {
+  max-width: 100%;
+}
+
+.monitoring-chart-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 40px 20px;
+  color: var(--text-tertiary);
+  font-size: 13px;
+  background-color: rgba(255, 255, 255, 0.02);
+  border: 1px dashed var(--border);
+  border-radius: var(--radius);
+  min-height: 160px;
+}
+
+.monitoring-chart-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 40px 20px;
+  color: var(--text-tertiary);
+  font-size: 13px;
+}
+
+/* ── Pod List below charts ─────────────────────────────── */
+.monitoring-pod-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+
+.monitoring-pod-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background-color: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-secondary);
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: 'SF Mono', 'Courier New', monospace;
+}
+
+.monitoring-pod-chip:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+  background-color: var(--primary-light);
+  transform: translateY(-1px);
+}
+
+.monitoring-pod-chip svg {
+  flex-shrink: 0;
+  opacity: 0.6;
+}
+
+/* ── Pod Detail View ───────────────────────────────────── */
+.monitoring-detail-panel {}
+
+.monitoring-detail-header {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.monitoring-detail-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-secondary);
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  align-self: flex-start;
+}
+
+.monitoring-detail-back:hover {
+  color: var(--text);
+  border-color: var(--primary);
+  background-color: var(--primary-light);
+}
+
+.monitoring-detail-header h3 {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.monitoring-detail-ns {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-tertiary);
+  background-color: rgba(255, 255, 255, 0.05);
+  padding: 2px 8px;
+  border-radius: 4px;
+  margin-left: 4px;
+}
+
+.monitoring-pod-charts {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+@media (max-width: 1024px) {
+  .monitoring-ns-charts-grid,
+  .monitoring-pod-charts {
+    grid-template-columns: 1fr;
+  }
+}
+
 /* ─── Storage Panel ───────────────────────────────────────────── */
 .storage-table-wrapper {
   overflow-x: auto;

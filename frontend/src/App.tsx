@@ -6,6 +6,7 @@ import { SecurityPanel } from './components/SecurityPanel'
 import { ThreatPanel } from './components/ThreatPanel'
 import { MetricsPanel } from './components/MetricsPanel'
 import { StoragePanel } from './components/StoragePanel'
+import { MonitoringPanel } from './components/MonitoringPanel'
 import type { Pod, TopologyNode, TopologyEdge, ThreatEvent, RbacBinding, PrivilegedPod, NodeMetric, PodMetric, StorageData } from './types'
 
 // Use relative URLs (nginx proxies /api/*, /metrics/*, /config/* to backend in-cluster)
@@ -92,6 +93,15 @@ const TABS: TabDef[] = [
         <ellipse cx="12" cy="5" rx="9" ry="3" />
         <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3" />
         <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5" />
+      </svg>
+    ),
+  },
+  {
+    id: 'monitoring',
+    label: 'Monitoring',
+    icon: () => (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
       </svg>
     ),
   },
@@ -420,6 +430,9 @@ function App() {
       case 'storage':
         fetchStorageConfig()
         break
+      case 'monitoring':
+        fetchNodeMetrics()  // pod metrics are fetched here
+        break
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab])
@@ -512,6 +525,9 @@ function App() {
           )}
           {activeTab === 'metrics' && (
             <MetricsPanel nodeMetrics={nodeMetrics} podMetrics={podMetrics} />
+          )}
+          {activeTab === 'monitoring' && (
+            <MonitoringPanel podMetrics={podMetrics} />
           )}
           {activeTab === 'storage' && (
             <StoragePanel storageConfig={storageConfig} />

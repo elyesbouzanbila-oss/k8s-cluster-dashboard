@@ -7,6 +7,7 @@ from routers import security as security_router
 from routers import threats as threats_router
 from routers import mock
 from routers import metrics, config
+from routers import prometheus as prometheus_router
 
 
 settings = get_settings()
@@ -37,3 +38,4 @@ app.include_router(security_router.router, prefix="/api/security", tags=["securi
 app.include_router(threats_router.router, prefix="/api/threats", tags=["threats"])
 app.include_router(metrics.router, tags=["Metrics"])
 app.include_router(config.router, tags=["Cluster Configuration"])
+app.include_router(prometheus_router.router)
