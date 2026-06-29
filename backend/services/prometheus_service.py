@@ -180,12 +180,12 @@ async def get_namespace_memory_range(
 # ─── Mock data for when Prometheus is not reachable ──────────────
 
 MOCK_POD_CPU_SERIES = [
-    {"container": "main", "values": [
+    {"metric": {"container": "main"}, "values": [
         [t, str(0.08 + 0.04 * (t % 20) / 20 + 0.02 * (t % 7) / 7)]
         for t in range(int(datetime.datetime.utcnow().timestamp()) - 3600,
                        int(datetime.datetime.utcnow().timestamp()), 30)
     ]},
-    {"container": "sidecar", "values": [
+    {"metric": {"container": "sidecar"}, "values": [
         [t, str(0.02 + 0.01 * (t % 15) / 15)]
         for t in range(int(datetime.datetime.utcnow().timestamp()) - 3600,
                        int(datetime.datetime.utcnow().timestamp()), 30)
@@ -193,12 +193,12 @@ MOCK_POD_CPU_SERIES = [
 ]
 
 MOCK_POD_MEM_SERIES = [
-    {"container": "main", "values": [
+    {"metric": {"container": "main"}, "values": [
         [t, str(250 + 10 * (t % 30) / 30)]
         for t in range(int(datetime.datetime.utcnow().timestamp()) - 3600,
                        int(datetime.datetime.utcnow().timestamp()), 30)
     ]},
-    {"container": "sidecar", "values": [
+    {"metric": {"container": "sidecar"}, "values": [
         [t, str(45 + 5 * (t % 20) / 20)]
         for t in range(int(datetime.datetime.utcnow().timestamp()) - 3600,
                        int(datetime.datetime.utcnow().timestamp()), 30)
@@ -206,12 +206,12 @@ MOCK_POD_MEM_SERIES = [
 ]
 
 MOCK_NS_CPU_SERIES = [
-    {"pod": "api-server-prod-1", "values": [
+    {"metric": {"pod": "api-server-prod-1"}, "values": [
         [t, str(0.15 + 0.05 * (t % 25) / 25)]
         for t in range(int(datetime.datetime.utcnow().timestamp()) - 3600,
                        int(datetime.datetime.utcnow().timestamp()), 30)
     ]},
-    {"pod": "redis-cache", "values": [
+    {"metric": {"pod": "redis-cache"}, "values": [
         [t, str(0.01 + 0.005 * (t % 10) / 10)]
         for t in range(int(datetime.datetime.utcnow().timestamp()) - 3600,
                        int(datetime.datetime.utcnow().timestamp()), 30)
@@ -219,12 +219,12 @@ MOCK_NS_CPU_SERIES = [
 ]
 
 MOCK_NS_MEM_SERIES = [
-    {"pod": "api-server-prod-1", "values": [
+    {"metric": {"pod": "api-server-prod-1"}, "values": [
         [t, str(300 + 20 * (t % 35) / 35)]
         for t in range(int(datetime.datetime.utcnow().timestamp()) - 3600,
                        int(datetime.datetime.utcnow().timestamp()), 30)
     ]},
-    {"pod": "redis-cache", "values": [
+    {"metric": {"pod": "redis-cache"}, "values": [
         [t, str(8 + 2 * (t % 15) / 15)]
         for t in range(int(datetime.datetime.utcnow().timestamp()) - 3600,
                        int(datetime.datetime.utcnow().timestamp()), 30)

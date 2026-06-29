@@ -41,7 +41,9 @@ function getNsColor(ns: string): string {
 function parsePromResult(result: PrometheusResponse['data']): PromSeries[] {
   if (!result || !result.result) return []
   return result.result.map((r) => ({
-    label: Object.values(r.metric).filter(Boolean).join(' / ') || 'series',
+    label: r.metric
+      ? Object.values(r.metric).filter(Boolean).join(' / ') || 'series'
+      : 'series',
     values: (r.values || []).map(([ts, val]) => ({
       timestamp: ts,
       value: parseFloat(val),
