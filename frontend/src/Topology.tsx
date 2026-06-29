@@ -52,15 +52,12 @@ export function Topology({ nodes, edges }: TopologyProps) {
   const toastRef = useRef<HTMLDivElement>(null)
   const cyRef = useRef<cytoscape.Core | null>(null)
 
-  // Derived data
+  // Derived data for info panel
   const clusterNodes = nodes.filter(n => n.type === 'node')
   const masterNodes = clusterNodes.filter(n => n.role === 'master')
   const workerNodes = clusterNodes.filter(n => n.role === 'worker')
   const podNodes = nodes.filter(n => n.type === 'pod')
   const serviceNodes = nodes.filter(n => n.type === 'service')
-
-  // Namespace groups (derived from pod namespaces)
-  const namespaceGroups = [...new Set(podNodes.map(p => p.namespace || 'unknown'))]
 
   useEffect(() => {
     if (!containerRef.current || nodes.length === 0) return
@@ -69,44 +66,31 @@ export function Topology({ nodes, edges }: TopologyProps) {
     const podEntries = nodes.filter(n => n.type === 'pod')
     const serviceEntries = nodes.filter(n => n.type === 'service')
 
-    // Collect unique namespaces from pods
-    const namespaces = [...new Set(podEntries.map(p => p.namespace || 'unknown'))]
-
-    // ── Build Cytoscape elements ──
+    // Build Cytoscape elements
     const elements: cytoscape.ElementDefinition[] = [
-      // Cluster nodes as standalone (no longer compound parents)
+      // Cluster nodes as compound parents
       ...clusterNodeEntries.map(node => ({
         data: {
           id: node.id,
           label: node.name,
-          type: 'clusternode' as const,
+          type: 'clusternode',
           role: node.role,
           ip: node.ip,
           capacity: node.capacity,
         },
         position: { x: 0, y: 0 },
       })),
-      // Namespace compound nodes (group pods by namespace)
-      ...namespaces.map(ns => ({
-        data: {
-          id: `ns:${ns}`,
-          label: ns,
-          type: 'namespace' as const,
-          color: getNamespaceColor(ns),
-        },
-        position: { x: 0, y: 0 },
-      })),
-      // Pods as children of their namespace compound node
+      // Pods as children of their respective cluster node
       ...podEntries.map(pod => ({
         data: {
           id: pod.id,
           label: pod.name,
-          type: 'pod' as const,
+          type: 'pod',
           namespace: pod.namespace,
           ip: pod.ip,
           node_name: pod.node_name,
           labels: pod.labels,
-          parent: `ns:${pod.namespace || 'unknown'}`,
+          parent: pod.node_name ? `node:${pod.node_name}` : undefined,
         },
       })),
       // Services as standalone nodes
@@ -114,7 +98,7 @@ export function Topology({ nodes, edges }: TopologyProps) {
         data: {
           id: svc.id,
           label: svc.name,
-          type: 'service' as const,
+          type: 'service',
           namespace: svc.namespace,
           ip: svc.ip,
         },
@@ -134,7 +118,7 @@ export function Topology({ nodes, edges }: TopologyProps) {
       container: containerRef.current,
       elements,
       style: [
-        // ── Cluster node (master) ──
+        // ── Compound cluster node (master) ──
         {
           selector: 'node[type="clusternode"][role="master"]',
           style: {
@@ -149,18 +133,21 @@ export function Topology({ nodes, edges }: TopologyProps) {
               return ip ? `${name}\n${ip}` : name
             },
             'color': COLORS.master,
-            'font-size': '12px',
+            'font-size': '13px',
             'font-weight': '700',
-            'text-valign': 'center',
+            'text-valign': 'top',
             'text-halign': 'center',
             'text-wrap': 'wrap',
+            'padding': '20px',
             'shape': 'round-rectangle',
-            'text-margin-y': 2,
-            'width': '200px',
-            'height': '70px',
+            'text-margin-y': 4,
+            'min-width': '280px',
+            'min-height': '200px',
+            'width': '320px',
+            'height': '260px',
           } as any,
         },
-        // ── Cluster node (worker) ──
+        // ── Compound cluster node (worker) ──
         {
           selector: 'node[type="clusternode"][role="worker"]',
           style: {
@@ -175,50 +162,21 @@ export function Topology({ nodes, edges }: TopologyProps) {
               return ip ? `${name}\n${ip}` : name
             },
             'color': COLORS.worker,
-            'font-size': '12px',
-            'font-weight': '700',
-            'text-valign': 'center',
-            'text-halign': 'center',
-            'text-wrap': 'wrap',
-            'shape': 'round-rectangle',
-            'text-margin-y': 2,
-            'width': '200px',
-            'height': '70px',
-          } as any,
-        },
-        // ── Namespace compound node ──
-        {
-          selector: 'node[type="namespace"]',
-          style: {
-            'background-color': (ele: any) => {
-              const c = ele.data('color') || '#6366F1'
-              return c + '18' // low opacity bg
-            },
-            'border-color': (ele: any) => ele.data('color') || '#6366F1',
-            'border-width': 2,
-            'border-opacity': 0.5,
-            'label': (ele: any) => {
-              const label = ele.data('label') || ''
-              const count = ele.children().length
-              return `${label}  (${count} pod${count !== 1 ? 's' : ''})`
-            },
-            'color': (ele: any) => ele.data('color') || '#6366F1',
             'font-size': '13px',
             'font-weight': '700',
             'text-valign': 'top',
             'text-halign': 'center',
             'text-wrap': 'wrap',
-            'text-margin-y': 6,
-            'padding': '24px',
+            'padding': '20px',
             'shape': 'round-rectangle',
-            'border-style': 'dashed',
+            'text-margin-y': 4,
             'min-width': '280px',
-            'min-height': '180px',
-            'width': '300px',
-            'height': '220px',
+            'min-height': '200px',
+            'width': '320px',
+            'height': '260px',
           } as any,
         },
-        // ── Pod nodes inside namespace parents ──
+        // ── Pod nodes inside compound parents ──
         {
           selector: 'node[type="pod"]',
           style: {
@@ -305,17 +263,6 @@ export function Topology({ nodes, edges }: TopologyProps) {
             'shadow-opacity': 0.3,
           },
         },
-        {
-          selector: 'node[type="namespace"]:selected',
-          style: {
-            'border-color': '#FCD34D',
-            'border-width': 3,
-            'border-opacity': 0.8,
-            'shadow-blur': 16,
-            'shadow-color': (ele: any) => ele.data('color') || '#FCD34D',
-            'shadow-opacity': 0.4,
-          },
-        },
         // ── Edges ──
         {
           selector: 'edge',
@@ -349,68 +296,61 @@ export function Topology({ nodes, edges }: TopologyProps) {
     // ── Layout function (reusable on resize) ──
     const layoutGraph = (instance: cytoscape.Core, container: HTMLDivElement) => {
       const containerWidth = container.clientWidth || 1000
-      const clustW = 200
-      const clustH = 70
-      const nsWidth = 300
-      const nsHeight = 220
+      const nodeW = 320
+      const nodeH = 260
       const gapX = 30
-      const rowGap = 40
+      const gapY = 40
 
-      // Separate nodes by type
       const masters = instance.nodes('[type="clusternode"][role="master"]')
       const workers = instance.nodes('[type="clusternode"][role="worker"]')
-      const namespaces = instance.nodes('[type="namespace"]')
       const services = instance.nodes('[type="service"]')
 
-      // Calculate row widths
-      const rowWidth = (count: number, itemW: number) => Math.max(0, count * (itemW + gapX) - gapX)
-      const masterRowW = rowWidth(masters.length, clustW)
-      const workerRowW = rowWidth(workers.length, clustW)
-      const nsRowCount = namespaces.length
-      const nsRowW = rowWidth(nsRowCount, nsWidth)
+      const rowWidth = (count: number) => Math.max(0, count * (nodeW + gapX) - gapX)
+      const masterRowW = rowWidth(masters.length)
+      const workerRowW = rowWidth(workers.length)
       const svcAreaW = services.length > 0 ? 150 : 0
-      // Combined width of masters + workers in the same row
-      const combinedClusterW = masterRowW + (masters.length > 0 && workers.length > 0 ? gapX * 2 : 0) + workerRowW
-      const maxContentW = Math.max(combinedClusterW, nsRowW) + svcAreaW
+      const maxRowW = Math.max(masterRowW, workerRowW) + svcAreaW
 
-      const leftMargin = Math.max(20, (containerWidth - maxContentW) / 2)
+      const leftMargin = Math.max(20, (containerWidth - maxRowW) / 2)
 
-      // Y positions
-      const clustY = clustH / 2 + 20
-      const nsY = clustY + clustH / 2 + rowGap + nsHeight / 2
+      const masterY = nodeH / 2 + 20
+      const workerY = masterY + nodeH / 2 + gapY + nodeH / 2
 
-      // ── Position master + worker nodes (top row, centered as a combined group) ──
-      const clustStartX = leftMargin + (maxContentW - svcAreaW - combinedClusterW) / 2 + clustW / 2
+      // ── Position master nodes (top row, centered) ──
+      const mStartX = leftMargin + (maxRowW - svcAreaW - masterRowW) / 2 + nodeW / 2
       masters.forEach((n: any, i: number) => {
-        n.position({ x: clustStartX + i * (clustW + gapX), y: clustY })
+        n.position({ x: mStartX + i * (nodeW + gapX), y: masterY })
       })
-      const wClustOffset = masters.length > 0 ? masters.length * (clustW + gapX) + gapX * 2 : 0
+
+      // ── Position worker nodes (second row, centered) ──
+      const wStartX = leftMargin + (maxRowW - svcAreaW - workerRowW) / 2 + nodeW / 2
       workers.forEach((n: any, i: number) => {
-        n.position({ x: clustStartX + wClustOffset + i * (clustW + gapX), y: clustY })
+        n.position({ x: wStartX + i * (nodeW + gapX), y: workerY })
       })
 
-      // ── Position namespace groups (second row, centered) ──
-      const nsStartX = leftMargin + (maxContentW - svcAreaW - nsRowW) / 2 + nsWidth / 2
-      namespaces.forEach((n: any, i: number) => {
-        n.position({ x: nsStartX + i * (nsWidth + gapX), y: nsY })
+      // ── Position services (right column) ──
+      const svcX = leftMargin + maxRowW - svcAreaW + 30 + 45
+      services.forEach((n: any, i: number) => {
+        n.position({ x: svcX, y: 80 + i * 90 })
       })
 
-      // ── Position children (pods) inside each namespace node ──
-      instance.nodes('[type="namespace"]').each((parent: any) => {
+      // ── Arrange children (pods) in a grid inside each compound node ──
+      // NOTE: Cytoscape.js child positions are RELATIVE to their parent's center.
+      instance.nodes('[type="clusternode"]').each((parent: any) => {
         const children = parent.children()
         if (children.length === 0) return
 
-        const pad = 48 // padding inside namespace node
-        const innerW = nsWidth - pad * 2
-        const innerH = nsHeight - pad * 2 - 16
+        const innerW = nodeW - 40
+        const innerH = nodeH - 70
         const cols = Math.min(Math.max(1, Math.ceil(Math.sqrt(children.length))), 4)
         const rows = Math.ceil(children.length / cols)
         const cellW = Math.min(innerW / cols, 100)
         const cellH = Math.min(innerH / rows, 80)
         const gridW = cols * cellW
         const gridH = rows * cellH
+        // Use coordinates relative to parent center (not absolute)
         const startX = -gridW / 2 + cellW / 2
-        const startY = -gridH / 2 + cellH / 2 + 8
+        const startY = -gridH / 2 + cellH / 2 + 10
 
         children.forEach((child: any, idx: number) => {
           const col = idx % cols
@@ -422,14 +362,6 @@ export function Topology({ nodes, edges }: TopologyProps) {
         })
       })
 
-      // ── Position services (right column) ──
-      if (services.length > 0) {
-        const svcX = leftMargin + maxContentW - svcAreaW + 30 + 45
-        services.forEach((n: any, i: number) => {
-          n.position({ x: svcX, y: 80 + i * 90 })
-        })
-      }
-
       // Fit the viewport
       instance.fit(undefined, 30)
     }
@@ -437,7 +369,7 @@ export function Topology({ nodes, edges }: TopologyProps) {
     // Run initial layout
     layoutGraph(cy, containerRef.current)
 
-    // ── ResizeObserver ──
+    // ── ResizeObserver: re-layout on container size change (debounced) ──
     let resizeTimer: ReturnType<typeof setTimeout> | null = null
     const onContainerResize = () => {
       if (resizeTimer) clearTimeout(resizeTimer)
@@ -451,10 +383,10 @@ export function Topology({ nodes, edges }: TopologyProps) {
     observer.observe(containerRef.current)
 
     // ── Interactivity ──
-    cy.on('mouseover', 'node[type="pod"], node[type="service"], node[type="namespace"]', (event: any) => {
+    cy.on('mouseover', 'node[type="pod"], node[type="service"]', (event: any) => {
       event.target.addClass('selected')
     })
-    cy.on('mouseout', 'node[type="pod"], node[type="service"], node[type="namespace"]', (event: any) => {
+    cy.on('mouseout', 'node[type="pod"], node[type="service"]', (event: any) => {
       event.target.removeClass('selected')
     })
     cy.on('mouseover', 'node[type="clusternode"]', (event: any) => {
@@ -483,20 +415,8 @@ export function Topology({ nodes, edges }: TopologyProps) {
         if (d.capacity) {
           info.push(`💻 CPU: ${d.capacity.cpu || '?'}  |  RAM: ${d.capacity.memory || '?'}`)
         }
-        // Count pods running on this node
-        const podCount = cy.nodes(`[type="pod"][node_name = "${d.label}"]`).length
-        info.push(`📦 Pods: ${podCount}`)
-      } else if (d.type === 'namespace') {
-        info.push(`📁 Namespace: ${d.label}`)
         const childCount = node.children().length
         info.push(`📦 Pods: ${childCount}`)
-        // List which cluster nodes these pods run on
-        const nodeNames = [...new Set(
-          node.children().map((c: any) => c.data('node_name')).filter(Boolean)
-        )]
-        if (nodeNames.length > 0) {
-          info.push(`🖥️  Nodes: ${nodeNames.join(', ')}`)
-        }
       } else if (d.type === 'pod') {
         info.push(`📦 Pod: ${d.label}`)
         if (d.namespace) info.push(`📁 Namespace: ${d.namespace}`)
@@ -537,10 +457,16 @@ export function Topology({ nodes, edges }: TopologyProps) {
     }
   }, [nodes, edges])
 
-  // ── Derive counts for legend ──
+  // ── Pod counts by namespace (for legend) ──
   const namespaceCounts = podNodes.reduce((acc, node) => {
     const ns = node.namespace || 'unknown'
     acc[ns] = (acc[ns] || 0) + 1
+    return acc
+  }, {} as Record<string, number>)
+
+  const podCountByNode = podNodes.reduce((acc, pod) => {
+    const n = pod.node_name || 'unknown'
+    acc[n] = (acc[n] || 0) + 1
     return acc
   }, {} as Record<string, number>)
 
@@ -568,10 +494,6 @@ export function Topology({ nodes, edges }: TopologyProps) {
           <span className="stat-dot edge-dot" />
           <span>Connections: {edges.length}</span>
         </div>
-        <div className="stat">
-          <span className="stat-dot ns-dot" />
-          <span>Namespaces: {namespaceGroups.length}</span>
-        </div>
       </div>
 
       {/* Graph canvas */}
@@ -596,7 +518,7 @@ export function Topology({ nodes, edges }: TopologyProps) {
           ))}
         </div>
 
-        {/* Cluster nodes */}
+        {/* Node legend */}
         <div className="legend-section">
           <div className="legend-title">Cluster Nodes</div>
           {clusterNodes.map(n => (
@@ -610,12 +532,15 @@ export function Topology({ nodes, edges }: TopologyProps) {
               <span>
                 {n.name}
                 <span className="legend-ip"> {n.ip || ''}</span>
+                <span className="legend-pod-count">
+                  {' '}({podCountByNode[n.name] || 0} pods)
+                </span>
               </span>
             </div>
           ))}
         </div>
 
-        {/* Services */}
+        {/* Service legend */}
         <div className="legend-section">
           <div className="legend-title">Services</div>
           {serviceNodes.map(svc => (
@@ -641,12 +566,8 @@ export function Topology({ nodes, edges }: TopologyProps) {
             <span>Worker Node</span>
           </div>
           <div className="legend-item">
-            <div className="legend-shape ns-legend" />
-            <span>Namespace Group</span>
-          </div>
-          <div className="legend-item">
             <div className="legend-shape pod-legend" />
-            <span>Pod</span>
+            <span>Pod (with IP)</span>
           </div>
           <div className="legend-item">
             <div className="legend-shape service-legend" />
