@@ -299,79 +299,98 @@ export function Topology({ nodes, edges }: TopologyProps) {
 
     cyRef.current = cy
 
-    // ── Dynamic manual layout based on container size ──
-    const containerWidth = containerRef.current.clientWidth || 1000
-    const nodeW = 320
-    const nodeH = 260
-    const gapX = 30
-    const gapY = 40
+    // ── Layout function (reusable on resize) ──
+    const layoutGraph = (instance: cytoscape.Core, container: HTMLDivElement) => {
+      const containerWidth = container.clientWidth || 1000
+      const nodeW = 320
+      const nodeH = 260
+      const gapX = 30
+      const gapY = 40
 
-    // Separate nodes by type
-    const masters = cy.nodes('[type="clusternode"][role="master"]')
-    const workers = cy.nodes('[type="clusternode"][role="worker"]')
-    const services = cy.nodes('[type="service"]')
+      // Separate nodes by type
+      const masters = instance.nodes('[type="clusternode"][role="master"]')
+      const workers = instance.nodes('[type="clusternode"][role="worker"]')
+      const services = instance.nodes('[type="service"]')
 
-    // Calculate the total width each row needs
-    const rowWidth = (count: number) => Math.max(0, count * (nodeW + gapX) - gapX)
-    const masterRowW = rowWidth(masters.length)
-    const workerRowW = rowWidth(workers.length)
-    const svcAreaW = services.length > 0 ? 150 : 0
-    const maxRowW = Math.max(masterRowW, workerRowW) + svcAreaW
+      // Calculate the total width each row needs
+      const rowWidth = (count: number) => Math.max(0, count * (nodeW + gapX) - gapX)
+      const masterRowW = rowWidth(masters.length)
+      const workerRowW = rowWidth(workers.length)
+      const svcAreaW = services.length > 0 ? 150 : 0
+      const maxRowW = Math.max(masterRowW, workerRowW) + svcAreaW
 
-    // Center everything in the container
-    const leftMargin = Math.max(20, (containerWidth - maxRowW) / 2)
+      // Center everything in the container
+      const leftMargin = Math.max(20, (containerWidth - maxRowW) / 2)
 
-    // Y positions for each row
-    const masterY = nodeH / 2 + 20
-    const workerY = masterY + nodeH / 2 + gapY + nodeH / 2
+      // Y positions for each row
+      const masterY = nodeH / 2 + 20
+      const workerY = masterY + nodeH / 2 + gapY + nodeH / 2
 
-    // ── Position master nodes (top row, centered) ──
-    const mStartX = leftMargin + (maxRowW - svcAreaW - masterRowW) / 2 + nodeW / 2
-    masters.forEach((n: any, i: number) => {
-      n.position({ x: mStartX + i * (nodeW + gapX), y: masterY })
-    })
+      // ── Position master nodes (top row, centered) ──
+      const mStartX = leftMargin + (maxRowW - svcAreaW - masterRowW) / 2 + nodeW / 2
+      masters.forEach((n: any, i: number) => {
+        n.position({ x: mStartX + i * (nodeW + gapX), y: masterY })
+      })
 
-    // ── Position worker nodes (second row, centered) ──
-    const wStartX = leftMargin + (maxRowW - svcAreaW - workerRowW) / 2 + nodeW / 2
-    workers.forEach((n: any, i: number) => {
-      n.position({ x: wStartX + i * (nodeW + gapX), y: workerY })
-    })
+      // ── Position worker nodes (second row, centered) ──
+      const wStartX = leftMargin + (maxRowW - svcAreaW - workerRowW) / 2 + nodeW / 2
+      workers.forEach((n: any, i: number) => {
+        n.position({ x: wStartX + i * (nodeW + gapX), y: workerY })
+      })
 
-    // ── Position services (right column) ──
-    const svcX = leftMargin + maxRowW - svcAreaW + 30 + 45
-    services.forEach((n: any, i: number) => {
-      n.position({ x: svcX, y: 80 + i * 90 })
-    })
+      // ── Position services (right column) ──
+      const svcX = leftMargin + maxRowW - svcAreaW + 30 + 45
+      services.forEach((n: any, i: number) => {
+        n.position({ x: svcX, y: 80 + i * 90 })
+      })
 
-    // ── Arrange children (pods) in a grid inside each compound node ──      // NOTE: Cytoscape.js child positions are RELATIVE to their parent's center.
-    cy.nodes('[type="clusternode"]').each((parent: any) => {
-      const children = parent.children()
-      if (children.length === 0) return
+      // ── Arrange children (pods) in a grid inside each compound node ──
+      // NOTE: Cytoscape.js child positions are RELATIVE to their parent's center.
+      instance.nodes('[type="clusternode"]').each((parent: any) => {
+        const children = parent.children()
+        if (children.length === 0) return
 
-      const innerW = nodeW - 40
-      const innerH = nodeH - 70
-      const cols = Math.min(Math.max(1, Math.ceil(Math.sqrt(children.length))), 4)
-      const rows = Math.ceil(children.length / cols)
-      const cellW = Math.min(innerW / cols, 100)
-      const cellH = Math.min(innerH / rows, 80)
-      const gridW = cols * cellW
-      const gridH = rows * cellH
-      // Use coordinates relative to parent center (not absolute)
-      const startX = -gridW / 2 + cellW / 2
-      const startY = -gridH / 2 + cellH / 2 + 10
+        const innerW = nodeW - 40
+        const innerH = nodeH - 70
+        const cols = Math.min(Math.max(1, Math.ceil(Math.sqrt(children.length))), 4)
+        const rows = Math.ceil(children.length / cols)
+        const cellW = Math.min(innerW / cols, 100)
+        const cellH = Math.min(innerH / rows, 80)
+        const gridW = cols * cellW
+        const gridH = rows * cellH
+        // Use coordinates relative to parent center (not absolute)
+        const startX = -gridW / 2 + cellW / 2
+        const startY = -gridH / 2 + cellH / 2 + 10
 
-      children.forEach((child: any, idx: number) => {
-        const col = idx % cols
-        const row = Math.floor(idx / cols)
-        child.position({
-          x: startX + col * cellW,
-          y: startY + row * cellH,
+        children.forEach((child: any, idx: number) => {
+          const col = idx % cols
+          const row = Math.floor(idx / cols)
+          child.position({
+            x: startX + col * cellW,
+            y: startY + row * cellH,
+          })
         })
       })
-    })
 
-    // Fit the viewport to show all nodes
-    cy.fit(undefined, 30)
+      // Fit the viewport to show all nodes
+      instance.fit(undefined, 30)
+    }
+
+    // Run initial layout
+    layoutGraph(cy, containerRef.current)
+
+    // ── ResizeObserver: re-layout on container size change (debounced) ──
+    let resizeTimer: ReturnType<typeof setTimeout> | null = null
+    const onContainerResize = () => {
+      if (resizeTimer) clearTimeout(resizeTimer)
+      resizeTimer = setTimeout(() => {
+        if (cyRef.current && containerRef.current) {
+          layoutGraph(cyRef.current, containerRef.current)
+        }
+      }, 200)
+    }
+    const observer = new ResizeObserver(onContainerResize)
+    observer.observe(containerRef.current)
 
     // ── Interactivity ──
     cy.on('mouseover', 'node[type="pod"], node[type="service"]', (event: any) => {
@@ -447,6 +466,8 @@ export function Topology({ nodes, edges }: TopologyProps) {
 
     // Cleanup
     return () => {
+      observer.disconnect()
+      if (resizeTimer) clearTimeout(resizeTimer)
       if (cyRef.current) {
         cyRef.current.destroy()
       }
