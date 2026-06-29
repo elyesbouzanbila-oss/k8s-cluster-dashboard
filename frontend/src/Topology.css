@@ -39,6 +39,7 @@
 .worker-dot { background-color: #3B82F6; }
 .pod-dot { background-color: #10B981; }
 .service-dot { background-color: #8B5CF6; }
+.ns-dot { background-color: #6366F1; }
 .edge-dot {
   background-color: transparent;
   width: 0;
@@ -179,6 +180,13 @@
 .legend-shape.cluster-worker {
   background: rgba(59, 130, 246, 0.12);
   border-color: rgba(59, 130, 246, 0.4);
+  border-style: dashed;
+  border-radius: 5px;
+}
+
+.legend-shape.ns-legend {
+  background: rgba(99, 102, 241, 0.15);
+  border-color: rgba(99, 102, 241, 0.5);
   border-style: dashed;
   border-radius: 5px;
 }
