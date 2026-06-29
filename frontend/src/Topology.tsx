@@ -75,21 +75,21 @@ export function Topology({ nodes, edges }: TopologyProps) {
     }
 
     const computePositions = (containerWidth: number) => {
-      const clusterW = 340
-      const clusterMinH = 260
-      const clusterGapX = 36
-      const rowGapY = 56
+      const clusterW = 520
+      const clusterMinH = 320
+      const clusterGapX = 56
+      const rowGapY = 72
       const outerPad = 48
-      const podW = 78
-      const podH = 56
-      const podGapX = 18
-      const podGapY = 18
+      const podW = 72
+      const podH = 50
+      const podGapX = 16
+      const podGapY = 16
       const clusterHeaderH = 72
       const serviceW = 118
       const serviceH = 66
       const serviceGapX = 22
       const serviceGapY = 24
-      const serviceAreaGap = serviceEntries.length > 0 ? 78 : 0
+      const serviceAreaGap = serviceEntries.length > 0 ? 120 : 0
 
       const masters = clusterNodeEntries.filter(n => n.role === 'master')
       const workers = clusterNodeEntries.filter(n => n.role === 'worker')
@@ -102,7 +102,7 @@ export function Topology({ nodes, edges }: TopologyProps) {
 
       const clusterHeight = (node: TopologyNode) => {
         const count = podCounts[node.id] || 0
-        const cols = Math.max(1, Math.floor((clusterW - 48 + podGapX) / (podW + podGapX)))
+        const cols = Math.max(1, Math.floor((clusterW - 64 + podGapX) / (podW + podGapX)))
         const rows = Math.ceil(count / cols)
         const podAreaH = rows > 0 ? rows * podH + Math.max(0, rows - 1) * podGapY : 0
         return Math.max(clusterMinH, clusterHeaderH + podAreaH + 40)
@@ -159,13 +159,13 @@ export function Topology({ nodes, edges }: TopologyProps) {
         const children = podEntries.filter(p => p.node_name === parent.name)
         if (children.length === 0) return
 
-        const innerW = parentLayout.width - 48
+        const innerW = parentLayout.width - 64
         const cols = Math.max(1, Math.floor((innerW + podGapX) / (podW + podGapX)))
         const rows = Math.ceil(children.length / cols)
         const gridW = cols * podW + Math.max(0, cols - 1) * podGapX
         const gridH = rows * podH + Math.max(0, rows - 1) * podGapY
         const podStartX = parentLayout.x - gridW / 2 + podW / 2
-        const podStartY = parentLayout.y - parentLayout.height / 2 + clusterHeaderH + (parentLayout.height - clusterHeaderH - gridH) / 2 + podH / 2
+        const podStartY = parentLayout.y - parentLayout.height / 2 + clusterHeaderH + Math.max(24, (parentLayout.height - clusterHeaderH - gridH) / 2) + podH / 2
 
         children.forEach((child, idx) => {
           const col = idx % cols
@@ -207,8 +207,8 @@ export function Topology({ nodes, edges }: TopologyProps) {
           ip: node.ip,
           capacity: node.capacity,
           ready: node.ready !== false ? 'true' : 'false',
-          width: layoutNodes[node.id]?.width || 340,
-          height: layoutNodes[node.id]?.height || 260,
+          width: layoutNodes[node.id]?.width || 520,
+          height: layoutNodes[node.id]?.height || 320,
         },
         position: positions[node.id] || { x: 0, y: 0 },
       })),
@@ -269,10 +269,9 @@ export function Topology({ nodes, edges }: TopologyProps) {
             'padding': '20px',
             'shape': 'round-rectangle',
             'text-margin-y': 4,
-            'min-width': '280px',
-            'min-height': '200px',
-            'width': (ele: any) => ele.data('width') || 340,
-            'height': (ele: any) => ele.data('height') || 260,
+            'width': 'data(width)',
+            'height': 'data(height)',
+            'z-index': 1,
           } as any,
         },
         {
@@ -296,10 +295,9 @@ export function Topology({ nodes, edges }: TopologyProps) {
             'padding': '20px',
             'shape': 'round-rectangle',
             'text-margin-y': 4,
-            'min-width': '280px',
-            'min-height': '200px',
-            'width': (ele: any) => ele.data('width') || 340,
-            'height': (ele: any) => ele.data('height') || 260,
+            'width': 'data(width)',
+            'height': 'data(height)',
+            'z-index': 1,
             'opacity': 0.45,
           } as any,
         },
@@ -325,10 +323,9 @@ export function Topology({ nodes, edges }: TopologyProps) {
             'padding': '20px',
             'shape': 'round-rectangle',
             'text-margin-y': 4,
-            'min-width': '280px',
-            'min-height': '200px',
-            'width': (ele: any) => ele.data('width') || 340,
-            'height': (ele: any) => ele.data('height') || 260,
+            'width': 'data(width)',
+            'height': 'data(height)',
+            'z-index': 1,
           } as any,
         },
         {
@@ -352,10 +349,9 @@ export function Topology({ nodes, edges }: TopologyProps) {
             'padding': '20px',
             'shape': 'round-rectangle',
             'text-margin-y': 4,
-            'min-width': '280px',
-            'min-height': '200px',
-            'width': (ele: any) => ele.data('width') || 340,
-            'height': (ele: any) => ele.data('height') || 260,
+            'width': 'data(width)',
+            'height': 'data(height)',
+            'z-index': 1,
             'opacity': 0.45,
           } as any,
         },
@@ -380,8 +376,8 @@ export function Topology({ nodes, edges }: TopologyProps) {
             'border-color': 'rgba(255, 255, 255, 0.3)',
             'border-opacity': 0.5,
             'shape': 'ellipse',
-            'width': '78px',
-            'height': '56px',
+            'width': '72px',
+            'height': '50px',
             'min-zoomed-font-size': 6,
             'z-index': 20,
           } as any,
