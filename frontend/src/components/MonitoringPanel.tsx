@@ -109,7 +109,8 @@ function TimeSeriesChart({ series, title, unit }: {
         options={{
           responsive: true,
           maintainAspectRatio: false,
-          animation: { duration: 400 },
+          animation: { duration: 0 },
+          resizeDelay: 100,
           interaction: {
             mode: 'index',
             intersect: false,
