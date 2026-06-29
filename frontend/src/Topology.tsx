@@ -29,15 +29,14 @@ interface TopologyProps {
 
 // ─── Color palette ──────────────────────────────────────────────
 const COLORS = {
-  master: '#EC4899',        // Pink
+  master: '#EC4899',
   masterBg: 'rgba(236, 72, 153, 0.08)',
   masterBorder: 'rgba(236, 72, 153, 0.4)',
-  worker: '#3B82F6',        // Blue
+  worker: '#3B82F6',
   workerBg: 'rgba(59, 130, 246, 0.06)',
   workerBorder: 'rgba(59, 130, 246, 0.3)',
-  service: '#8B5CF6',       // Purple
+  service: '#8B5CF6',
   serviceBg: 'rgba(139, 92, 246, 0.12)',
-  // Pod colors by namespace
   namespaces: {
     'kube-system': '#F59E0B',
     'production': '#10B981',
@@ -53,7 +52,6 @@ export function Topology({ nodes, edges }: TopologyProps) {
   const toastRef = useRef<HTMLDivElement>(null)
   const cyRef = useRef<cytoscape.Core | null>(null)
 
-  // Derived data for info panel
   const clusterNodes = nodes.filter(n => n.type === 'node')
   const masterNodes = clusterNodes.filter(n => n.role === 'master')
   const workerNodes = clusterNodes.filter(n => n.role === 'worker')
@@ -68,9 +66,78 @@ export function Topology({ nodes, edges }: TopologyProps) {
     const podEntries = nodes.filter(n => n.type === 'pod')
     const serviceEntries = nodes.filter(n => n.type === 'service')
 
-    // Build Cytoscape elements
+    // ─── Pre-compute ALL positions BEFORE creating cytoscape ─────
+    const computePositions = (containerWidth: number) => {
+      const nodeW = 320
+      const nodeH = 260
+      const gapX = 30
+      const gapY = 40
+
+      const masters = clusterNodeEntries.filter(n => n.role === 'master')
+      const workers = clusterNodeEntries.filter(n => n.role === 'worker')
+      const services = serviceEntries
+
+      const rowWidth = (count: number) => Math.max(0, count * (nodeW + gapX) - gapX)
+      const masterRowW = rowWidth(masters.length)
+      const workerRowW = rowWidth(workers.length)
+      const svcAreaW = services.length > 0 ? 150 : 0
+      const maxRowW = Math.max(masterRowW, workerRowW) + svcAreaW
+      const leftMargin = Math.max(20, (containerWidth - maxRowW) / 2)
+      const masterY = nodeH / 2 + 20
+      const workerY = masterY + nodeH / 2 + gapY + nodeH / 2
+
+      const positions: Record<string, { x: number; y: number }> = {}
+
+      const mStartX = leftMargin + (maxRowW - svcAreaW - masterRowW) / 2 + nodeW / 2
+      masters.forEach((n, i) => {
+        positions[n.id] = { x: mStartX + i * (nodeW + gapX), y: masterY }
+      })
+
+      const wStartX = leftMargin + (maxRowW - svcAreaW - workerRowW) / 2 + nodeW / 2
+      workers.forEach((n, i) => {
+        positions[n.id] = { x: wStartX + i * (nodeW + gapX), y: workerY }
+      })
+
+      const svcX = leftMargin + maxRowW - svcAreaW + 30 + 45
+      services.forEach((n, i) => {
+        positions[n.id] = { x: svcX, y: 80 + i * 90 }
+      })
+
+      // Pre-compute child positions (relative to parent center)
+      const childPositions: Record<string, { x: number; y: number }> = {}
+      masters.concat(workers).forEach(parent => {
+        const children = podEntries.filter(p => p.node_name === parent.name)
+        if (children.length === 0) return
+
+        const innerW = nodeW - 40
+        const innerH = nodeH - 70
+        const cols = Math.min(Math.max(1, Math.ceil(Math.sqrt(children.length))), 4)
+        const rows = Math.ceil(children.length / cols)
+        const cellW = Math.min(innerW / cols, 100)
+        const cellH = Math.min(innerH / rows, 80)
+        const gridW = cols * cellW
+        const gridH = rows * cellH
+        const startX = -gridW / 2 + cellW / 2
+        const startY = -gridH / 2 + cellH / 2 + 10
+
+        children.forEach((child, idx) => {
+          const col = idx % cols
+          const row = Math.floor(idx / cols)
+          childPositions[child.id] = {
+            x: startX + col * cellW,
+            y: startY + row * cellH,
+          }
+        })
+      })
+
+      return { positions, childPositions }
+    }
+
+    const containerWidth = containerRef.current.clientWidth || 1000
+    const { positions, childPositions } = computePositions(containerWidth)
+
+    // ─── Build elements with CORRECT positions from the start ────
     const elements: cytoscape.ElementDefinition[] = [
-      // Cluster nodes as compound parents
       ...clusterNodeEntries.map(node => ({
         data: {
           id: node.id,
@@ -81,9 +148,8 @@ export function Topology({ nodes, edges }: TopologyProps) {
           capacity: node.capacity,
           ready: node.ready !== false ? 'true' : 'false',
         },
-        position: { x: 0, y: 0 },
+        position: positions[node.id] || { x: 0, y: 0 },
       })),
-      // Pods as children of their respective cluster node
       ...podEntries.map(pod => ({
         data: {
           id: pod.id,
@@ -95,8 +161,8 @@ export function Topology({ nodes, edges }: TopologyProps) {
           labels: pod.labels,
           parent: pod.node_name ? `node:${pod.node_name}` : undefined,
         },
+        position: childPositions[pod.id],
       })),
-      // Services as standalone nodes
       ...serviceEntries.map(svc => ({
         data: {
           id: svc.id,
@@ -105,9 +171,8 @@ export function Topology({ nodes, edges }: TopologyProps) {
           namespace: svc.namespace,
           ip: svc.ip,
         },
-        position: { x: 0, y: 0 },
+        position: positions[svc.id] || { x: 0, y: 0 },
       })),
-      // Edges
       ...edges.map(edge => ({
         data: {
           id: edge.id,
@@ -121,7 +186,6 @@ export function Topology({ nodes, edges }: TopologyProps) {
       container: containerRef.current,
       elements,
       style: [
-        // ── Compound cluster node (master, online) ──
         {
           selector: 'node[type="clusternode"][role="master"][ready="true"]',
           style: {
@@ -150,7 +214,6 @@ export function Topology({ nodes, edges }: TopologyProps) {
             'height': '260px',
           } as any,
         },
-        // ── Compound cluster node (master, offline) ──
         {
           selector: 'node[type="clusternode"][role="master"][ready="false"]',
           style: {
@@ -179,7 +242,6 @@ export function Topology({ nodes, edges }: TopologyProps) {
             'opacity': 0.45,
           } as any,
         },
-        // ── Compound cluster node (worker, online) ──
         {
           selector: 'node[type="clusternode"][role="worker"][ready="true"]',
           style: {
@@ -208,7 +270,6 @@ export function Topology({ nodes, edges }: TopologyProps) {
             'height': '260px',
           } as any,
         },
-        // ── Compound cluster node (worker, offline) ──
         {
           selector: 'node[type="clusternode"][role="worker"][ready="false"]',
           style: {
@@ -237,7 +298,6 @@ export function Topology({ nodes, edges }: TopologyProps) {
             'opacity': 0.45,
           } as any,
         },
-        // ── Pod nodes inside compound parents ──
         {
           selector: 'node[type="pod"]',
           style: {
@@ -264,7 +324,6 @@ export function Topology({ nodes, edges }: TopologyProps) {
             'min-zoomed-font-size': 6,
           } as any,
         },
-        // ── Service nodes ──
         {
           selector: 'node[type="service"]',
           style: {
@@ -290,7 +349,6 @@ export function Topology({ nodes, edges }: TopologyProps) {
             'min-zoomed-font-size': 7,
           } as any,
         },
-        // ── Selected / hover states ──
         {
           selector: 'node[type="pod"]:selected, node[type="pod"]:active',
           style: {
@@ -324,7 +382,6 @@ export function Topology({ nodes, edges }: TopologyProps) {
             'shadow-opacity': 0.3,
           },
         },
-        // ── Edges ──
         {
           selector: 'edge',
           style: {
@@ -354,93 +411,26 @@ export function Topology({ nodes, edges }: TopologyProps) {
 
     cyRef.current = cy
 
-    // ── Layout function (reusable on resize) ──
-    const layoutGraph = (instance: cytoscape.Core, container: HTMLDivElement) => {
-      const containerWidth = container.clientWidth || 1000
-      const nodeW = 320
-      const nodeH = 260
-      const gapX = 30
-      const gapY = 40
+    // Fit viewport to show all nodes at correct positions
+    cy.fit(undefined, 30)
 
-      const masters = instance.nodes('[type="clusternode"][role="master"]')
-      const workers = instance.nodes('[type="clusternode"][role="worker"]')
-      const services = instance.nodes('[type="service"]')
-
-      const rowWidth = (count: number) => Math.max(0, count * (nodeW + gapX) - gapX)
-      const masterRowW = rowWidth(masters.length)
-      const workerRowW = rowWidth(workers.length)
-      const svcAreaW = services.length > 0 ? 150 : 0
-      const maxRowW = Math.max(masterRowW, workerRowW) + svcAreaW
-
-      const leftMargin = Math.max(20, (containerWidth - maxRowW) / 2)
-
-      const masterY = nodeH / 2 + 20
-      const workerY = masterY + nodeH / 2 + gapY + nodeH / 2
-
-      // ── Position master nodes (top row, centered) ──
-      const mStartX = leftMargin + (maxRowW - svcAreaW - masterRowW) / 2 + nodeW / 2
-      masters.forEach((n: any, i: number) => {
-        n.position({ x: mStartX + i * (nodeW + gapX), y: masterY })
-      })
-
-      // ── Position worker nodes (second row, centered) ──
-      const wStartX = leftMargin + (maxRowW - svcAreaW - workerRowW) / 2 + nodeW / 2
-      workers.forEach((n: any, i: number) => {
-        n.position({ x: wStartX + i * (nodeW + gapX), y: workerY })
-      })
-
-      // ── Position services (right column) ──
-      const svcX = leftMargin + maxRowW - svcAreaW + 30 + 45
-      services.forEach((n: any, i: number) => {
-        n.position({ x: svcX, y: 80 + i * 90 })
-      })
-
-      // ── Arrange children (pods) in a grid inside each compound node ──
-      // NOTE: Cytoscape.js child positions are RELATIVE to their parent's center.
-      instance.nodes('[type="clusternode"]').each((parent: any) => {
-        const children = parent.children()
-        if (children.length === 0) return
-
-        const innerW = nodeW - 40
-        const innerH = nodeH - 70
-        const cols = Math.min(Math.max(1, Math.ceil(Math.sqrt(children.length))), 4)
-        const rows = Math.ceil(children.length / cols)
-        const cellW = Math.min(innerW / cols, 100)
-        const cellH = Math.min(innerH / rows, 80)
-        const gridW = cols * cellW
-        const gridH = rows * cellH
-        // Use coordinates relative to parent center (not absolute)
-        const startX = -gridW / 2 + cellW / 2
-        const startY = -gridH / 2 + cellH / 2 + 10
-
-        children.forEach((child: any, idx: number) => {
-          const col = idx % cols
-          const row = Math.floor(idx / cols)
-          child.position({
-            x: startX + col * cellW,
-            y: startY + row * cellH,
-          })
-        })
-      })
-
-      // Fit the viewport
-      instance.fit(undefined, 30)
-    }
-
-    // Run initial layout
-    layoutGraph(cy, containerRef.current)
-
-    // Reveal the graph after layout is done (prevents flash of all-zero positions)
-    containerRef.current.style.visibility = 'visible'
-
-    // ── ResizeObserver: re-layout on container size change (debounced) ──
+    // ── ResizeObserver: re-layout on container size change ───────
     let resizeTimer: ReturnType<typeof setTimeout> | null = null
     const onContainerResize = () => {
       if (resizeTimer) clearTimeout(resizeTimer)
       resizeTimer = setTimeout(() => {
-        if (cyRef.current && containerRef.current) {
-          layoutGraph(cyRef.current, containerRef.current)
-        }
+        if (!cyRef.current || !containerRef.current) return
+        const cyi = cyRef.current
+        const w = containerRef.current.clientWidth || 1000
+        const { positions: newPos, childPositions: newChildPos } = computePositions(w)
+
+        // Apply new positions to all nodes
+        cyi.nodes().forEach((n: any) => {
+          const id = n.id()
+          if (newPos[id]) n.position(newPos[id])
+          if (newChildPos[id]) n.position(newChildPos[id])
+        })
+        cyi.fit(undefined, 30)
       }, 200)
     }
     const observer = new ResizeObserver(onContainerResize)
@@ -466,7 +456,6 @@ export function Topology({ nodes, edges }: TopologyProps) {
       event.target.removeClass('selected')
     })
 
-    // Click to show details
     cy.on('tap', 'node', (event: any) => {
       const node = event.target
       const d = node.data()
@@ -508,12 +497,10 @@ export function Topology({ nodes, edges }: TopologyProps) {
       }
     })
 
-    // Double-click to fit
     cy.on('dbltap', () => {
       cy.fit(undefined, 30)
     })
 
-    // Cleanup
     return () => {
       observer.disconnect()
       if (resizeTimer) clearTimeout(resizeTimer)
@@ -523,7 +510,6 @@ export function Topology({ nodes, edges }: TopologyProps) {
     }
   }, [nodes, edges])
 
-  // ── Pod counts by namespace (for legend) ──
   const namespaceCounts = podNodes.reduce((acc, node) => {
     const ns = node.namespace || 'unknown'
     acc[ns] = (acc[ns] || 0) + 1
@@ -538,7 +524,6 @@ export function Topology({ nodes, edges }: TopologyProps) {
 
   return (
     <div className="topology-container">
-      {/* Stats bar */}
       <div className="topology-stats-bar">
         <div className="stat">
           <span className="stat-dot master-dot" />
@@ -562,15 +547,12 @@ export function Topology({ nodes, edges }: TopologyProps) {
         </div>
       </div>
 
-      {/* Graph canvas */}
       <div className="topology-graph-wrapper">
         <div ref={containerRef} className="topology-graph" />
         <div ref={toastRef} className="topology-toast" />
       </div>
 
-      {/* Legend */}
       <div className="topology-legend">
-        {/* Namespace legend */}
         <div className="legend-section">
           <div className="legend-title">Namespaces</div>
           {Object.entries(namespaceCounts).map(([ns, count]) => (
@@ -584,7 +566,6 @@ export function Topology({ nodes, edges }: TopologyProps) {
           ))}
         </div>
 
-        {/* Node legend */}
         <div className="legend-section">
           <div className="legend-title">Cluster Nodes</div>
           {clusterNodes.map(n => (
@@ -606,7 +587,6 @@ export function Topology({ nodes, edges }: TopologyProps) {
           ))}
         </div>
 
-        {/* Service legend */}
         <div className="legend-section">
           <div className="legend-title">Services</div>
           {serviceNodes.map(svc => (
@@ -620,7 +600,6 @@ export function Topology({ nodes, edges }: TopologyProps) {
           ))}
         </div>
 
-        {/* Legend shapes */}
         <div className="legend-section">
           <div className="legend-title">Legend</div>
           <div className="legend-item">
@@ -642,7 +621,6 @@ export function Topology({ nodes, edges }: TopologyProps) {
         </div>
       </div>
 
-      {/* Hint */}
       <div className="topology-hint">
         💡 Click any element for details • Hover to highlight • Double-click to fit all
       </div>
