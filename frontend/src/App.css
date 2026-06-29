@@ -1231,6 +1231,334 @@ body {
   background: linear-gradient(90deg, var(--success), #34d399);
 }
 
+/* ─── ≡ POD METRICS (cAdvisor) ≡ ─────────────────────────────── */
+.pod-metrics-cluster-summary {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+}
+
+.pod-metrics-cluster-stat {
+  background-color: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 160px;
+  flex: 1;
+  transition: border-color 0.2s ease;
+}
+
+.pod-metrics-cluster-stat:hover {
+  border-color: var(--border-hover);
+}
+
+.cluster-stat-label {
+  font-size: 12px;
+  color: var(--text-tertiary);
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
+.cluster-stat-value {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+.pod-metrics-by-ns {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.pod-metrics-ns-section {
+  border: 1px solid var(--border);
+  border-left: 4px solid;
+  border-radius: var(--radius-lg);
+  background-color: var(--surface);
+  overflow: hidden;
+  transition: border-color 0.2s ease;
+}
+
+.pod-metrics-ns-section:hover {
+  border-color: var(--border-hover);
+}
+
+.pod-metrics-ns-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 20px;
+  background-color: rgba(255, 255, 255, 0.03);
+  border-bottom: 1px solid var(--border);
+}
+
+.pod-metrics-ns-name {
+  font-size: 13px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: var(--text);
+}
+
+.pod-metrics-ns-count {
+  font-size: 12px;
+  color: var(--text-tertiary);
+  font-weight: 500;
+}
+
+.pod-metrics-ns-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+  gap: 12px;
+  padding: 16px;
+}
+
+.pod-metric-card {
+  background-color: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+  transition: all 0.25s ease;
+}
+
+.pod-metric-card:hover {
+  border-color: var(--border-hover);
+  box-shadow: var(--shadow);
+  transform: translateY(-1px);
+}
+
+.pod-metric-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  gap: 8px;
+}
+
+.pod-metric-name-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  flex: 1;
+}
+
+.pod-metric-icon {
+  color: var(--primary);
+  flex-shrink: 0;
+}
+
+.pod-metric-name-row h4 {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  word-break: break-word;
+  min-width: 0;
+}
+
+.pod-metric-node {
+  font-size: 11px;
+  font-family: 'SF Mono', 'Courier New', monospace;
+  color: var(--text-tertiary);
+  background-color: rgba(255, 255, 255, 0.05);
+  padding: 3px 8px;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
+.pod-metric-summary {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.pod-metric-summary-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+}
+
+.pod-metric-summary-label {
+  font-size: 11px;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  font-weight: 500;
+}
+
+.pod-metric-summary-value {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+.pod-metric-containers {
+  border-top: 1px solid var(--border);
+  padding-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.container-metrics-card {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.container-metrics-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 12px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 13px;
+  transition: background-color 0.15s ease;
+  text-align: left;
+}
+
+.container-metrics-header:hover {
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+.container-chevron {
+  flex-shrink: 0;
+  transition: transform 0.2s ease;
+  opacity: 0.5;
+  color: var(--text-tertiary);
+}
+
+.container-metrics-name {
+  font-weight: 600;
+  color: var(--text);
+  flex: 1;
+  min-width: 0;
+}
+
+.container-metrics-image {
+  font-size: 11px;
+  color: var(--text-tertiary);
+  font-family: 'SF Mono', 'Courier New', monospace;
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  direction: rtl;
+  text-align: right;
+}
+
+.container-metrics-bars {
+  padding: 8px 12px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  border-top: 1px solid var(--border);
+}
+
+.pod-metrics-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.pod-metrics-bar-label {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 75px;
+  flex-shrink: 0;
+}
+
+.pod-metrics-bar-label > span:first-child {
+  font-size: 11px;
+  color: var(--text-tertiary);
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.pod-metrics-bar-values {
+  font-size: 11px;
+  color: var(--text-secondary);
+  font-family: 'SF Mono', 'Courier New', monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+.pod-metrics-bar-track {
+  flex: 1;
+  height: 8px;
+  background-color: rgba(255, 255, 255, 0.06);
+  border-radius: 4px;
+  overflow: visible;
+  position: relative;
+}
+
+.pod-metrics-bar-fill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.8s ease, background-color 0.4s ease;
+  min-width: 2px;
+}
+
+.pod-metrics-bar-request {
+  position: absolute;
+  top: -2px;
+  width: 2px;
+  height: 12px;
+  background-color: var(--text-tertiary);
+  border-radius: 1px;
+  z-index: 1;
+  opacity: 0.6;
+}
+
+.pod-metrics-bar-pct {
+  min-width: 40px;
+  text-align: right;
+  font-size: 11px;
+  font-family: 'SF Mono', 'Courier New', monospace;
+  color: var(--text-tertiary);
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+}
+
+.pod-metrics-source {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 20px;
+  font-size: 12px;
+  color: var(--text-tertiary);
+  font-style: italic;
+}
+
+@media (max-width: 768px) {
+  .pod-metrics-cluster-summary {
+    flex-direction: column;
+  }
+  .pod-metrics-ns-grid {
+    grid-template-columns: 1fr;
+  }
+  .pod-metric-summary {
+    flex-direction: column;
+    gap: 6px;
+  }
+  .pod-metrics-cluster-stat {
+    min-width: unset;
+  }
+}
+
 /* ─── Storage Panel ───────────────────────────────────────────── */
 .storage-table-wrapper {
   overflow-x: auto;

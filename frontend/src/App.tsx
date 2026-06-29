@@ -6,7 +6,7 @@ import { SecurityPanel } from './components/SecurityPanel'
 import { ThreatPanel } from './components/ThreatPanel'
 import { MetricsPanel } from './components/MetricsPanel'
 import { StoragePanel } from './components/StoragePanel'
-import type { Pod, TopologyNode, TopologyEdge, ThreatEvent, RbacBinding, PrivilegedPod, NodeMetric, StorageData } from './types'
+import type { Pod, TopologyNode, TopologyEdge, ThreatEvent, RbacBinding, PrivilegedPod, NodeMetric, PodMetric, StorageData } from './types'
 
 // Use relative URLs (nginx proxies /api/*, /metrics/*, /config/* to backend in-cluster)
 // For local dev, set VITE_API_URL=http://localhost:8000
@@ -123,6 +123,7 @@ function App() {
 
   // Metrics & Storage state
   const [nodeMetrics, setNodeMetrics] = useState<NodeMetric[]>([])
+  const [podMetrics, setPodMetrics] = useState<PodMetric[]>([])
   const [storageConfig, setStorageConfig] = useState<StorageData | null>(null)
 
   // ── Silent Fetch Helpers (no loading/error — for intervals) ──
@@ -166,6 +167,15 @@ function App() {
         const data = await metricsRes.json()
         setNodeMetrics(data)
       }
+      // Also fetch pod metrics silently
+      try {
+        const podMetricsRes = await fetch(`${API_BASE_URL}/metrics/pods`, {
+          headers: { 'X-API-Key': API_KEY }
+        })
+        if (podMetricsRes.ok) {
+          setPodMetrics(await podMetricsRes.json())
+        }
+      } catch { /* ignore */ }
       if (storageRes.ok) {
         const data = await storageRes.json()
         setStorageConfig(data)
@@ -262,14 +272,22 @@ function App() {
     setLoading(true)
     setError(null)
     try {
-      const response = await fetch(`${API_BASE_URL}/metrics/nodes`, {
-        headers: { 'X-API-Key': API_KEY }
-      })
-      if (response.ok) {
-        const data = await response.json()
+      const [nodeRes, podRes] = await Promise.all([
+        fetch(`${API_BASE_URL}/metrics/nodes`, {
+          headers: { 'X-API-Key': API_KEY }
+        }),
+        fetch(`${API_BASE_URL}/metrics/pods`, {
+          headers: { 'X-API-Key': API_KEY }
+        })
+      ])
+      if (nodeRes.ok) {
+        const data = await nodeRes.json()
         setNodeMetrics(data)
       } else {
-        setError(`Failed to fetch metrics: ${response.statusText}`)
+        setError(`Failed to fetch metrics: ${nodeRes.statusText}`)
+      }
+      if (podRes.ok) {
+        setPodMetrics(await podRes.json())
       }
     } catch (err) {
       setError(`Error: ${err instanceof Error ? err.message : 'Unknown error'}`)
@@ -493,7 +511,7 @@ function App() {
             <ThreatPanel threats={threats} wsConnected={wsConnected} />
           )}
           {activeTab === 'metrics' && (
-            <MetricsPanel nodeMetrics={nodeMetrics} />
+            <MetricsPanel nodeMetrics={nodeMetrics} podMetrics={podMetrics} />
           )}
           {activeTab === 'storage' && (
             <StoragePanel storageConfig={storageConfig} />

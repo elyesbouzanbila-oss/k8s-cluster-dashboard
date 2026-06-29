@@ -151,6 +151,136 @@ MOCK_PRIVILEGED = [
 ]
 
 
+MOCK_POD_METRICS = [
+    {
+        "namespace": "kube-system",
+        "name": "kube-apiserver",
+        "node": "master-1",
+        "containers": [
+            {
+                "name": "kube-apiserver",
+                "image": "registry.k8s.io/kube-apiserver:v1.28.2",
+                "cpu": {"usage": "120m", "request": "250m", "limit": "500m"},
+                "memory": {"usage": "384Mi", "request": "512Mi", "limit": "1Gi"}
+            }
+        ],
+        "pod_cpu_usage": "120m",
+        "pod_memory_usage": "384Mi"
+    },
+    {
+        "namespace": "kube-system",
+        "name": "kube-scheduler",
+        "node": "master-1",
+        "containers": [
+            {
+                "name": "kube-scheduler",
+                "image": "registry.k8s.io/kube-scheduler:v1.28.2",
+                "cpu": {"usage": "25m", "request": "100m", "limit": "200m"},
+                "memory": {"usage": "64Mi", "request": "128Mi", "limit": "256Mi"}
+            }
+        ],
+        "pod_cpu_usage": "25m",
+        "pod_memory_usage": "64Mi"
+    },
+    {
+        "namespace": "kube-system",
+        "name": "etcd-operator",
+        "node": "master-1",
+        "containers": [
+            {
+                "name": "etcd",
+                "image": "registry.k8s.io/etcd:3.5.9",
+                "cpu": {"usage": "40m", "request": "100m", "limit": "300m"},
+                "memory": {"usage": "128Mi", "request": "256Mi", "limit": "512Mi"}
+            }
+        ],
+        "pod_cpu_usage": "40m",
+        "pod_memory_usage": "128Mi"
+    },
+    {
+        "namespace": "kube-system",
+        "name": "coredns-7d5c8f5d6f-abc12",
+        "node": "master-1",
+        "containers": [
+            {
+                "name": "coredns",
+                "image": "registry.k8s.io/coredns:v1.10.1",
+                "cpu": {"usage": "8m", "request": "50m", "limit": "100m"},
+                "memory": {"usage": "24Mi", "request": "64Mi", "limit": "128Mi"}
+            }
+        ],
+        "pod_cpu_usage": "8m",
+        "pod_memory_usage": "24Mi"
+    },
+    {
+        "namespace": "production",
+        "name": "api-server-prod-1",
+        "node": "worker-1",
+        "containers": [
+            {
+                "name": "main",
+                "image": "myapp:v2.1.0",
+                "cpu": {"usage": "150m", "request": "200m", "limit": "500m"},
+                "memory": {"usage": "256Mi", "request": "512Mi", "limit": "1Gi"}
+            },
+            {
+                "name": "sidecar",
+                "image": "envoyproxy:latest",
+                "cpu": {"usage": "30m", "request": "100m", "limit": "200m"},
+                "memory": {"usage": "48Mi", "request": "128Mi", "limit": "256Mi"}
+            }
+        ],
+        "pod_cpu_usage": "180m",
+        "pod_memory_usage": "304Mi"
+    },
+    {
+        "namespace": "production",
+        "name": "redis-cache",
+        "node": "worker-1",
+        "containers": [
+            {
+                "name": "redis",
+                "image": "redis:7-alpine",
+                "cpu": {"usage": "15m", "request": "50m", "limit": "100m"},
+                "memory": {"usage": "8Mi", "request": "32Mi", "limit": "64Mi"}
+            }
+        ],
+        "pod_cpu_usage": "15m",
+        "pod_memory_usage": "8Mi"
+    },
+    {
+        "namespace": "production",
+        "name": "database-backup",
+        "node": "worker-2",
+        "containers": [
+            {
+                "name": "postgres-backup",
+                "image": "postgres:15",
+                "cpu": {"usage": "85m", "request": "100m", "limit": "250m"},
+                "memory": {"usage": "192Mi", "request": "256Mi", "limit": "512Mi"}
+            }
+        ],
+        "pod_cpu_usage": "85m",
+        "pod_memory_usage": "192Mi"
+    },
+    {
+        "namespace": "monitoring",
+        "name": "prometheus-0",
+        "node": "worker-2",
+        "containers": [
+            {
+                "name": "prometheus",
+                "image": "prom/prometheus:latest",
+                "cpu": {"usage": "210m", "request": "300m", "limit": "1"},
+                "memory": {"usage": "512Mi", "request": "1Gi", "limit": "2Gi"}
+            }
+        ],
+        "pod_cpu_usage": "210m",
+        "pod_memory_usage": "512Mi"
+    }
+]
+
+
 def build_mock_topology():
     """Build mock topology dict from shared mock data."""
     nodes = []

@@ -58,6 +58,30 @@ export interface NodeMetric {
   usage: { cpu: string; memory: string }
 }
 
+export interface ContainerMetric {
+  name: string
+  image: string
+  cpu: {
+    usage: string
+    request?: string
+    limit?: string
+  }
+  memory: {
+    usage: string
+    request?: string
+    limit?: string
+  }
+}
+
+export interface PodMetric {
+  namespace: string
+  name: string
+  node: string
+  containers: ContainerMetric[]
+  pod_cpu_usage: string
+  pod_memory_usage: string
+}
+
 export interface StorageClass {
   metadata: { name: string; annotations?: Record<string, string> }
   provisioner: string
