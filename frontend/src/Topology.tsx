@@ -633,7 +633,7 @@ export function Topology({ nodes, edges }: TopologyProps) {
   }, {} as Record<string, number>)
 
   return (
-    <div className="topology-container">
+    <div className="topology-container" role="img" aria-label="Cluster topology diagram showing nodes, pods, and services with their connections">
       <div className="topology-stats-bar">
         <div className="stat">
           <span className="stat-dot master-dot" />
@@ -659,7 +659,7 @@ export function Topology({ nodes, edges }: TopologyProps) {
 
       <div className="topology-graph-wrapper">
         <div ref={containerRef} className="topology-graph" />
-        <div ref={toastRef} className="topology-toast" />
+        <div ref={toastRef} className="topology-toast" role="status" aria-live="polite" />
       </div>
 
       <div className="topology-legend">

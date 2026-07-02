@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import './App.css'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { DashboardPanel } from './components/DashboardPanel'
@@ -480,6 +480,51 @@ function App() {
     silentFetchAll()
   }, [silentFetchAll])
 
+  // ── Keyboard navigation for tablist ──
+  const tabIndexMap = useMemo(() => Object.fromEntries(TABS.map((t, i) => [t.id, i])), [])
+
+  const handleTabKeyDown = useCallback((e: React.KeyboardEvent) => {
+    const currentIdx = tabIndexMap[activeTab]
+    let nextIdx: number | null = null
+
+    switch (e.key) {
+      case 'ArrowRight':
+      case 'ArrowDown':
+        e.preventDefault()
+        nextIdx = (currentIdx + 1) % TABS.length
+        break
+      case 'ArrowLeft':
+      case 'ArrowUp':
+        e.preventDefault()
+        nextIdx = (currentIdx - 1 + TABS.length) % TABS.length
+        break
+      case 'Home':
+        e.preventDefault()
+        nextIdx = 0
+        break
+      case 'End':
+        e.preventDefault()
+        nextIdx = TABS.length - 1
+        break
+      case 'Enter':
+      case ' ':
+        // Activate the currently focused tab (already happens via click)
+        break
+      default:
+        return
+    }
+
+    if (nextIdx !== null) {
+      const nextTab = TABS[nextIdx]
+      setActiveTab(nextTab.id)
+      // Focus the newly activated tab button
+      setTimeout(() => {
+        const btn = document.getElementById(`tab-${nextTab.id}`)
+        btn?.focus()
+      }, 0)
+    }
+  }, [activeTab, tabIndexMap])
+
   // ── Render ──
   return (
     <div className="app">
@@ -490,16 +535,16 @@ function App() {
         </div>
         <div className="header-right">
           <div className={`status ${wsConnected ? 'status-ok' : 'status-warn'}`}>
-            <span className={`indicator ${wsConnected ? 'connected' : 'disconnected'}`}></span>
+            <span className={`indicator ${wsConnected ? 'connected' : 'disconnected'}`} role="img" aria-label={wsConnected ? 'Connected' : 'Disconnected'}></span>
             <span>{wsConnected ? 'Threats Live' : 'Disconnected'}</span>
           </div>
         </div>
       </header>
 
       {error && (
-        <div className="error-banner">
+        <div className="error-banner" role="alert">
           <div className="error-banner-content">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="error-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="error-icon" aria-hidden="true">
               <circle cx="12" cy="12" r="10" />
               <line x1="15" y1="9" x2="9" y2="15" />
               <line x1="9" y1="9" x2="15" y2="15" />
@@ -507,7 +552,7 @@ function App() {
             <strong>Error:</strong> {error}
           </div>
           <button className="error-dismiss" onClick={() => setError(null)} aria-label="Dismiss error">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16" aria-hidden="true">
               <line x1="18" y1="6" x2="6" y2="18" />
               <line x1="6" y1="6" x2="18" y2="18" />
             </svg>
@@ -515,17 +560,19 @@ function App() {
         </div>
       )}
 
-      <nav className="tabs" role="tablist">
+      <nav className="tabs" role="tablist" aria-label="Dashboard tabs" onKeyDown={handleTabKeyDown}>
         {TABS.map(tab => (
           <button
             key={tab.id}
+            id={`tab-${tab.id}`}
             className={`tab ${activeTab === tab.id ? 'active' : ''}`}
             onClick={() => setActiveTab(tab.id)}
             role="tab"
             aria-selected={activeTab === tab.id}
-            aria-label={tab.label}
+            aria-controls={`tabpanel-${tab.id}`}
+            tabIndex={activeTab === tab.id ? 0 : -1}
           >
-            <span className="tab-icon">{tab.icon()}</span>
+            <span className="tab-icon" aria-hidden="true">{tab.icon()}</span>
             <span className="tab-label">{tab.label}</span>
           </button>
         ))}
@@ -540,48 +587,57 @@ function App() {
         )}
 
         <ErrorBoundary>
-          <div className="tab-content">
-            {activeTab === 'dashboard' && (
-            <DashboardPanel
-              pods={pods}
-              threats={threats}
-              rbacBindings={rbacBindings}
-              privilegedPods={privilegedPods}
-              nodeMetrics={nodeMetrics}
-              wsConnected={wsConnected}
-              lastUpdated={lastUpdated}
-              onRefresh={handleRefresh}
-              podsStatus={podsStatus}
-              rbacStatus={rbacStatus}
-              privilegedStatus={privilegedStatus}
-              nodeMetricsStatus={nodeMetricsStatus}
-              loading={loading}
-            />
-            )}
-            {activeTab === 'network' && (
-              <NetworkPanel pods={pods} topology={topology} podsStatus={podsStatus} topologyStatus={topologyStatus} />
-            )}
-            {activeTab === 'security' && (
-              <SecurityPanel rbacBindings={rbacBindings} privilegedPods={privilegedPods} rbacStatus={rbacStatus} privilegedStatus={privilegedStatus} />
-            )}
-            {activeTab === 'threats' && (
-              <ThreatPanel threats={threats} wsConnected={wsConnected} onClear={() => setThreats([])} loading={loading} />
-            )}
-            {activeTab === 'metrics' && (
-              <MetricsPanel
+          {TABS.map(tab => (
+            <div
+              key={tab.id}
+              id={`tabpanel-${tab.id}`}
+              role="tabpanel"
+              aria-labelledby={`tab-${tab.id}`}
+              className="tab-content"
+              hidden={activeTab !== tab.id}
+            >
+              {activeTab === 'dashboard' && (
+              <DashboardPanel
+                pods={pods}
+                threats={threats}
+                rbacBindings={rbacBindings}
+                privilegedPods={privilegedPods}
                 nodeMetrics={nodeMetrics}
-                podMetrics={podMetrics}
+                wsConnected={wsConnected}
+                lastUpdated={lastUpdated}
+                onRefresh={handleRefresh}
+                podsStatus={podsStatus}
+                rbacStatus={rbacStatus}
+                privilegedStatus={privilegedStatus}
                 nodeMetricsStatus={nodeMetricsStatus}
-                podMetricsStatus={podMetricsStatus}
+                loading={loading}
               />
-            )}
-            {activeTab === 'monitoring' && (
-              <MonitoringPanel podMetrics={podMetrics} />
-            )}
-            {activeTab === 'storage' && (
-              <StoragePanel storageConfig={storageConfig} storageStatus={storageStatus} />
-            )}
-          </div>
+              )}
+              {activeTab === 'network' && (
+                <NetworkPanel pods={pods} topology={topology} podsStatus={podsStatus} topologyStatus={topologyStatus} />
+              )}
+              {activeTab === 'security' && (
+                <SecurityPanel rbacBindings={rbacBindings} privilegedPods={privilegedPods} rbacStatus={rbacStatus} privilegedStatus={privilegedStatus} />
+              )}
+              {activeTab === 'threats' && (
+                <ThreatPanel threats={threats} wsConnected={wsConnected} onClear={() => setThreats([])} loading={loading} />
+              )}
+              {activeTab === 'metrics' && (
+                <MetricsPanel
+                  nodeMetrics={nodeMetrics}
+                  podMetrics={podMetrics}
+                  nodeMetricsStatus={nodeMetricsStatus}
+                  podMetricsStatus={podMetricsStatus}
+                />
+              )}
+              {activeTab === 'monitoring' && (
+                <MonitoringPanel podMetrics={podMetrics} />
+              )}
+              {activeTab === 'storage' && (
+                <StoragePanel storageConfig={storageConfig} storageStatus={storageStatus} />
+              )}
+            </div>
+          ))}
         </ErrorBoundary>
       </main>
 

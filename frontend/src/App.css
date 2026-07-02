@@ -24,7 +24,7 @@
   --border-hover: #484f58;
   --text: #e6edf3;
   --text-secondary: #8b949e;
-  --text-tertiary: #6e7681;
+  --text-tertiary: #7d8590;
 
   --radius: 8px;
   --radius-lg: 12px;
@@ -115,7 +115,6 @@ body {
 .indicator.connected {
   background-color: var(--success);
   box-shadow: 0 0 8px var(--success);
-  animation: pulse-glow 2s infinite;
 }
 
 @keyframes pulse-glow {
@@ -255,8 +254,21 @@ body {
   position: relative;
 }
 
-.tab-content {
-  animation: fadeSlideIn 0.35s ease-out;
+/* ─── Reduced Motion ──────────────────────────────────────── */
+@media (prefers-reduced-motion: no-preference) {
+  .indicator.connected {
+    animation: pulse-glow 2s infinite;
+  }
+  .admin-badge,
+  .risk-badge.risk-critical {
+    animation: pulse-admin 2s ease-in-out infinite;
+  }
+  .refresh-btn.refreshing {
+    animation: refresh-pulse 0.6s ease-in-out infinite;
+  }
+  .tab-content {
+    animation: fadeSlideIn 0.35s ease-out;
+  }
 }
 
 @keyframes fadeSlideIn {
@@ -268,6 +280,38 @@ body {
     opacity: 1;
     transform: translateY(0);
   }
+}
+
+/* ─── Focus Visible Styles ─────────────────────────────────── */
+:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+button:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+  border-radius: var(--radius);
+}
+
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: -1px;
+}
+
+a:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+/* Tab-specific: override border-radius to be inline with tab shape */
+.tab:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: -2px;
+  border-radius: 4px;
 }
 
 /* ─── Copy Feedback ────────────────────────────────────────── */
@@ -522,7 +566,6 @@ body {
   color: var(--primary);
   border-color: var(--primary);
   pointer-events: none;
-  animation: refresh-pulse 0.6s ease-in-out infinite;
 }
 
 .refresh-btn.refreshing svg {
@@ -1435,7 +1478,6 @@ body {
   font-weight: 700;
   letter-spacing: 0.5px;
   flex-shrink: 0;
-  animation: pulse-admin 2s ease-in-out infinite;
 }
 
 @keyframes pulse-admin {
@@ -1661,7 +1703,6 @@ body {
 .risk-badge.risk-critical {
   background-color: var(--danger);
   color: white;
-  animation: pulse-admin 2s ease-in-out infinite;
 }
 
 .risk-badge.risk-high {

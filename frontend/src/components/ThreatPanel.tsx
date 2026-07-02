@@ -236,7 +236,7 @@ export function ThreatPanel({ threats, wsConnected, onClear, loading }: ThreatPa
           {filteredThreats.map((threat) => (
             <div key={threat.id} className={`threat-card ${threat.priority.toLowerCase()}`}>
               <div className="threat-header">
-                <span className="priority-dot" style={{ backgroundColor: getPriorityColor(threat.priority) }}></span>
+                <span className="priority-dot" style={{ backgroundColor: getPriorityColor(threat.priority) }} role="img" aria-label={threat.priority}></span>
                 <span className="priority">{threat.priority}</span>
                 <span className="rule" title={threat.rule}>{threat.rule}</span>
                 <span className="time" title={new Date(threat.time).toLocaleString()}>{getRelativeTime(threat.time, tick)}</span>
