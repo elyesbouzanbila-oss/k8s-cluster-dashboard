@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import type { Pod, ThreatEvent, RbacBinding, PrivilegedPod, NodeMetric, DataSourceStatus } from '../types'
-import { parseCPU, parseMemory } from '../utils'
+import { parseCPU, parseMemory, getPriorityColor } from '../utils'
 import { DataSourceBadge } from './DataSourceBadge'
 import { Skeleton } from './Skeleton'
 
@@ -55,16 +55,6 @@ export function DashboardPanel({ pods, threats, rbacBindings, privilegedPods, no
   const usedMem = nodeMetrics.reduce((acc, n) => acc + parseMemory(n.usage.memory), 0)
   const cpuPercent = totalCPU > 0 ? (usedCPU / totalCPU) * 100 : 0
   const memPercent = totalMem > 0 ? (usedMem / totalMem) * 100 : 0
-
-  const getPriorityColor = (priority: string): string => {
-    switch (priority) {
-      case 'Critical': return '#ff4d4d'
-      case 'High': return '#ff9933'
-      case 'Medium': return '#ffcc00'
-      case 'Warning': return '#ffdd66'
-      default: return '#666666'
-    }
-  }
 
   return (
     <div className="dashboard">        <div className="dashboard-header">
@@ -227,7 +217,7 @@ export function DashboardPanel({ pods, threats, rbacBindings, privilegedPods, no
                   <div className="severity-bar-track">
                     <div
                       className="severity-bar-fill"
-                      style={{ width: `${pct}%`, backgroundColor: getPriorityColor(sev) }}
+                      style={{ width: `${pct}%`, '--sev-color': getPriorityColor(sev) }}
                     />
                   </div>
                   <span className="severity-count">{count}</span>

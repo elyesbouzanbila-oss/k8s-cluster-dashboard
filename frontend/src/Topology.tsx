@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react'
 import cytoscape from 'cytoscape'
 import './Topology.css'
+import { getNsColor } from './utils'
 
 interface TopologyNode {
   id: string
@@ -37,15 +38,10 @@ const COLORS = {
   workerBorder: 'rgba(59, 130, 246, 0.3)',
   service: '#8B5CF6',
   serviceBg: 'rgba(139, 92, 246, 0.12)',
-  namespaces: {
-    'kube-system': '#F59E0B',
-    'production': '#10B981',
-    'monitoring': '#06B6D4',
-  } as Record<string, string>,
 }
 
 const getNamespaceColor = (ns?: string): string =>
-  (ns && COLORS.namespaces[ns]) || '#6366F1'
+  getNsColor(ns || '')
 
 export function Topology({ nodes, edges }: TopologyProps) {
   const containerRef = useRef<HTMLDivElement>(null)

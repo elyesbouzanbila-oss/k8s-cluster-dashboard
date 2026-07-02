@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react'
 import type { NodeMetric, PodMetric, DataSourceStatus } from '../types'
-import { parseCPU, parseMemory } from '../utils'
+import { parseCPU, parseMemory, parseCPUToMilli, parseMemoryToBytes, formatBytes, formatCPU, getNsColor, getBarColor } from '../utils'
 import { DataSourceBadge } from './DataSourceBadge'
 import { EmptyState } from './EmptyState'
 
@@ -11,62 +11,9 @@ interface MetricsPanelProps {
   podMetricsStatus?: DataSourceStatus
 }
 
-// ─── Namespace Colors ──────────────────────────────────────────
-const NS_COLORS: Record<string, string> = {
-  'kube-system': '#ec4899',
-  'production': '#3b82f6',
-  'monitoring': '#10b981',
-  'default': '#8b5cf6',
-}
-
-function getNsColor(ns: string): string {
-  return NS_COLORS[ns] || '#6366F1'
-}
-
-// ─── Helpers ───────────────────────────────────────────────────
-function parseCPUToMilli(cpuStr: string): number {
-  if (!cpuStr) return 0
-  if (cpuStr.endsWith('n')) return parseFloat(cpuStr.slice(0, -1)) / 1_000_000
-  if (cpuStr.endsWith('m')) return parseFloat(cpuStr.slice(0, -1))
-  if (cpuStr.endsWith('u')) return parseFloat(cpuStr.slice(0, -1)) / 1000
-  return parseFloat(cpuStr) * 1000
-}
-
-function parseMemoryToBytes(memStr: string): number {
-  if (!memStr) return 0
-  if (memStr.endsWith('Ki')) return parseFloat(memStr.slice(0, -2)) * 1024
-  if (memStr.endsWith('Mi')) return parseFloat(memStr.slice(0, -2)) * 1024 * 1024
-  if (memStr.endsWith('Gi')) return parseFloat(memStr.slice(0, -2)) * 1024 * 1024 * 1024
-  if (memStr.endsWith('Ti')) return parseFloat(memStr.slice(0, -2)) * 1024 * 1024 * 1024 * 1024
-  if (memStr.endsWith('k')) return parseFloat(memStr.slice(0, -1)) * 1000
-  if (memStr.endsWith('M')) return parseFloat(memStr.slice(0, -1)) * 1000 * 1000
-  if (memStr.endsWith('G')) return parseFloat(memStr.slice(0, -1)) * 1000 * 1000 * 1000
-  const n = parseFloat(memStr)
-  return isNaN(n) ? 0 : n
-}
-
-function formatBytes(bytes: number): string {
-  if (bytes >= 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GiB`
-  if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(0)} MiB`
-  if (bytes >= 1024) return `${(bytes / 1024).toFixed(0)} KiB`
-  return `${bytes} B`
-}
-
-function formatCPU(milli: number): string {
-  if (milli >= 1000) return `${(milli / 1000).toFixed(2)} cores`
-  return `${milli.toFixed(0)}m`
-}
-
 function getUsagePercent(value: number, max: number | null | undefined): number | null {
   if (max == null || max <= 0) return null
   return Math.min((value / max) * 100, 100)
-}
-
-function getBarColor(percent: number): string {
-  if (percent >= 90) return '#ef4444'
-  if (percent >= 70) return '#f59e0b'
-  if (percent >= 50) return '#3b82f6'
-  return '#10b981'
 }
 
 // ─── Container Bar Component ───────────────────────────────────
@@ -404,7 +351,7 @@ export function MetricsPanel({ nodeMetrics, podMetrics, nodeMetricsStatus, podMe
                 <div
                   key={ns}
                   className="pod-metrics-ns-section"
-                  style={{ borderLeftColor: getNsColor(ns) }}
+                  style={{ '--ns-color': getNsColor(ns) }}
                 >
                   <div className="pod-metrics-ns-header">
                     <span className="pod-metrics-ns-name">{ns}</span>

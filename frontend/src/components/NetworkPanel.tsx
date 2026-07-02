@@ -3,7 +3,7 @@ import type { Pod, TopologyNode, TopologyEdge, DataSourceStatus } from '../types
 import { Topology } from '../Topology'
 import { DataSourceBadge } from './DataSourceBadge'
 import { EmptyState } from './EmptyState'
-import { copyToClipboard, showCopiedFeedback } from '../utils'
+import { copyToClipboard, showCopiedFeedback, getNsColor } from '../utils'
 
 interface NetworkPanelProps {
   pods: Pod[]
@@ -11,15 +11,6 @@ interface NetworkPanelProps {
   podsStatus?: DataSourceStatus
   topologyStatus?: DataSourceStatus
 }
-
-// ─── Namespace color palette (consistent with topology) ─────────
-const NS_COLORS: Record<string, string> = {
-  'kube-system': '#F59E0B',
-  'production': '#10B981',
-  'monitoring': '#06B6D4',
-}
-
-const getNsColor = (ns: string): string => NS_COLORS[ns] || '#6366F1'
 
 // ─── Group pods by namespace ────────────────────────────────────
 function groupByNamespace(pods: Pod[]): [string, Pod[]][] {
@@ -94,13 +85,13 @@ function NsSection({ name, pods, defaultOpen }: { name: string; pods: Pod[]; def
   const color = getNsColor(name)
 
   return (
-    <div className="ns-section" style={{ borderLeftColor: color }}>
+    <div className="ns-section" style={{ '--ns-color': color }}>
       {/* Collapsible header */}
       <button
         className="ns-section-header"
         onClick={() => setOpen(!open)}
         aria-expanded={open}
-        style={{ color }}
+        style={{ '--ns-color': color }}
       >
         <svg
           className="ns-chevron"

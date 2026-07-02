@@ -12,6 +12,7 @@ import {
   Filler,
 } from 'chart.js'
 import type { PodMetric, PrometheusResponse, PromSeries } from '../types'
+import { getNsColor } from '../utils'
 import { DataSourceBadge } from './DataSourceBadge'
 import { EmptyState } from './EmptyState'
 
@@ -22,22 +23,10 @@ interface MonitoringPanelProps {
   podMetrics: PodMetric[]
 }
 
-// ─── Namespace Colors ──────────────────────────────────────────
-const NS_COLORS: Record<string, string> = {
-  'kube-system': '#ec4899',
-  'production': '#3b82f6',
-  'monitoring': '#10b981',
-  'default': '#8b5cf6',
-}
-
 const CONTAINER_COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4']
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || ''
 const API_KEY = import.meta.env.VITE_API_KEY || 'your-secret-api-key-change-this'
-
-function getNsColor(ns: string): string {
-  return NS_COLORS[ns] || '#6366F1'
-}
 
 // ─── Helpers ───────────────────────────────────────────────────
 function parsePromResult(result: PrometheusResponse['data']): PromSeries[] {
@@ -300,12 +289,12 @@ function NamespaceOverviewCharts({ namespace }: { namespace: string }) {
       <div className="monitoring-ns-charts-header">
         <div className="monitoring-ns-charts-title">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16"
-            style={{ color: getNsColor(namespace) }}>
+            style={{ '--ns-color': getNsColor(namespace) }}>
             <line x1="18" y1="20" x2="18" y2="10" />
             <line x1="12" y1="20" x2="12" y2="4" />
             <line x1="6" y1="20" x2="6" y2="14" />
           </svg>
-          <span style={{ color: getNsColor(namespace) }}>{namespace}</span>
+          <span style={{ '--ns-color': getNsColor(namespace) }}>{namespace}</span>
         </div>
         <div className="monitoring-duration-picker">
           {[15, 30, 60, 180].map((m) => (
@@ -439,7 +428,7 @@ export function MonitoringPanel({ podMetrics }: MonitoringPanelProps) {
             <div
               key={ns}
               className="monitoring-ns-block"
-              style={{ borderLeftColor: getNsColor(ns) }}
+              style={{ '--ns-color': getNsColor(ns) }}
             >
               <button
                 className="monitoring-ns-toggle"
