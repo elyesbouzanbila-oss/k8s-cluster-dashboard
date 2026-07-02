@@ -89,6 +89,9 @@ export function getBarColor(percent: number): string {
   return '#10b981'
 }
 
+// ─── Chart Colors (canonical palette for time-series) ────────────
+export const CONTAINER_COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4']
+
 // ─── Copy to Clipboard ────────────────────────────────────────────
 let copyTimeoutId: ReturnType<typeof setTimeout> | null = null
 

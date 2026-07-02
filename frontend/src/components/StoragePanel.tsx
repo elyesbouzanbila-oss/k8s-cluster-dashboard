@@ -2,13 +2,16 @@ import { useState, useMemo } from 'react'
 import type { StorageData, DataSourceStatus } from '../types'
 import { DataSourceBadge } from './DataSourceBadge'
 import { EmptyState } from './EmptyState'
+import { Skeleton } from './Skeleton'
+import { Icon } from './Icon'
 
 interface StoragePanelProps {
   storageConfig: StorageData | null
   storageStatus?: DataSourceStatus
+  loading?: boolean
 }
 
-export function StoragePanel({ storageConfig, storageStatus }: StoragePanelProps) {
+export function StoragePanel({ storageConfig, storageStatus, loading }: StoragePanelProps) {
   const [searchQuery, setSearchQuery] = useState('')
 
   const filteredPVCs = useMemo(() => {
@@ -21,6 +24,8 @@ export function StoragePanel({ storageConfig, storageStatus }: StoragePanelProps
     )
   }, [storageConfig, searchQuery])
 
+  const showSearch = storageConfig && storageConfig.persistentVolumeClaims.length > 5
+
   return (
     <div className="section storage-section">
       <h2>Storage Configuration</h2>
@@ -30,15 +35,11 @@ export function StoragePanel({ storageConfig, storageStatus }: StoragePanelProps
           <h3>Storage Classes</h3>
           <DataSourceBadge status={storageStatus} label="Storage data" />
         </div>
-        {!storageConfig || storageConfig.storageClasses.length === 0 ? (
+        {loading ? (
+          <Skeleton variant="table-row" count={3} />
+        ) : !storageConfig || storageConfig.storageClasses.length === 0 ? (
           <EmptyState
-            icon={
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                <ellipse cx="12" cy="5" rx="9" ry="3" />
-                <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3" />
-                <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5" />
-              </svg>
-            }
+            icon={<Icon name="hard-drive" size={48} />}
             message="No storage classes found"
             submessage="Ensure your cluster has storage classes configured."
           />
@@ -77,24 +78,19 @@ export function StoragePanel({ storageConfig, storageStatus }: StoragePanelProps
           <h3>Persistent Volume Claims ({filteredPVCs.length})</h3>
           <DataSourceBadge status={storageStatus} label="Storage data" />
         </div>
-        {!storageConfig || storageConfig.persistentVolumeClaims.length === 0 ? (
+        {loading ? (
+          <Skeleton variant="table-row" count={4} />
+        ) : !storageConfig || storageConfig.persistentVolumeClaims.length === 0 ? (
           <EmptyState
-            icon={
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
-              </svg>
-            }
+            icon={<Icon name="box" size={48} />}
             message="No PVCs found"
           />
         ) : (
           <>
-            {storageConfig.persistentVolumeClaims.length > 5 && (
+            {showSearch && (
               <div className="security-toolbar" style={{ marginBottom: '14px' }}>
                 <div className="security-search">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="security-search-icon">
-                    <circle cx="11" cy="11" r="8" />
-                    <line x1="21" y1="21" x2="16.65" y2="16.65" />
-                  </svg>
+                  <Icon name="search" className="security-search-icon" />
                   <input
                     type="text"
                     className="security-search-input"
@@ -109,10 +105,7 @@ export function StoragePanel({ storageConfig, storageStatus }: StoragePanelProps
                       onClick={() => setSearchQuery('')}
                       aria-label="Clear search"
                     >
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="16" height="16">
-                        <line x1="18" y1="6" x2="6" y2="18" />
-                        <line x1="6" y1="6" x2="18" y2="18" />
-                      </svg>
+                      <Icon name="x" size={16} />
                     </button>
                   )}
                 </div>
@@ -120,12 +113,7 @@ export function StoragePanel({ storageConfig, storageStatus }: StoragePanelProps
             )}
             {filteredPVCs.length === 0 ? (
               <EmptyState
-                icon={
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                    <circle cx="11" cy="11" r="8" />
-                    <line x1="21" y1="21" x2="16.65" y2="16.65" />
-                  </svg>
-                }
+                icon={<Icon name="search" size={48} />}
                 message="No matching PVCs"
                 submessage="Try adjusting your search."
               />

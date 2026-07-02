@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react'
 import type { RbacBinding, PrivilegedPod, DataSourceStatus } from '../types'
 import { DataSourceBadge } from './DataSourceBadge'
 import { EmptyState } from './EmptyState'
+import { Icon } from './Icon'
 
 interface SecurityPanelProps {
   rbacBindings: RbacBinding[]
@@ -14,36 +15,13 @@ interface SecurityPanelProps {
 function SubjectIcon({ kind }: { kind: string }) {
   switch (kind) {
     case 'User':
-      return (
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="subject-icon-svg">
-          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-          <circle cx="12" cy="7" r="4" />
-        </svg>
-      )
+      return <Icon name="users" size={16} className="subject-icon-svg" />
     case 'Group':
-      return (
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="subject-icon-svg">
-          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-          <circle cx="9" cy="7" r="4" />
-          <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
-          <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-        </svg>
-      )
+      return <Icon name="users" size={16} className="subject-icon-svg" />
     case 'ServiceAccount':
-      return (
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="subject-icon-svg">
-          <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-          <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-        </svg>
-      )
+      return <Icon name="lock" size={16} className="subject-icon-svg" />
     default:
-      return (
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="subject-icon-svg">
-          <circle cx="12" cy="12" r="10" />
-          <line x1="12" y1="16" x2="12" y2="12" />
-          <line x1="12" y1="8" x2="12.01" y2="8" />
-        </svg>
-      )
+      return <Icon name="info" size={16} className="subject-icon-svg" />
   }
 }
 
@@ -77,18 +55,12 @@ function CollapsibleSection({
         onClick={() => setOpen(!open)}
         aria-expanded={open}
       >
-        <svg
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
+        <Icon
+          name="chevron-right"
+          size={16}
           className="security-chevron"
           style={{ transform: open ? 'rotate(90deg)' : 'rotate(0deg)' }}
-        >
-          <polyline points="9 18 15 12 9 6" />
-        </svg>
+        />
         <span className="security-group-title">{title}</span>
         <span className="security-group-count">{count}</span>
       </button>
@@ -109,9 +81,7 @@ function RbacCard({ binding }: { binding: RbacBinding }) {
           <h4>{binding.name}</h4>
           {isAdmin && (
             <span className="admin-badge">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" width="12" height="12">
-                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-              </svg>
+              <Icon name="shield" size={12} style={{ strokeWidth: 2.5 }} />
               ADMIN
             </span>
           )}
@@ -132,16 +102,12 @@ function RbacCard({ binding }: { binding: RbacBinding }) {
           <span className="rbac-detail-value">
             {binding.namespace ? (
               <>
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="14" height="14">
-                  <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
-                </svg>
+                <Icon name="square" size={14} />
                 {binding.namespace}
               </>
             ) : (
               <>
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="14" height="14">
-                  <circle cx="12" cy="12" r="10" />
-                </svg>
+                <Icon name="circle" size={14} />
                 <span className="cluster-wide-label">Cluster-wide</span>
               </>
             )}
@@ -151,12 +117,7 @@ function RbacCard({ binding }: { binding: RbacBinding }) {
 
       <div className="rbac-subjects">
         <div className="rbac-subjects-header">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="14" height="14">
-            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-            <circle cx="9" cy="7" r="4" />
-            <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
-            <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-          </svg>
+          <Icon name="users" size={14} />
           <span>Subjects</span>
           <span className="subject-badge">{subjectCount}</span>
         </div>
@@ -240,9 +201,7 @@ export function SecurityPanel({ rbacBindings, privilegedPods, rbacStatus, privil
       <div className="security-stats">
         <div className="security-stat-card">
           <div className="security-stat-icon stat-icon-bindings">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-            </svg>
+            <Icon name="shield" size={24} />
           </div>
           <div className="security-stat-content">
             <span className="security-stat-value">{rbacBindings.length}</span>
@@ -253,9 +212,7 @@ export function SecurityPanel({ rbacBindings, privilegedPods, rbacStatus, privil
 
         <div className="security-stat-card">
           <div className="security-stat-icon stat-icon-admin">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-            </svg>
+            <Icon name="shield" size={24} />
           </div>
           <div className="security-stat-content">
             <span className="security-stat-value security-stat-value-danger">{adminBindings.length}</span>
@@ -266,10 +223,7 @@ export function SecurityPanel({ rbacBindings, privilegedPods, rbacStatus, privil
 
         <div className="security-stat-card">
           <div className="security-stat-icon stat-icon-privileged">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-              <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-            </svg>
+            <Icon name="lock" size={24} />
           </div>
           <div className="security-stat-content">
             <span className="security-stat-value security-stat-value-danger">{privilegedPods.length}</span>
@@ -280,12 +234,7 @@ export function SecurityPanel({ rbacBindings, privilegedPods, rbacStatus, privil
 
         <div className="security-stat-card">
           <div className="security-stat-icon stat-icon-subjects">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-              <circle cx="9" cy="7" r="4" />
-              <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
-              <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-            </svg>
+            <Icon name="users" size={24} />
           </div>
           <div className="security-stat-content">
             <span className="security-stat-value">
@@ -300,10 +249,7 @@ export function SecurityPanel({ rbacBindings, privilegedPods, rbacStatus, privil
       {/* ── Search & Filter ────────────────────────────────── */}
       <div className="security-toolbar">
         <div className="security-search">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="security-search-icon">
-            <circle cx="11" cy="11" r="8" />
-            <line x1="21" y1="21" x2="16.65" y2="16.65" />
-          </svg>
+          <Icon name="search" className="security-search-icon" />
           <input
             type="text"
             className="security-search-input"
@@ -318,10 +264,7 @@ export function SecurityPanel({ rbacBindings, privilegedPods, rbacStatus, privil
               onClick={() => setSearchQuery('')}
               aria-label="Clear search"
             >
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="16" height="16">
-                <line x1="18" y1="6" x2="6" y2="18" />
-                <line x1="6" y1="6" x2="18" y2="18" />
-              </svg>
+              <Icon name="x" size={16} />
             </button>
           )}
         </div>
@@ -336,9 +279,7 @@ export function SecurityPanel({ rbacBindings, privilegedPods, rbacStatus, privil
             className={`security-chip chip-danger ${filterType === 'cluster-admin' ? 'active' : ''}`}
             onClick={() => setFilterType('cluster-admin')}
           >
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="14" height="14">
-              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-            </svg>
+            <Icon name="shield" size={14} />
             Admin Only
           </button>
         </div>
@@ -365,22 +306,13 @@ export function SecurityPanel({ rbacBindings, privilegedPods, rbacStatus, privil
 
         {!hasAnyData ? (
           <EmptyState
-            icon={
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-              </svg>
-            }
+            icon={<Icon name="shield" size={48} />}
             message="No RBAC bindings found"
             submessage="Ensure your K8s cluster is configured and accessible."
           />
         ) : filteredBindings.length === 0 ? (
           <EmptyState
-            icon={
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="11" cy="11" r="8" />
-                <line x1="21" y1="21" x2="16.65" y2="16.65" />
-              </svg>
-            }
+            icon={<Icon name="search" size={48} />}
             message="No matching bindings"
             submessage="Try adjusting your search or filter criteria."
           />
@@ -408,9 +340,7 @@ export function SecurityPanel({ rbacBindings, privilegedPods, rbacStatus, privil
                   {roleBindingsByNs.map(([ns, bindings]) => (
                     <div key={ns} className="security-ns-group">
                       <div className="security-ns-group-header">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="14" height="14" className="security-ns-icon">
-                          <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
-                        </svg>
+                        <Icon name="square" size={14} className="security-ns-icon" />
                         <span className="security-ns-name">{ns}</span>
                         <span className="security-ns-count">{bindings.length}</span>
                       </div>
@@ -437,23 +367,13 @@ export function SecurityPanel({ rbacBindings, privilegedPods, rbacStatus, privil
 
         {privilegedPods.length === 0 ? (
           <EmptyState
-            icon={
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-                <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-              </svg>
-            }
+            icon={<Icon name="lock" size={48} />}
             message="No privileged pods found"
             submessage="Cluster is running with secure pod configurations."
           />
         ) : filteredPrivileged.length === 0 ? (
           <EmptyState
-            icon={
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="11" cy="11" r="8" />
-                <line x1="21" y1="21" x2="16.65" y2="16.65" />
-              </svg>
-            }
+            icon={<Icon name="search" size={48} />}
             message="No matching privileged pods"
             submessage="Try adjusting your search."
           />
@@ -498,9 +418,7 @@ export function SecurityPanel({ rbacBindings, privilegedPods, rbacStatus, privil
                       <div className="rbac-detail-row">
                         <span className="rbac-detail-label">Namespace</span>
                         <span className="rbac-detail-value">
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="14" height="14">
-                            <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
-                          </svg>
+                          <Icon name="square" size={14} />
                           {pod.namespace}
                         </span>
                       </div>
@@ -516,18 +434,13 @@ export function SecurityPanel({ rbacBindings, privilegedPods, rbacStatus, privil
                     <div className="risk-factors">
                       {isPrivileged && (
                         <span className="risk-factor factor-privileged">
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="12" height="12">
-                            <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-                            <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-                          </svg>
+                          <Icon name="lock" size={12} />
                           PRIVILEGED MODE
                         </span>
                       )}
                       {isRoot && (
                         <span className="risk-factor factor-root">
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="12" height="12">
-                            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-                          </svg>
+                          <Icon name="shield" size={12} />
                           RUNNING AS ROOT
                         </span>
                       )}

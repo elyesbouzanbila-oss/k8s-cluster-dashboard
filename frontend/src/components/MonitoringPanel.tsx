@@ -12,9 +12,10 @@ import {
   Filler,
 } from 'chart.js'
 import type { PodMetric, PrometheusResponse, PromSeries } from '../types'
-import { getNsColor } from '../utils'
+import { getNsColor, CONTAINER_COLORS } from '../utils'
 import { DataSourceBadge } from './DataSourceBadge'
 import { EmptyState } from './EmptyState'
+import { Icon } from './Icon'
 
 // Register Chart.js components
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend, Filler)
@@ -22,8 +23,6 @@ ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, T
 interface MonitoringPanelProps {
   podMetrics: PodMetric[]
 }
-
-const CONTAINER_COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4']
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || ''
 const API_KEY = import.meta.env.VITE_API_KEY || 'your-secret-api-key-change-this'
@@ -63,11 +62,7 @@ function TimeSeriesChart({ series, title, unit }: {
   if (!series.length || !series[0].values.length) {
     return (
       <div className="monitoring-chart-empty">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="20" height="20">
-          <circle cx="12" cy="12" r="10" />
-          <line x1="12" y1="8" x2="12" y2="12" />
-          <line x1="12" y1="16" x2="12.01" y2="16" />
-        </svg>
+        <Icon name="info" size={20} />
         <span>{title} — no data</span>
       </div>
     )
@@ -288,13 +283,8 @@ function NamespaceOverviewCharts({ namespace }: { namespace: string }) {
     <div className="monitoring-ns-charts">
       <div className="monitoring-ns-charts-header">
         <div className="monitoring-ns-charts-title">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16"
-            style={{ '--ns-color': getNsColor(namespace) }}>
-            <line x1="18" y1="20" x2="18" y2="10" />
-            <line x1="12" y1="20" x2="12" y2="4" />
-            <line x1="6" y1="20" x2="6" y2="14" />
-          </svg>
-          <span style={{ '--ns-color': getNsColor(namespace) }}>{namespace}</span>
+          <Icon name="bar-chart" size={16} style={{ '--ns-color': getNsColor(namespace) } as React.CSSProperties} />
+          <span style={{ '--ns-color': getNsColor(namespace) } as React.CSSProperties}>{namespace}</span>
         </div>
         <div className="monitoring-duration-picker">
           {[15, 30, 60, 180].map((m) => (
@@ -333,16 +323,11 @@ function PodDetailView({ pod, namespace, onClose }: {
     <div className="monitoring-detail-panel">
       <div className="monitoring-detail-header">
         <button className="monitoring-detail-back" onClick={onClose}>
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
-            <polyline points="15 18 9 12 15 6" />
-          </svg>
+          <Icon name="arrow-left" size={16} />
           Back to overview
         </button>
         <h3>
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
-            <rect x="2" y="3" width="20" height="14" rx="2" ry="2" />
-            <line x1="8" y1="21" x2="16" y2="21" />
-          </svg>
+          <Icon name="pod" size={16} />
           {pod}
           <span className="monitoring-detail-ns">{namespace}</span>
         </h3>
@@ -395,11 +380,7 @@ export function MonitoringPanel({ podMetrics }: MonitoringPanelProps) {
       <div className="section monitoring-section">
         <h2>Monitoring</h2>
         <EmptyState
-          icon={
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-              <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
-            </svg>
-          }
+          icon={<Icon name="activity" size={48} />}
           message="No pod metrics available"
           submessage="Ensure metrics-server and Prometheus are installed in your cluster."
         />
@@ -411,11 +392,7 @@ export function MonitoringPanel({ podMetrics }: MonitoringPanelProps) {
     <div className="section monitoring-section">
       <h2>Monitoring</h2>
       <p className="monitoring-subtitle">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14">
-          <circle cx="12" cy="12" r="10" />
-          <line x1="12" y1="16" x2="12" y2="12" />
-          <line x1="12" y1="8" x2="12.01" y2="8" />
-        </svg>
+        <Icon name="info" size={14} />
         Time-series CPU and memory usage for the last hour. Data sourced from Prometheus. Click a pod name for per-container breakdown.
       </p>
 
@@ -435,18 +412,12 @@ export function MonitoringPanel({ podMetrics }: MonitoringPanelProps) {
                 onClick={() => toggleNs(ns)}
                 aria-expanded={isExpanded}
               >
-                <svg
+                <Icon
+                  name="chevron-right"
+                  size={14}
                   className="monitoring-chevron"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  width="14"
-                  height="14"
                   style={{ transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)' }}
-                >
-                  <polyline points="9 18 15 12 9 6" />
-                </svg>
+                />
                 <span className="monitoring-ns-name">{ns}</span>
                 <span className="monitoring-ns-count">{nsPods.length} pods</span>
               </button>
@@ -460,10 +431,7 @@ export function MonitoringPanel({ podMetrics }: MonitoringPanelProps) {
                         className="monitoring-pod-chip"
                         onClick={() => setSelectedPod({ name: p.name, namespace: ns })}
                       >
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="12" height="12">
-                          <rect x="2" y="3" width="20" height="14" rx="2" ry="2" />
-                          <line x1="8" y1="21" x2="16" y2="21" />
-                        </svg>
+                        <Icon name="pod" size={12} />
                         {p.name}
                       </button>
                     ))}

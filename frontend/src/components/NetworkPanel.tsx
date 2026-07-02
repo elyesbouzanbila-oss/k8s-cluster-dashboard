@@ -3,13 +3,16 @@ import type { Pod, TopologyNode, TopologyEdge, DataSourceStatus } from '../types
 import { Topology } from '../Topology'
 import { DataSourceBadge } from './DataSourceBadge'
 import { EmptyState } from './EmptyState'
+import { Skeleton } from './Skeleton'
 import { copyToClipboard, showCopiedFeedback, getNsColor } from '../utils'
+import { Icon } from './Icon'
 
 interface NetworkPanelProps {
   pods: Pod[]
   topology: { nodes: TopologyNode[]; edges: TopologyEdge[] }
   podsStatus?: DataSourceStatus
   topologyStatus?: DataSourceStatus
+  loading?: boolean
 }
 
 // ─── Group pods by namespace ────────────────────────────────────
@@ -58,23 +61,7 @@ function CopyButton({ value, label, title }: { value: string; label: string; tit
       >
         {label}
       </span>
-      <svg
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        width="12"
-        height="12"
-        style={{
-          marginLeft: '4px',
-          opacity: 0.4,
-          verticalAlign: 'middle',
-          flexShrink: 0,
-        }}
-      >
-        <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
-        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
-      </svg>
+      <Icon name="copy" size={12} style={{ marginLeft: '4px', opacity: 0.4, verticalAlign: 'middle', flexShrink: 0 }} />
     </span>
   )
 }
@@ -93,18 +80,12 @@ function NsSection({ name, pods, defaultOpen }: { name: string; pods: Pod[]; def
         aria-expanded={open}
         style={{ '--ns-color': color }}
       >
-        <svg
+        <Icon
+          name="chevron-right"
+          size={16}
           className="ns-chevron"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          width="16"
-          height="16"
           style={{ transform: open ? 'rotate(90deg)' : 'rotate(0deg)' }}
-        >
-          <polyline points="9 18 15 12 9 6" />
-        </svg>
+        />
         <span className="ns-section-title">{name}</span>
         <span className="ns-section-count">{pods.length} pod{pods.length !== 1 ? 's' : ''}</span>
       </button>
@@ -161,7 +142,7 @@ function NsSection({ name, pods, defaultOpen }: { name: string; pods: Pod[]; def
 }
 
 // ─── Main Component ─────────────────────────────────────────────
-export function NetworkPanel({ pods, topology, podsStatus, topologyStatus }: NetworkPanelProps) {
+export function NetworkPanel({ pods, topology, podsStatus, topologyStatus, loading }: NetworkPanelProps) {
   const [searchQuery, setSearchQuery] = useState('')
 
   const filteredPods = useMemo(() => {
@@ -177,6 +158,8 @@ export function NetworkPanel({ pods, topology, podsStatus, topologyStatus }: Net
 
   const nsGroups = groupByNamespace(filteredPods)
 
+  const showSearch = pods.length > 10
+
   return (
     <div className="section network-section">
       <h2>Network Discovery</h2>
@@ -186,26 +169,22 @@ export function NetworkPanel({ pods, topology, podsStatus, topologyStatus }: Net
           <h3>Pods ({filteredPods.length})</h3>
           <DataSourceBadge status={podsStatus} label="Pod data" />
         </div>
-        {pods.length === 0 ? (
+        {loading ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            <Skeleton variant="card" count={4} />
+          </div>
+        ) : pods.length === 0 ? (
           <EmptyState
-            icon={
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                <rect x="2" y="3" width="20" height="14" rx="2" ry="2" />
-                <line x1="8" y1="21" x2="16" y2="21" />
-              </svg>
-            }
+            icon={<Icon name="pod" size={48} />}
             message="No pods found"
             submessage="Ensure your K8s cluster is configured and accessible."
           />
         ) : (
           <>
-            {pods.length > 10 && (
+            {showSearch && (
               <div className="security-toolbar" style={{ marginBottom: '16px' }}>
                 <div className="security-search">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="security-search-icon">
-                    <circle cx="11" cy="11" r="8" />
-                    <line x1="21" y1="21" x2="16.65" y2="16.65" />
-                  </svg>
+                  <Icon name="search" className="security-search-icon" />
                   <input
                     type="text"
                     className="security-search-input"
@@ -220,10 +199,7 @@ export function NetworkPanel({ pods, topology, podsStatus, topologyStatus }: Net
                       onClick={() => setSearchQuery('')}
                       aria-label="Clear search"
                     >
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="16" height="16">
-                        <line x1="18" y1="6" x2="6" y2="18" />
-                        <line x1="6" y1="6" x2="18" y2="18" />
-                      </svg>
+                      <Icon name="x" size={16} />
                     </button>
                   )}
                 </div>
@@ -232,12 +208,7 @@ export function NetworkPanel({ pods, topology, podsStatus, topologyStatus }: Net
             <div className="ns-sections">
               {nsGroups.length === 0 ? (
                 <EmptyState
-                  icon={
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                      <circle cx="11" cy="11" r="8" />
-                      <line x1="21" y1="21" x2="16.65" y2="16.65" />
-                    </svg>
-                  }
+                  icon={<Icon name="search" size={48} />}
                   message="No matching pods"
                   submessage="Try adjusting your search."
                 />
@@ -258,13 +229,7 @@ export function NetworkPanel({ pods, topology, podsStatus, topologyStatus }: Net
         </div>
         {topology.nodes.length === 0 ? (
           <EmptyState
-            icon={
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="12" cy="12" r="3" />
-                <circle cx="19" cy="5" r="2" />
-                <circle cx="5" cy="5" r="2" />
-              </svg>
-            }
+            icon={<Icon name="network" size={48} />}
             message="No topology data"
             submessage="Ensure your K8s cluster is configured and accessible."
           />

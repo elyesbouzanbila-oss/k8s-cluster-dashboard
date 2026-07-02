@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import './App.css'
+import { Icon } from './components/Icon'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { DashboardPanel } from './components/DashboardPanel'
 import { NetworkPanel } from './components/NetworkPanel'
@@ -22,90 +23,17 @@ const HARD_REFRESH_MS = 60_000   // 60s — full data
 interface TabDef {
   id: string
   label: string
-  icon: () => React.ReactNode
+  icon: React.ReactNode
 }
 
 const TABS: TabDef[] = [
-  {
-    id: 'dashboard',
-    label: 'Dashboard',
-    icon: () => (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <rect x="3" y="3" width="7" height="7" />
-        <rect x="14" y="3" width="7" height="7" />
-        <rect x="3" y="14" width="7" height="7" />
-        <rect x="14" y="14" width="7" height="7" />
-      </svg>
-    ),
-  },
-  {
-    id: 'network',
-    label: 'Network',
-    icon: () => (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <circle cx="12" cy="12" r="3" />
-        <circle cx="19" cy="5" r="2" />
-        <circle cx="5" cy="5" r="2" />
-        <circle cx="19" cy="19" r="2" />
-        <circle cx="5" cy="19" r="2" />
-        <line x1="12" y1="9" x2="17" y2="6" />
-        <line x1="12" y1="9" x2="7" y2="6" />
-        <line x1="12" y1="15" x2="17" y2="18" />
-        <line x1="12" y1="15" x2="7" y2="18" />
-      </svg>
-    ),
-  },
-  {
-    id: 'security',
-    label: 'Security',
-    icon: () => (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-      </svg>
-    ),
-  },
-  {
-    id: 'threats',
-    label: 'Threats',
-    icon: () => (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
-        <line x1="12" y1="9" x2="12" y2="13" />
-        <line x1="12" y1="17" x2="12.01" y2="17" />
-      </svg>
-    ),
-  },
-  {
-    id: 'metrics',
-    label: 'Metrics',
-    icon: () => (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <line x1="18" y1="20" x2="18" y2="10" />
-        <line x1="12" y1="20" x2="12" y2="4" />
-        <line x1="6" y1="20" x2="6" y2="14" />
-      </svg>
-    ),
-  },
-  {
-    id: 'storage',
-    label: 'Storage',
-    icon: () => (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <ellipse cx="12" cy="5" rx="9" ry="3" />
-        <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3" />
-        <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5" />
-      </svg>
-    ),
-  },
-  {
-    id: 'monitoring',
-    label: 'Monitoring',
-    icon: () => (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
-      </svg>
-    ),
-  },
+  { id: 'dashboard', label: 'Dashboard', icon: <Icon name="layout-dashboard" /> },
+  { id: 'network', label: 'Network', icon: <Icon name="network" /> },
+  { id: 'security', label: 'Security', icon: <Icon name="shield" /> },
+  { id: 'threats', label: 'Threats', icon: <Icon name="alert-triangle" /> },
+  { id: 'metrics', label: 'Metrics', icon: <Icon name="bar-chart" /> },
+  { id: 'storage', label: 'Storage', icon: <Icon name="hard-drive" /> },
+  { id: 'monitoring', label: 'Monitoring', icon: <Icon name="activity" /> },
 ]
 
 // ─── App Component ────────────────────────────────────────────────
@@ -544,18 +472,11 @@ function App() {
       {error && (
         <div className="error-banner" role="alert">
           <div className="error-banner-content">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="error-icon" aria-hidden="true">
-              <circle cx="12" cy="12" r="10" />
-              <line x1="15" y1="9" x2="9" y2="15" />
-              <line x1="9" y1="9" x2="15" y2="15" />
-            </svg>
+            <Icon name="x" size={20} className="error-icon" aria-hidden="true" style={{ strokeWidth: 2 }} />
             <strong>Error:</strong> {error}
           </div>
           <button className="error-dismiss" onClick={() => setError(null)} aria-label="Dismiss error">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16" aria-hidden="true">
-              <line x1="18" y1="6" x2="6" y2="18" />
-              <line x1="6" y1="6" x2="18" y2="18" />
-            </svg>
+            <Icon name="x" size={16} aria-hidden="true" />
           </button>
         </div>
       )}
@@ -572,7 +493,7 @@ function App() {
             aria-controls={`tabpanel-${tab.id}`}
             tabIndex={activeTab === tab.id ? 0 : -1}
           >
-            <span className="tab-icon" aria-hidden="true">{tab.icon()}</span>
+            <span className="tab-icon" aria-hidden="true">{tab.icon}</span>
             <span className="tab-label">{tab.label}</span>
           </button>
         ))}
@@ -614,7 +535,7 @@ function App() {
               />
               )}
               {activeTab === 'network' && (
-                <NetworkPanel pods={pods} topology={topology} podsStatus={podsStatus} topologyStatus={topologyStatus} />
+                <NetworkPanel pods={pods} topology={topology} podsStatus={podsStatus} topologyStatus={topologyStatus} loading={loading} />
               )}
               {activeTab === 'security' && (
                 <SecurityPanel rbacBindings={rbacBindings} privilegedPods={privilegedPods} rbacStatus={rbacStatus} privilegedStatus={privilegedStatus} />
@@ -634,7 +555,7 @@ function App() {
                 <MonitoringPanel podMetrics={podMetrics} />
               )}
               {activeTab === 'storage' && (
-                <StoragePanel storageConfig={storageConfig} storageStatus={storageStatus} />
+                <StoragePanel storageConfig={storageConfig} storageStatus={storageStatus} loading={loading} />
               )}
             </div>
           ))}

@@ -2,30 +2,21 @@ import { useState, useMemo, useCallback, useEffect } from 'react'
 import type { ThreatEvent } from '../types'
 import { EmptyState } from './EmptyState'
 import { Skeleton } from './Skeleton'
+import { getPriorityColor } from '../utils'
+import { Icon } from './Icon'
 
 interface ThreatPanelProps {
   threats: ThreatEvent[]
   wsConnected: boolean
   onClear?: () => void
   loading?: boolean
+  loadingPods?: boolean
 }
 
 const SEVERITIES = ['Critical', 'High', 'Medium', 'Warning'] as const
 
-const NOW = Date.now
-
-function getPriorityColor(priority: string): string {
-  switch (priority) {
-    case 'Critical': return '#ff4d4d'
-    case 'High': return '#ff9933'
-    case 'Medium': return '#ffcc00'
-    case 'Warning': return '#ffdd66'
-    default: return '#666666'
-  }
-}
-
-function getRelativeTime(timestamp: string, _refreshTick?: number): string {
-  const now = NOW()
+function getRelativeTime(timestamp: string): string {
+  const now = Date.now()
   const time = new Date(timestamp).getTime()
   const diff = Math.floor((now - time) / 1000)
   if (diff < 0) return 'just now'
@@ -40,7 +31,7 @@ export function ThreatPanel({ threats, wsConnected, onClear, loading }: ThreatPa
   const [searchQuery, setSearchQuery] = useState('')
   const [severityFilter, setSeverityFilter] = useState<string>('all')
   const [paused, setPaused] = useState(false)
-  const [pausedSnapshots, setPausedSnapshots] = useState<ThreatEvent[][]>([])
+  const [pausedSnapshot, setPausedSnapshot] = useState<ThreatEvent[] | null>(null)
   const [tick, setTick] = useState(0)
 
   // Re-render periodically to keep relative timestamps fresh
@@ -55,20 +46,20 @@ export function ThreatPanel({ threats, wsConnected, onClear, loading }: ThreatPa
   const handlePauseToggle = useCallback(() => {
     setPaused(prev => {
       if (!prev) {
-        setPausedSnapshots(prevSnap => [threats, ...prevSnap].slice(0, 1))
+        setPausedSnapshot(threats)
       }
       return !prev
     })
   }, [threats])
 
   const handleClear = useCallback(() => {
-    setPausedSnapshots([])
+    setPausedSnapshot(null)
     setPaused(false)
     onClear?.()
   }, [onClear])
 
   // Use snapshot when paused, live data otherwise
-  const displayThreats = paused && pausedSnapshots.length > 0 ? pausedSnapshots[0] : threats
+  const displayThreats = paused && pausedSnapshot ? pausedSnapshot : threats
 
   const filteredThreats = useMemo(() => {
     const q = searchQuery.toLowerCase().trim()
@@ -104,10 +95,7 @@ export function ThreatPanel({ threats, wsConnected, onClear, loading }: ThreatPa
       {/* Toolbar */}
       <div className="security-toolbar" style={{ marginBottom: '16px' }}>
         <div className="security-search" style={{ flex: 1 }}>
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="security-search-icon">
-            <circle cx="11" cy="11" r="8" />
-            <line x1="21" y1="21" x2="16.65" y2="16.65" />
-          </svg>
+          <Icon name="search" size={16} className="security-search-icon" />
           <input
             type="text"
             className="security-search-input"
@@ -122,10 +110,7 @@ export function ThreatPanel({ threats, wsConnected, onClear, loading }: ThreatPa
               onClick={() => setSearchQuery('')}
               aria-label="Clear search"
             >
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="16" height="16">
-                <line x1="18" y1="6" x2="6" y2="18" />
-                <line x1="6" y1="6" x2="18" y2="18" />
-              </svg>
+              <Icon name="x" size={16} />
             </button>
           )}
         </div>
@@ -158,16 +143,7 @@ export function ThreatPanel({ threats, wsConnected, onClear, loading }: ThreatPa
           aria-label={paused ? 'Resume' : 'Pause'}
           style={{ color: paused ? 'var(--warning)' : undefined, borderColor: paused ? 'var(--warning)' : undefined }}
         >
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
-            {paused ? (
-              <polygon points="5 3 19 12 5 21 5 3" />
-            ) : (
-              <>
-                <rect x="6" y="4" width="4" height="16" />
-                <rect x="14" y="4" width="4" height="16" />
-              </>
-            )}
-          </svg>
+          <Icon name={paused ? 'play' : 'pause'} size={16} />
           <span>{paused ? 'Resume' : 'Pause'}</span>
         </button>
         <button
@@ -176,10 +152,7 @@ export function ThreatPanel({ threats, wsConnected, onClear, loading }: ThreatPa
           title="Clear all threat events"
           aria-label="Clear threats"
         >
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
-            <polyline points="3 6 5 6 21 6" />
-            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-          </svg>
+          <Icon name="trash-2" size={16} />
           <span>Clear</span>
         </button>
       </div>
@@ -195,35 +168,19 @@ export function ThreatPanel({ threats, wsConnected, onClear, loading }: ThreatPa
 
       {displayThreats.length === 0 && !paused ? (
         <EmptyState
-          icon={
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
-              <line x1="12" y1="9" x2="12" y2="13" />
-              <line x1="12" y1="17" x2="12.01" y2="17" />
-            </svg>
-          }
+          icon={<Icon name="alert-triangle" size={48} />}
           message="No threats detected"
           submessage="All clear — no security events captured yet."
         />
-      ) : paused && pausedSnapshots.length > 0 && displayThreats.length === 0 ? (
+      ) : paused && pausedSnapshot && displayThreats.length === 0 ? (
         <EmptyState
-          icon={
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="12" cy="12" r="10" />
-              <line x1="12" y1="12" x2="12" y2="12" />
-            </svg>
-          }
+          icon={<Icon name="info" size={48} />}
           message="Threat stream paused — no events captured yet"
           submessage="Resume the stream to start receiving events."
         />
       ) : filteredThreats.length === 0 ? (
         <EmptyState
-          icon={
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="11" cy="11" r="8" />
-              <line x1="21" y1="21" x2="16.65" y2="16.65" />
-            </svg>
-          }
+          icon={<Icon name="search" size={48} />}
           message="No matching threats"
           submessage="Try adjusting your search or filter criteria."
         />
@@ -239,7 +196,7 @@ export function ThreatPanel({ threats, wsConnected, onClear, loading }: ThreatPa
                 <span className="priority-dot" style={{ backgroundColor: getPriorityColor(threat.priority) }} role="img" aria-label={threat.priority}></span>
                 <span className="priority">{threat.priority}</span>
                 <span className="rule" title={threat.rule}>{threat.rule}</span>
-                <span className="time" title={new Date(threat.time).toLocaleString()}>{getRelativeTime(threat.time, tick)}</span>
+                <span className="time" title={new Date(threat.time).toLocaleString()}>{getRelativeTime(threat.time)}</span>
               </div>
               <p className="output" title={threat.output}>{threat.output}</p>
             </div>

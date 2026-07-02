@@ -34,6 +34,9 @@ export type IconName =
   | 'eye-off'
   | 'arrow-left'
   | 'check'
+  | 'network'
+  | 'square'
+  | 'circle'
 
 const ICON_PATHS: Record<IconName, { viewBox: string; paths: React.ReactNode }> = {
   'chevron-right': {
@@ -267,6 +270,30 @@ const ICON_PATHS: Record<IconName, { viewBox: string; paths: React.ReactNode }> 
   check: {
     viewBox: '0 0 24 24',
     paths: <polyline points="20 6 9 17 4 12" strokeWidth="2" />,
+  },
+  network: {
+    viewBox: '0 0 24 24',
+    paths: (
+      <>
+        <circle cx="12" cy="12" r="3" strokeWidth="2" />
+        <circle cx="19" cy="5" r="2" strokeWidth="2" />
+        <circle cx="5" cy="5" r="2" strokeWidth="2" />
+        <circle cx="19" cy="19" r="2" strokeWidth="2" />
+        <circle cx="5" cy="19" r="2" strokeWidth="2" />
+        <line x1="12" y1="9" x2="17" y2="6" strokeWidth="2" />
+        <line x1="12" y1="9" x2="7" y2="6" strokeWidth="2" />
+        <line x1="12" y1="15" x2="17" y2="18" strokeWidth="2" />
+        <line x1="12" y1="15" x2="7" y2="18" strokeWidth="2" />
+      </>
+    ),
+  },
+  square: {
+    viewBox: '0 0 24 24',
+    paths: <rect x="3" y="3" width="18" height="18" rx="2" ry="2" strokeWidth="2" />,
+  },
+  circle: {
+    viewBox: '0 0 24 24',
+    paths: <circle cx="12" cy="12" r="10" strokeWidth="2" />,
   },
 }
 
