@@ -1,7 +1,8 @@
 import { useState, useMemo } from 'react'
 import type { NodeMetric, PodMetric, DataSourceStatus } from '../types'
-import { parseCPU, parseMemory } from '../utils'
+import { parseCPU, parseMemory, parseCPUToMilli, parseMemoryToBytes, formatBytes, formatCPU, getNsColor, getBarColor } from '../utils'
 import { DataSourceBadge } from './DataSourceBadge'
+import { EmptyState } from './EmptyState'
 
 interface MetricsPanelProps {
   nodeMetrics: NodeMetric[]
@@ -10,62 +11,9 @@ interface MetricsPanelProps {
   podMetricsStatus?: DataSourceStatus
 }
 
-// ─── Namespace Colors ──────────────────────────────────────────
-const NS_COLORS: Record<string, string> = {
-  'kube-system': '#ec4899',
-  'production': '#3b82f6',
-  'monitoring': '#10b981',
-  'default': '#8b5cf6',
-}
-
-function getNsColor(ns: string): string {
-  return NS_COLORS[ns] || '#6366F1'
-}
-
-// ─── Helpers ───────────────────────────────────────────────────
-function parseCPUToMilli(cpuStr: string): number {
-  if (!cpuStr) return 0
-  if (cpuStr.endsWith('n')) return parseFloat(cpuStr.slice(0, -1)) / 1_000_000
-  if (cpuStr.endsWith('m')) return parseFloat(cpuStr.slice(0, -1))
-  if (cpuStr.endsWith('u')) return parseFloat(cpuStr.slice(0, -1)) / 1000
-  return parseFloat(cpuStr) * 1000
-}
-
-function parseMemoryToBytes(memStr: string): number {
-  if (!memStr) return 0
-  if (memStr.endsWith('Ki')) return parseFloat(memStr.slice(0, -2)) * 1024
-  if (memStr.endsWith('Mi')) return parseFloat(memStr.slice(0, -2)) * 1024 * 1024
-  if (memStr.endsWith('Gi')) return parseFloat(memStr.slice(0, -2)) * 1024 * 1024 * 1024
-  if (memStr.endsWith('Ti')) return parseFloat(memStr.slice(0, -2)) * 1024 * 1024 * 1024 * 1024
-  if (memStr.endsWith('k')) return parseFloat(memStr.slice(0, -1)) * 1000
-  if (memStr.endsWith('M')) return parseFloat(memStr.slice(0, -1)) * 1000 * 1000
-  if (memStr.endsWith('G')) return parseFloat(memStr.slice(0, -1)) * 1000 * 1000 * 1000
-  const n = parseFloat(memStr)
-  return isNaN(n) ? 0 : n
-}
-
-function formatBytes(bytes: number): string {
-  if (bytes >= 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GiB`
-  if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(0)} MiB`
-  if (bytes >= 1024) return `${(bytes / 1024).toFixed(0)} KiB`
-  return `${bytes} B`
-}
-
-function formatCPU(milli: number): string {
-  if (milli >= 1000) return `${(milli / 1000).toFixed(2)} cores`
-  return `${milli.toFixed(0)}m`
-}
-
 function getUsagePercent(value: number, max: number | null | undefined): number | null {
   if (max == null || max <= 0) return null
   return Math.min((value / max) * 100, 100)
-}
-
-function getBarColor(percent: number): string {
-  if (percent >= 90) return '#ef4444'
-  if (percent >= 70) return '#f59e0b'
-  if (percent >= 50) return '#3b82f6'
-  return '#10b981'
 }
 
 // ─── Container Bar Component ───────────────────────────────────
@@ -208,6 +156,18 @@ function PodMetricCard({ pod }: { pod: PodMetric }) {
 
 // ─── Main Component ────────────────────────────────────────────
 export function MetricsPanel({ nodeMetrics, podMetrics, nodeMetricsStatus, podMetricsStatus }: MetricsPanelProps) {
+  const [searchQuery, setSearchQuery] = useState('')
+
+  const filteredPodMetrics = useMemo(() => {
+    const q = searchQuery.toLowerCase().trim()
+    if (!q) return podMetrics
+    return podMetrics.filter(p =>
+      p.name.toLowerCase().includes(q) ||
+      p.namespace.toLowerCase().includes(q) ||
+      p.node.toLowerCase().includes(q)
+    )
+  }, [podMetrics, searchQuery])
+
   // Group pod metrics by namespace
   const podsByNs = useMemo(() => {
     const grouped: Record<string, PodMetric[]> = {}
@@ -239,16 +199,16 @@ export function MetricsPanel({ nodeMetrics, podMetrics, nodeMetricsStatus, podMe
     }
 
     return { grouped, nsOrder }
-  }, [podMetrics])
+  }, [filteredPodMetrics])
 
   // Calculate cluster-wide pod resource totals
   const clusterTotalCPU = useMemo(
-    () => podMetrics.reduce((acc, p) => acc + parseCPUToMilli(p.pod_cpu_usage), 0),
-    [podMetrics]
+    () => filteredPodMetrics.reduce((acc, p) => acc + parseCPUToMilli(p.pod_cpu_usage), 0),
+    [filteredPodMetrics]
   )
   const clusterTotalMem = useMemo(
-    () => podMetrics.reduce((acc, p) => acc + parseMemoryToBytes(p.pod_memory_usage), 0),
-    [podMetrics]
+    () => filteredPodMetrics.reduce((acc, p) => acc + parseMemoryToBytes(p.pod_memory_usage), 0),
+    [filteredPodMetrics]
   )
 
   return (
@@ -262,7 +222,17 @@ export function MetricsPanel({ nodeMetrics, podMetrics, nodeMetricsStatus, podMe
           <DataSourceBadge status={nodeMetricsStatus} label="Node metrics" />
         </div>
         {nodeMetrics.length === 0 ? (
-          <p className="empty">No node metrics found. Ensure metrics-server is installed in your cluster.</p>
+          <EmptyState
+            icon={
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="18" y1="20" x2="18" y2="10" />
+                <line x1="12" y1="20" x2="12" y2="4" />
+                <line x1="6" y1="20" x2="6" y2="14" />
+              </svg>
+            }
+            message="No node metrics found"
+            submessage="Ensure metrics-server is installed in your cluster."
+          />
         ) : (
           <div className="metrics-grid">
             {nodeMetrics.map((node) => {
@@ -315,13 +285,52 @@ export function MetricsPanel({ nodeMetrics, podMetrics, nodeMetricsStatus, podMe
           <DataSourceBadge status={podMetricsStatus} label="Pod metrics" />
         </div>
         {podMetrics.length === 0 ? (
-          <p className="empty">No pod metrics found. cAdvisor / metrics-server may not be running.</p>
+          <EmptyState
+            icon={
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="2" y="3" width="20" height="14" rx="2" ry="2" />
+                <line x1="8" y1="21" x2="16" y2="21" />
+              </svg>
+            }
+            message="No pod metrics found"
+            submessage="cAdvisor / metrics-server may not be running."
+          />
         ) : (
           <>
+            {podMetrics.length > 5 && (
+              <div className="security-toolbar" style={{ marginBottom: '16px' }}>
+                <div className="security-search">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="security-search-icon">
+                    <circle cx="11" cy="11" r="8" />
+                    <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                  </svg>
+                  <input
+                    type="text"
+                    className="security-search-input"
+                    placeholder="Search pods by name, namespace, node..."
+                    value={searchQuery}
+                    onChange={e => setSearchQuery(e.target.value)}
+                    aria-label="Search pod metrics"
+                  />
+                  {searchQuery && (
+                    <button
+                      className="security-search-clear"
+                      onClick={() => setSearchQuery('')}
+                      aria-label="Clear search"
+                    >
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="16" height="16">
+                        <line x1="18" y1="6" x2="6" y2="18" />
+                        <line x1="6" y1="6" x2="18" y2="18" />
+                      </svg>
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
             <div className="pod-metrics-cluster-summary">
               <div className="pod-metrics-cluster-stat">
                 <span className="cluster-stat-label">Total Pods Monitored</span>
-                <span className="cluster-stat-value">{podMetrics.length}</span>
+                <span className="cluster-stat-value">{filteredPodMetrics.length}</span>
               </div>
               <div className="pod-metrics-cluster-stat">
                 <span className="cluster-stat-label">Total CPU Usage</span>
@@ -342,7 +351,7 @@ export function MetricsPanel({ nodeMetrics, podMetrics, nodeMetricsStatus, podMe
                 <div
                   key={ns}
                   className="pod-metrics-ns-section"
-                  style={{ borderLeftColor: getNsColor(ns) }}
+                  style={{ '--ns-color': getNsColor(ns) } as React.CSSProperties}
                 >
                   <div className="pod-metrics-ns-header">
                     <span className="pod-metrics-ns-name">{ns}</span>

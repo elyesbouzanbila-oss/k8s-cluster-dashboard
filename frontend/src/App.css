@@ -24,7 +24,7 @@
   --border-hover: #484f58;
   --text: #e6edf3;
   --text-secondary: #8b949e;
-  --text-tertiary: #6e7681;
+  --text-tertiary: #7d8590;
 
   --radius: 8px;
   --radius-lg: 12px;
@@ -115,7 +115,6 @@ body {
 .indicator.connected {
   background-color: var(--success);
   box-shadow: 0 0 8px var(--success);
-  animation: pulse-glow 2s infinite;
 }
 
 @keyframes pulse-glow {
@@ -187,6 +186,21 @@ body {
   background-color: var(--bg);
   overflow-x: auto;
   scrollbar-width: none;
+  position: relative;
+}
+
+/* Mobile scroll affordance: subtle fade at the right edge */
+.tabs::after {
+  content: '';
+  position: sticky;
+  right: 0;
+  width: 40px;
+  min-height: 100%;
+  flex-shrink: 0;
+  background: linear-gradient(90deg, transparent, var(--bg));
+  pointer-events: none;
+  z-index: 1;
+  margin-left: auto;
 }
 
 .tabs::-webkit-scrollbar {
@@ -235,12 +249,14 @@ body {
   transition: transform 0.2s ease;
 }
 
-.tab:hover .tab-icon svg {
-  transform: scale(1.1);
-}
-
 .tab.active .tab-icon svg {
   transform: scale(1.05);
+}
+
+@media (hover: hover) {
+  .tab:hover .tab-icon svg {
+    transform: scale(1.1);
+  }
 }
 
 .tab-label {
@@ -255,8 +271,21 @@ body {
   position: relative;
 }
 
-.tab-content {
-  animation: fadeSlideIn 0.35s ease-out;
+/* ─── Reduced Motion ──────────────────────────────────────── */
+@media (prefers-reduced-motion: no-preference) {
+  .indicator.connected {
+    animation: pulse-glow 2s infinite;
+  }
+  .admin-badge,
+  .risk-badge.risk-critical {
+    animation: pulse-admin 2s ease-in-out infinite;
+  }
+  .refresh-btn.refreshing {
+    animation: refresh-pulse 0.6s ease-in-out infinite;
+  }
+  .tab-content {
+    animation: fadeSlideIn 0.35s ease-out;
+  }
 }
 
 @keyframes fadeSlideIn {
@@ -270,15 +299,92 @@ body {
   }
 }
 
+/* ─── Focus Visible Styles ─────────────────────────────────── */
+:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+button:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+  border-radius: var(--radius);
+}
+
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: -1px;
+}
+
+a:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+/* Tab-specific: override border-radius to be inline with tab shape */
+.tab:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: -2px;
+  border-radius: 4px;
+}
+
+/* ─── Copy Feedback ────────────────────────────────────────── */
+@keyframes copyFeedback {
+  from { opacity: 1; transform: translateX(-50%) translateY(0); }
+  to { opacity: 0; transform: translateX(-50%) translateY(-6px); }
+}
+
+.copy-feedback {
+  animation: copyFeedback 1.2s ease forwards !important;
+}
+
+/* ─── Loading Skeletons ─────────────────────────────────────── */
+.skeleton-pulse {
+  background: linear-gradient(90deg, var(--surface) 25%, var(--surface-hover) 50%, var(--surface) 75%);
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.5s ease-in-out infinite;
+  border-radius: var(--radius);
+}
+
+@keyframes skeleton-shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+.skeleton-card {
+  height: 80px;
+  margin-bottom: 12px;
+}
+
+.skeleton-threat {
+  height: 60px;
+  margin-bottom: 10px;
+}
+
+.skeleton-table-row {
+  height: 40px;
+  margin-bottom: 4px;
+}
+
 /* ─── Loading ─────────────────────────────────────────────────── */
 .loading-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 12px;
-  padding: 40px 20px;
   color: var(--text-secondary);
   font-size: 15px;
+  background-color: rgba(13, 17, 23, 0.85);
+  z-index: 10;
+  backdrop-filter: blur(2px);
 }
 
 .spinner {
@@ -469,15 +575,18 @@ body {
   background-color: var(--primary-light);
 }
 
-.refresh-btn:active {
-  transform: scale(0.97);
+.refresh-btn:active {}
+
+@media (hover: hover) {
+  .refresh-btn:active {
+    transform: scale(0.97);
+  }
 }
 
 .refresh-btn.refreshing {
   color: var(--primary);
   border-color: var(--primary);
   pointer-events: none;
-  animation: refresh-pulse 0.6s ease-in-out infinite;
 }
 
 .refresh-btn.refreshing svg {
@@ -527,7 +636,12 @@ body {
 .dashboard-card:hover {
   border-color: var(--border-hover);
   box-shadow: var(--shadow-hover);
-  transform: translateY(-2px);
+}
+
+@media (hover: hover) {
+  .dashboard-card:hover {
+    transform: translateY(-2px);
+  }
 }
 
 .dashboard-card:hover::before {
@@ -674,6 +788,7 @@ body {
   height: 100%;
   border-radius: 4px;
   transition: width 0.6s ease;
+  background-color: var(--sev-color, var(--primary));
 }
 
 .severity-count {
@@ -789,7 +904,7 @@ body {
 .ns-section {
   background-color: var(--surface);
   border: 1px solid var(--border);
-  border-left: 4px solid;
+  border-left: 4px solid var(--ns-color, var(--text-tertiary));
   border-radius: var(--radius);
   overflow: hidden;
   transition: border-color 0.2s ease;
@@ -817,6 +932,10 @@ body {
 
 .ns-section-header:hover {
   background-color: rgba(255, 255, 255, 0.04);
+}
+
+.ns-section-header {
+  color: var(--ns-color, var(--text));
 }
 
 .ns-chevron {
@@ -863,7 +982,12 @@ body {
 .pod-card:hover {
   border-color: var(--primary);
   box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.3), var(--shadow-hover);
-  transform: translateY(-2px);
+}
+
+@media (hover: hover) {
+  .pod-card:hover {
+    transform: translateY(-2px);
+  }
 }
 
 .pod-header {
@@ -1047,7 +1171,12 @@ body {
 .security-stat-card:hover {
   border-color: var(--border-hover);
   box-shadow: var(--shadow-hover);
-  transform: translateY(-2px);
+}
+
+@media (hover: hover) {
+  .security-stat-card:hover {
+    transform: translateY(-2px);
+  }
 }
 
 .security-stat-card:hover::before { opacity: 1; }
@@ -1241,46 +1370,6 @@ body {
   padding: 6px 0;
 }
 
-/* Empty States */
-.security-empty {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 48px 20px;
-  background-color: var(--surface);
-  border: 1px dashed var(--border);
-  border-radius: var(--radius-lg);
-  text-align: center;
-  animation: fadeSlideIn 0.3s ease-out;
-}
-
-.security-empty-icon {
-  width: 48px;
-  height: 48px;
-  color: var(--text-tertiary);
-  opacity: 0.5;
-  margin-bottom: 12px;
-}
-
-.security-empty-icon svg {
-  width: 100%;
-  height: 100%;
-}
-
-.security-empty-message {
-  font-size: 15px;
-  color: var(--text-secondary);
-  font-weight: 600;
-  margin-bottom: 4px;
-}
-
-.security-empty-sub {
-  font-size: 13px;
-  color: var(--text-tertiary);
-  max-width: 360px;
-}
-
 /* Collapsible Groups */
 .security-rbac-sections {
   display: flex;
@@ -1430,7 +1519,6 @@ body {
   font-weight: 700;
   letter-spacing: 0.5px;
   flex-shrink: 0;
-  animation: pulse-admin 2s ease-in-out infinite;
 }
 
 @keyframes pulse-admin {
@@ -1656,7 +1744,6 @@ body {
 .risk-badge.risk-critical {
   background-color: var(--danger);
   color: white;
-  animation: pulse-admin 2s ease-in-out infinite;
 }
 
 .risk-badge.risk-high {
@@ -1781,8 +1868,13 @@ body {
 }
 
 .threat-card:hover {
-  transform: translateX(2px);
   box-shadow: var(--shadow);
+}
+
+@media (hover: hover) {
+  .threat-card:hover {
+    transform: translateX(2px);
+  }
 }
 
 .threat-card.critical {
@@ -1869,7 +1961,12 @@ body {
 .metrics-card:hover {
   border-color: var(--border-hover);
   box-shadow: var(--shadow-hover);
-  transform: translateY(-2px);
+}
+
+@media (hover: hover) {
+  .metrics-card:hover {
+    transform: translateY(-2px);
+  }
 }
 
 .metrics-card-header h4 {
@@ -1978,7 +2075,7 @@ body {
 
 .pod-metrics-ns-section {
   border: 1px solid var(--border);
-  border-left: 4px solid;
+  border-left: 4px solid var(--ns-color, var(--text-tertiary));
   border-radius: var(--radius-lg);
   background-color: var(--surface);
   overflow: hidden;
@@ -2030,7 +2127,12 @@ body {
 .pod-metric-card:hover {
   border-color: var(--border-hover);
   box-shadow: var(--shadow);
-  transform: translateY(-1px);
+}
+
+@media (hover: hover) {
+  .pod-metric-card:hover {
+    transform: translateY(-1px);
+  }
 }
 
 .pod-metric-header {
@@ -2258,6 +2360,46 @@ body {
   }
 }
 
+/* ─── Shared Empty State ─────────────────────────────────────── */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 20px;
+  background-color: var(--surface);
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-lg);
+  text-align: center;
+  animation: fadeSlideIn 0.3s ease-out;
+}
+
+.empty-state-icon {
+  width: 48px;
+  height: 48px;
+  color: var(--text-tertiary);
+  opacity: 0.5;
+  margin-bottom: 12px;
+}
+
+.empty-state-icon svg {
+  width: 100%;
+  height: 100%;
+}
+
+.empty-state-message {
+  font-size: 15px;
+  color: var(--text-secondary);
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.empty-state-sub {
+  font-size: 13px;
+  color: var(--text-tertiary);
+  max-width: 360px;
+}
+
 /* ─── ≡ MONITORING (Prometheus time-series charts) ≡ ────────── */
 .monitoring-section {}
 
@@ -2279,7 +2421,7 @@ body {
 
 .monitoring-ns-block {
   border: 1px solid var(--border);
-  border-left: 4px solid;
+  border-left: 4px solid var(--ns-color, var(--text-tertiary));
   border-radius: var(--radius-lg);
   background-color: var(--surface);
   overflow: hidden;
@@ -2467,7 +2609,12 @@ body {
   border-color: var(--primary);
   color: var(--primary);
   background-color: var(--primary-light);
-  transform: translateY(-1px);
+}
+
+@media (hover: hover) {
+  .monitoring-pod-chip:hover {
+    transform: translateY(-1px);
+  }
 }
 
 .monitoring-pod-chip svg {
@@ -2553,7 +2700,10 @@ body {
 }
 
 .storage-table thead {
-  background-color: rgba(255, 255, 255, 0.04);
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background-color: var(--surface);
 }
 
 .storage-table th {
@@ -2607,6 +2757,19 @@ body {
 .badge-muted {
   background-color: rgba(255, 255, 255, 0.06);
   color: var(--text-tertiary);
+}
+
+/* ─── Screen-reader-only (for accessible data tables) ─────── */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
 
 /* ─── Footer ──────────────────────────────────────────────────── */

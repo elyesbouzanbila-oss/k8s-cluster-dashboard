@@ -1,5 +1,7 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import './App.css'
+import { Icon } from './components/Icon'
+import { ErrorBoundary } from './components/ErrorBoundary'
 import { DashboardPanel } from './components/DashboardPanel'
 import { NetworkPanel } from './components/NetworkPanel'
 import { SecurityPanel } from './components/SecurityPanel'
@@ -21,90 +23,17 @@ const HARD_REFRESH_MS = 60_000   // 60s — full data
 interface TabDef {
   id: string
   label: string
-  icon: () => React.ReactNode
+  icon: React.ReactNode
 }
 
 const TABS: TabDef[] = [
-  {
-    id: 'dashboard',
-    label: 'Dashboard',
-    icon: () => (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <rect x="3" y="3" width="7" height="7" />
-        <rect x="14" y="3" width="7" height="7" />
-        <rect x="3" y="14" width="7" height="7" />
-        <rect x="14" y="14" width="7" height="7" />
-      </svg>
-    ),
-  },
-  {
-    id: 'network',
-    label: 'Network',
-    icon: () => (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <circle cx="12" cy="12" r="3" />
-        <circle cx="19" cy="5" r="2" />
-        <circle cx="5" cy="5" r="2" />
-        <circle cx="19" cy="19" r="2" />
-        <circle cx="5" cy="19" r="2" />
-        <line x1="12" y1="9" x2="17" y2="6" />
-        <line x1="12" y1="9" x2="7" y2="6" />
-        <line x1="12" y1="15" x2="17" y2="18" />
-        <line x1="12" y1="15" x2="7" y2="18" />
-      </svg>
-    ),
-  },
-  {
-    id: 'security',
-    label: 'Security',
-    icon: () => (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-      </svg>
-    ),
-  },
-  {
-    id: 'threats',
-    label: 'Threats',
-    icon: () => (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
-        <line x1="12" y1="9" x2="12" y2="13" />
-        <line x1="12" y1="17" x2="12.01" y2="17" />
-      </svg>
-    ),
-  },
-  {
-    id: 'metrics',
-    label: 'Metrics',
-    icon: () => (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <line x1="18" y1="20" x2="18" y2="10" />
-        <line x1="12" y1="20" x2="12" y2="4" />
-        <line x1="6" y1="20" x2="6" y2="14" />
-      </svg>
-    ),
-  },
-  {
-    id: 'storage',
-    label: 'Storage',
-    icon: () => (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <ellipse cx="12" cy="5" rx="9" ry="3" />
-        <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3" />
-        <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5" />
-      </svg>
-    ),
-  },
-  {
-    id: 'monitoring',
-    label: 'Monitoring',
-    icon: () => (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
-      </svg>
-    ),
-  },
+  { id: 'dashboard', label: 'Dashboard', icon: <Icon name="layout-dashboard" /> },
+  { id: 'network', label: 'Network', icon: <Icon name="network" /> },
+  { id: 'security', label: 'Security', icon: <Icon name="shield" /> },
+  { id: 'threats', label: 'Threats', icon: <Icon name="alert-triangle" /> },
+  { id: 'metrics', label: 'Metrics', icon: <Icon name="bar-chart" /> },
+  { id: 'storage', label: 'Storage', icon: <Icon name="hard-drive" /> },
+  { id: 'monitoring', label: 'Monitoring', icon: <Icon name="activity" /> },
 ]
 
 // ─── App Component ────────────────────────────────────────────────
@@ -118,6 +47,8 @@ function App() {
   const softIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const hardIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const wsRef = useRef<WebSocket | null>(null)
+  const abortRef = useRef<AbortController | null>(null)
+  const fetchAbortRef = useRef<AbortController | null>(null)
 
   // Network state
   const [pods, setPods] = useState<Pod[]>([])
@@ -144,6 +75,17 @@ function App() {
   const [nodeMetrics, setNodeMetrics] = useState<NodeMetric[]>([])
   const [podMetrics, setPodMetrics] = useState<PodMetric[]>([])
   const [storageConfig, setStorageConfig] = useState<StorageData | null>(null)
+
+  const [currentTime, setCurrentTime] = useState(new Date())
+  const threatIdRef = useRef(1)
+
+  // ── Live footer clock ──
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentTime(new Date())
+    }, 1000)
+    return () => clearInterval(interval)
+  }, [])
 
   // ── Silent Fetch Helpers (no loading/error — for intervals) ──
   const silentFetchPods = useCallback(async () => {
@@ -214,12 +156,22 @@ function App() {
     }
   }, [])
 
+  function fetchWithSignal(url: string, options?: RequestInit): Promise<Response> {
+    // Abort any previous explicit fetch
+    if (fetchAbortRef.current) {
+      fetchAbortRef.current.abort()
+    }
+    const controller = new AbortController()
+    fetchAbortRef.current = controller
+    return fetch(url, { ...options, signal: controller.signal })
+  }
+
   // ── Explicit Fetch Helpers (with loading/error — for initial load & manual) ──
   const fetchPods = async () => {
     setLoading(true)
     setError(null)
     try {
-      const response = await fetch(`${API_BASE_URL}/api/network/pods`, {
+      const response = await fetchWithSignal(`${API_BASE_URL}/api/network/pods`, {
         headers: { 'X-API-Key': API_KEY }
       })
       if (response.ok) {
@@ -240,7 +192,7 @@ function App() {
     setLoading(true)
     setError(null)
     try {
-      const response = await fetch(`${API_BASE_URL}/api/network/topology`, {
+      const response = await fetchWithSignal(`${API_BASE_URL}/api/network/topology`, {
         headers: { 'X-API-Key': API_KEY }
       })
       if (response.ok) {
@@ -261,7 +213,7 @@ function App() {
     setLoading(true)
     setError(null)
     try {
-      const response = await fetch(`${API_BASE_URL}/api/security/rbac`, {
+      const response = await fetchWithSignal(`${API_BASE_URL}/api/security/rbac`, {
         headers: { 'X-API-Key': API_KEY }
       })
       if (response.ok) {
@@ -282,7 +234,7 @@ function App() {
     setLoading(true)
     setError(null)
     try {
-      const response = await fetch(`${API_BASE_URL}/api/security/privileged`, {
+      const response = await fetchWithSignal(`${API_BASE_URL}/api/security/privileged`, {
         headers: { 'X-API-Key': API_KEY }
       })
       if (response.ok) {
@@ -304,10 +256,10 @@ function App() {
     setError(null)
     try {
       const [nodeRes, podRes] = await Promise.all([
-        fetch(`${API_BASE_URL}/metrics/nodes`, {
+        fetchWithSignal(`${API_BASE_URL}/metrics/nodes`, {
           headers: { 'X-API-Key': API_KEY }
         }),
-        fetch(`${API_BASE_URL}/metrics/pods`, {
+        fetchWithSignal(`${API_BASE_URL}/metrics/pods`, {
           headers: { 'X-API-Key': API_KEY }
         })
       ])
@@ -334,7 +286,7 @@ function App() {
     setLoading(true)
     setError(null)
     try {
-      const response = await fetch(`${API_BASE_URL}/config/storage`, {
+      const response = await fetchWithSignal(`${API_BASE_URL}/config/storage`, {
         headers: { 'X-API-Key': API_KEY }
       })
       if (response.ok) {
@@ -361,8 +313,8 @@ function App() {
     }
 
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-    const wsUrl = `${protocol}//${window.location.host}/api/threats/ws/threats?api_key=${API_KEY}`
-    const ws = new WebSocket(wsUrl)
+    const wsUrl = `${protocol}//${window.location.host}/api/threats/ws/threats`
+    const ws = new WebSocket(wsUrl, [API_KEY])
     wsRef.current = ws
 
     ws.onopen = () => {
@@ -373,6 +325,7 @@ function App() {
     ws.onmessage = (event) => {
       try {
         const threat = JSON.parse(event.data)
+        threat.id = `threat-${threatIdRef.current++}`
         setThreats(prev => [threat, ...prev].slice(0, 50))
       } catch (err) {
         console.error('Failed to parse threat event:', err)
@@ -432,6 +385,16 @@ function App() {
     }
   }, [activeTab, silentFetchPods, silentFetchAll])
 
+  // Cleanup abort controller on unmount
+  useEffect(() => {
+    return () => {
+      if (fetchAbortRef.current) {
+        fetchAbortRef.current.abort()
+        fetchAbortRef.current = null
+      }
+    }
+  }, [])
+
   // Load data on tab change
   useEffect(() => {
     switch (activeTab) {
@@ -467,6 +430,51 @@ function App() {
     silentFetchAll()
   }, [silentFetchAll])
 
+  // ── Keyboard navigation for tablist ──
+  const tabIndexMap = useMemo(() => Object.fromEntries(TABS.map((t, i) => [t.id, i])), [])
+
+  const handleTabKeyDown = useCallback((e: React.KeyboardEvent) => {
+    const currentIdx = tabIndexMap[activeTab]
+    let nextIdx: number | null = null
+
+    switch (e.key) {
+      case 'ArrowRight':
+      case 'ArrowDown':
+        e.preventDefault()
+        nextIdx = (currentIdx + 1) % TABS.length
+        break
+      case 'ArrowLeft':
+      case 'ArrowUp':
+        e.preventDefault()
+        nextIdx = (currentIdx - 1 + TABS.length) % TABS.length
+        break
+      case 'Home':
+        e.preventDefault()
+        nextIdx = 0
+        break
+      case 'End':
+        e.preventDefault()
+        nextIdx = TABS.length - 1
+        break
+      case 'Enter':
+      case ' ':
+        // Activate the currently focused tab (already happens via click)
+        break
+      default:
+        return
+    }
+
+    if (nextIdx !== null) {
+      const nextTab = TABS[nextIdx]
+      setActiveTab(nextTab.id)
+      // Focus the newly activated tab button
+      setTimeout(() => {
+        const btn = document.getElementById(`tab-${nextTab.id}`)
+        btn?.focus()
+      }, 0)
+    }
+  }, [activeTab, tabIndexMap])
+
   // ── Render ──
   return (
     <div className="app">
@@ -477,42 +485,37 @@ function App() {
         </div>
         <div className="header-right">
           <div className={`status ${wsConnected ? 'status-ok' : 'status-warn'}`}>
-            <span className={`indicator ${wsConnected ? 'connected' : 'disconnected'}`}></span>
+            <span className={`indicator ${wsConnected ? 'connected' : 'disconnected'}`} role="img" aria-label={wsConnected ? 'Connected' : 'Disconnected'}></span>
             <span>{wsConnected ? 'Threats Live' : 'Disconnected'}</span>
           </div>
         </div>
       </header>
 
       {error && (
-        <div className="error-banner">
+        <div className="error-banner" role="alert">
           <div className="error-banner-content">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="error-icon">
-              <circle cx="12" cy="12" r="10" />
-              <line x1="15" y1="9" x2="9" y2="15" />
-              <line x1="9" y1="9" x2="15" y2="15" />
-            </svg>
+            <Icon name="x" size={20} className="error-icon" aria-hidden="true" style={{ strokeWidth: 2 }} />
             <strong>Error:</strong> {error}
           </div>
           <button className="error-dismiss" onClick={() => setError(null)} aria-label="Dismiss error">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
-              <line x1="18" y1="6" x2="6" y2="18" />
-              <line x1="6" y1="6" x2="18" y2="18" />
-            </svg>
+            <Icon name="x" size={16} aria-hidden="true" />
           </button>
         </div>
       )}
 
-      <nav className="tabs" role="tablist">
+      <nav className="tabs" role="tablist" aria-label="Dashboard tabs" onKeyDown={handleTabKeyDown}>
         {TABS.map(tab => (
           <button
             key={tab.id}
+            id={`tab-${tab.id}`}
             className={`tab ${activeTab === tab.id ? 'active' : ''}`}
             onClick={() => setActiveTab(tab.id)}
             role="tab"
             aria-selected={activeTab === tab.id}
-            aria-label={tab.label}
+            aria-controls={`tabpanel-${tab.id}`}
+            tabIndex={activeTab === tab.id ? 0 : -1}
           >
-            <span className="tab-icon">{tab.icon()}</span>
+            <span className="tab-icon" aria-hidden="true">{tab.icon}</span>
             <span className="tab-label">{tab.label}</span>
           </button>
         ))}
@@ -526,47 +529,59 @@ function App() {
           </div>
         )}
 
-        <div className="tab-content">
-          {activeTab === 'dashboard' && (
-            <DashboardPanel
-              pods={pods}
-              threats={threats}
-              rbacBindings={rbacBindings}
-              privilegedPods={privilegedPods}
-              nodeMetrics={nodeMetrics}
-              wsConnected={wsConnected}
-              lastUpdated={lastUpdated}
-              onRefresh={handleRefresh}
-              podsStatus={podsStatus}
-              rbacStatus={rbacStatus}
-              privilegedStatus={privilegedStatus}
-              nodeMetricsStatus={nodeMetricsStatus}
-            />
-          )}
-          {activeTab === 'network' && (
-            <NetworkPanel pods={pods} topology={topology} podsStatus={podsStatus} topologyStatus={topologyStatus} />
-          )}
-          {activeTab === 'security' && (
-            <SecurityPanel rbacBindings={rbacBindings} privilegedPods={privilegedPods} rbacStatus={rbacStatus} privilegedStatus={privilegedStatus} />
-          )}
-          {activeTab === 'threats' && (
-            <ThreatPanel threats={threats} wsConnected={wsConnected} />
-          )}
-          {activeTab === 'metrics' && (
-            <MetricsPanel
-              nodeMetrics={nodeMetrics}
-              podMetrics={podMetrics}
-              nodeMetricsStatus={nodeMetricsStatus}
-              podMetricsStatus={podMetricsStatus}
-            />
-          )}
-          {activeTab === 'monitoring' && (
-            <MonitoringPanel podMetrics={podMetrics} />
-          )}
-          {activeTab === 'storage' && (
-            <StoragePanel storageConfig={storageConfig} storageStatus={storageStatus} />
-          )}
-        </div>
+        <ErrorBoundary>
+          {TABS.map(tab => (
+            <div
+              key={tab.id}
+              id={`tabpanel-${tab.id}`}
+              role="tabpanel"
+              aria-labelledby={`tab-${tab.id}`}
+              className="tab-content"
+              hidden={activeTab !== tab.id}
+            >
+              {activeTab === 'dashboard' && (
+              <DashboardPanel
+                pods={pods}
+                threats={threats}
+                rbacBindings={rbacBindings}
+                privilegedPods={privilegedPods}
+                nodeMetrics={nodeMetrics}
+                wsConnected={wsConnected}
+                lastUpdated={lastUpdated}
+                onRefresh={handleRefresh}
+                podsStatus={podsStatus}
+                rbacStatus={rbacStatus}
+                privilegedStatus={privilegedStatus}
+                nodeMetricsStatus={nodeMetricsStatus}
+                loading={loading}
+              />
+              )}
+              {activeTab === 'network' && (
+                <NetworkPanel pods={pods} topology={topology} podsStatus={podsStatus} topologyStatus={topologyStatus} loading={loading} />
+              )}
+              {activeTab === 'security' && (
+                <SecurityPanel rbacBindings={rbacBindings} privilegedPods={privilegedPods} rbacStatus={rbacStatus} privilegedStatus={privilegedStatus} />
+              )}
+              {activeTab === 'threats' && (
+                <ThreatPanel threats={threats} wsConnected={wsConnected} onClear={() => setThreats([])} loading={loading} />
+              )}
+              {activeTab === 'metrics' && (
+                <MetricsPanel
+                  nodeMetrics={nodeMetrics}
+                  podMetrics={podMetrics}
+                  nodeMetricsStatus={nodeMetricsStatus}
+                  podMetricsStatus={podMetricsStatus}
+                />
+              )}
+              {activeTab === 'monitoring' && (
+                <MonitoringPanel podMetrics={podMetrics} />
+              )}
+              {activeTab === 'storage' && (
+                <StoragePanel storageConfig={storageConfig} storageStatus={storageStatus} loading={loading} />
+              )}
+            </div>
+          ))}
+        </ErrorBoundary>
       </main>
 
       <footer className="footer">
@@ -574,7 +589,7 @@ function App() {
         <span className="footer-sep">·</span>
         <span>{pods.length} pods · {rbacBindings.length} RBAC bindings</span>
         <span className="footer-sep">·</span>
-        <span>{new Date().toLocaleTimeString()}</span>
+        <span>{currentTime.toLocaleTimeString()}</span>
       </footer>
     </div>
   )

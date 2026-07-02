@@ -23,18 +23,19 @@ async def falco_webhook(
 @router.websocket("/ws/threats")
 async def ws_threats(ws: WebSocket, settings: Settings = Depends(get_settings_dep)):
     #WebSocket endpoint for real-time threat events.
+    #
+    # Authentication via Sec-WebSocket-Protocol subprotocol (safer than query params).
+    # The frontend passes the API key as a subprotocol: new WebSocket(url, [API_KEY])
     
-    #Query param: ?api_key=YOUR_API_KEY
-    
-    # Get API key from query params
-    query_params = ws.query_params
-    api_key = query_params.get("api_key")
+    # Get API key from Sec-WebSocket-Protocol header
+    sec_protocol = ws.headers.get("sec-websocket-protocol", "")
+    api_key = sec_protocol.split(",")[0].strip() if sec_protocol else ""
     
     if not api_key or api_key != settings.API_KEY:
         await ws.close(code=status.WS_1008_POLICY_VIOLATION, reason="Invalid API key")
         return
     
-    await ws.accept()
+    await ws.accept(subprotocol=api_key)
     service = ThreatService(settings)
     pubsub = None
     try:

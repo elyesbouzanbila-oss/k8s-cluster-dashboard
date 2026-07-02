@@ -87,6 +87,9 @@
 
 .topology-toast.visible {
   opacity: 1;
+}
+
+.topology-toast.visible {
   transform: translateX(-50%) translateY(0);
 }
 
@@ -212,20 +215,6 @@
   text-align: center;
   font-style: italic;
   letter-spacing: 0.3px;
-}
-
-/* ─── CSS Variables (for consistency with app) ────────────────── */
-:root {
-  --primary-color: #3B82F6;
-  --success-color: #10B981;
-  --warning-color: #F59E0B;
-  --danger-color: #EF4444;
-  --border-color: #334155;
-  --bg-color: #0f172a;
-  --surface-color: #1e293b;
-  --text-primary: #f1f5f9;
-  --text-secondary: #cbd5e1;
-  --text-tertiary: #94a3b8;
 }
 
 /* ─── Smooth Animation ───────────────────────────────────────── */
