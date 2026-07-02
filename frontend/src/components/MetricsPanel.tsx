@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react'
 import type { NodeMetric, PodMetric, DataSourceStatus } from '../types'
 import { parseCPU, parseMemory } from '../utils'
 import { DataSourceBadge } from './DataSourceBadge'
+import { EmptyState } from './EmptyState'
 
 interface MetricsPanelProps {
   nodeMetrics: NodeMetric[]
@@ -208,6 +209,18 @@ function PodMetricCard({ pod }: { pod: PodMetric }) {
 
 // ─── Main Component ────────────────────────────────────────────
 export function MetricsPanel({ nodeMetrics, podMetrics, nodeMetricsStatus, podMetricsStatus }: MetricsPanelProps) {
+  const [searchQuery, setSearchQuery] = useState('')
+
+  const filteredPodMetrics = useMemo(() => {
+    const q = searchQuery.toLowerCase().trim()
+    if (!q) return podMetrics
+    return podMetrics.filter(p =>
+      p.name.toLowerCase().includes(q) ||
+      p.namespace.toLowerCase().includes(q) ||
+      p.node.toLowerCase().includes(q)
+    )
+  }, [podMetrics, searchQuery])
+
   // Group pod metrics by namespace
   const podsByNs = useMemo(() => {
     const grouped: Record<string, PodMetric[]> = {}
@@ -239,16 +252,16 @@ export function MetricsPanel({ nodeMetrics, podMetrics, nodeMetricsStatus, podMe
     }
 
     return { grouped, nsOrder }
-  }, [podMetrics])
+  }, [filteredPodMetrics])
 
   // Calculate cluster-wide pod resource totals
   const clusterTotalCPU = useMemo(
-    () => podMetrics.reduce((acc, p) => acc + parseCPUToMilli(p.pod_cpu_usage), 0),
-    [podMetrics]
+    () => filteredPodMetrics.reduce((acc, p) => acc + parseCPUToMilli(p.pod_cpu_usage), 0),
+    [filteredPodMetrics]
   )
   const clusterTotalMem = useMemo(
-    () => podMetrics.reduce((acc, p) => acc + parseMemoryToBytes(p.pod_memory_usage), 0),
-    [podMetrics]
+    () => filteredPodMetrics.reduce((acc, p) => acc + parseMemoryToBytes(p.pod_memory_usage), 0),
+    [filteredPodMetrics]
   )
 
   return (
@@ -262,7 +275,17 @@ export function MetricsPanel({ nodeMetrics, podMetrics, nodeMetricsStatus, podMe
           <DataSourceBadge status={nodeMetricsStatus} label="Node metrics" />
         </div>
         {nodeMetrics.length === 0 ? (
-          <p className="empty">No node metrics found. Ensure metrics-server is installed in your cluster.</p>
+          <EmptyState
+            icon={
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="18" y1="20" x2="18" y2="10" />
+                <line x1="12" y1="20" x2="12" y2="4" />
+                <line x1="6" y1="20" x2="6" y2="14" />
+              </svg>
+            }
+            message="No node metrics found"
+            submessage="Ensure metrics-server is installed in your cluster."
+          />
         ) : (
           <div className="metrics-grid">
             {nodeMetrics.map((node) => {
@@ -315,13 +338,52 @@ export function MetricsPanel({ nodeMetrics, podMetrics, nodeMetricsStatus, podMe
           <DataSourceBadge status={podMetricsStatus} label="Pod metrics" />
         </div>
         {podMetrics.length === 0 ? (
-          <p className="empty">No pod metrics found. cAdvisor / metrics-server may not be running.</p>
+          <EmptyState
+            icon={
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="2" y="3" width="20" height="14" rx="2" ry="2" />
+                <line x1="8" y1="21" x2="16" y2="21" />
+              </svg>
+            }
+            message="No pod metrics found"
+            submessage="cAdvisor / metrics-server may not be running."
+          />
         ) : (
           <>
+            {podMetrics.length > 5 && (
+              <div className="security-toolbar" style={{ marginBottom: '16px' }}>
+                <div className="security-search">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="security-search-icon">
+                    <circle cx="11" cy="11" r="8" />
+                    <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                  </svg>
+                  <input
+                    type="text"
+                    className="security-search-input"
+                    placeholder="Search pods by name, namespace, node..."
+                    value={searchQuery}
+                    onChange={e => setSearchQuery(e.target.value)}
+                    aria-label="Search pod metrics"
+                  />
+                  {searchQuery && (
+                    <button
+                      className="security-search-clear"
+                      onClick={() => setSearchQuery('')}
+                      aria-label="Clear search"
+                    >
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="16" height="16">
+                        <line x1="18" y1="6" x2="6" y2="18" />
+                        <line x1="6" y1="6" x2="18" y2="18" />
+                      </svg>
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
             <div className="pod-metrics-cluster-summary">
               <div className="pod-metrics-cluster-stat">
                 <span className="cluster-stat-label">Total Pods Monitored</span>
-                <span className="cluster-stat-value">{podMetrics.length}</span>
+                <span className="cluster-stat-value">{filteredPodMetrics.length}</span>
               </div>
               <div className="pod-metrics-cluster-stat">
                 <span className="cluster-stat-label">Total CPU Usage</span>

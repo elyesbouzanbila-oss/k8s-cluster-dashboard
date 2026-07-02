@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react'
 import type { RbacBinding, PrivilegedPod, DataSourceStatus } from '../types'
 import { DataSourceBadge } from './DataSourceBadge'
+import { EmptyState } from './EmptyState'
 
 interface SecurityPanelProps {
   rbacBindings: RbacBinding[]
@@ -92,25 +93,6 @@ function CollapsibleSection({
         <span className="security-group-count">{count}</span>
       </button>
       {open && <div className="security-group-content">{children}</div>}
-    </div>
-  )
-}
-
-// ─── Empty State ─────────────────────────────────────────────────
-function EmptyState({
-  icon,
-  message,
-  submessage,
-}: {
-  icon: React.ReactNode
-  message: string
-  submessage?: string
-}) {
-  return (
-    <div className="security-empty">
-      <div className="security-empty-icon">{icon}</div>
-      <p className="security-empty-message">{message}</p>
-      {submessage && <p className="security-empty-sub">{submessage}</p>}
     </div>
   )
 }

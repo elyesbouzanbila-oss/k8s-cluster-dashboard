@@ -270,6 +270,44 @@ body {
   }
 }
 
+/* ─── Copy Feedback ────────────────────────────────────────── */
+@keyframes copyFeedback {
+  from { opacity: 1; transform: translateX(-50%) translateY(0); }
+  to { opacity: 0; transform: translateX(-50%) translateY(-6px); }
+}
+
+.copy-feedback {
+  animation: copyFeedback 1.2s ease forwards !important;
+}
+
+/* ─── Loading Skeletons ─────────────────────────────────────── */
+.skeleton-pulse {
+  background: linear-gradient(90deg, var(--surface) 25%, var(--surface-hover) 50%, var(--surface) 75%);
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.5s ease-in-out infinite;
+  border-radius: var(--radius);
+}
+
+@keyframes skeleton-shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+.skeleton-card {
+  height: 80px;
+  margin-bottom: 12px;
+}
+
+.skeleton-threat {
+  height: 60px;
+  margin-bottom: 10px;
+}
+
+.skeleton-table-row {
+  height: 40px;
+  margin-bottom: 4px;
+}
+
 /* ─── Loading ─────────────────────────────────────────────────── */
 .loading-overlay {
   position: absolute;
@@ -1248,46 +1286,6 @@ body {
   padding: 6px 0;
 }
 
-/* Empty States */
-.security-empty {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 48px 20px;
-  background-color: var(--surface);
-  border: 1px dashed var(--border);
-  border-radius: var(--radius-lg);
-  text-align: center;
-  animation: fadeSlideIn 0.3s ease-out;
-}
-
-.security-empty-icon {
-  width: 48px;
-  height: 48px;
-  color: var(--text-tertiary);
-  opacity: 0.5;
-  margin-bottom: 12px;
-}
-
-.security-empty-icon svg {
-  width: 100%;
-  height: 100%;
-}
-
-.security-empty-message {
-  font-size: 15px;
-  color: var(--text-secondary);
-  font-weight: 600;
-  margin-bottom: 4px;
-}
-
-.security-empty-sub {
-  font-size: 13px;
-  color: var(--text-tertiary);
-  max-width: 360px;
-}
-
 /* Collapsible Groups */
 .security-rbac-sections {
   display: flex;
@@ -2263,6 +2261,46 @@ body {
   .pod-metrics-cluster-stat {
     min-width: unset;
   }
+}
+
+/* ─── Shared Empty State ─────────────────────────────────────── */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 20px;
+  background-color: var(--surface);
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-lg);
+  text-align: center;
+  animation: fadeSlideIn 0.3s ease-out;
+}
+
+.empty-state-icon {
+  width: 48px;
+  height: 48px;
+  color: var(--text-tertiary);
+  opacity: 0.5;
+  margin-bottom: 12px;
+}
+
+.empty-state-icon svg {
+  width: 100%;
+  height: 100%;
+}
+
+.empty-state-message {
+  font-size: 15px;
+  color: var(--text-secondary);
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.empty-state-sub {
+  font-size: 13px;
+  color: var(--text-tertiary);
+  max-width: 360px;
 }
 
 /* ─── ≡ MONITORING (Prometheus time-series charts) ≡ ────────── */

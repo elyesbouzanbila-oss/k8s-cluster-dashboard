@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import type { Pod, ThreatEvent, RbacBinding, PrivilegedPod, NodeMetric, DataSourceStatus } from '../types'
 import { parseCPU, parseMemory } from '../utils'
 import { DataSourceBadge } from './DataSourceBadge'
+import { Skeleton } from './Skeleton'
 
 interface DashboardPanelProps {
   pods: Pod[]
@@ -16,13 +17,14 @@ interface DashboardPanelProps {
   rbacStatus?: DataSourceStatus
   privilegedStatus?: DataSourceStatus
   nodeMetricsStatus?: DataSourceStatus
+  loading?: boolean
 }
 
-export function DashboardPanel({ pods, threats, rbacBindings, privilegedPods, nodeMetrics, wsConnected, lastUpdated, onRefresh, podsStatus, rbacStatus, privilegedStatus, nodeMetricsStatus }: DashboardPanelProps) {
+export function DashboardPanel({ pods, threats, rbacBindings, privilegedPods, nodeMetrics, wsConnected, lastUpdated, onRefresh, podsStatus, rbacStatus, privilegedStatus, nodeMetricsStatus, loading }: DashboardPanelProps) {
   const [refreshing, setRefreshing] = useState(false)
   const [timeUntilNext, setTimeUntilNext] = useState(15)
 
-  // Countdown timer for next soft refresh
+  // Countdown timer for next soft refresh — synced to actual interval
   useEffect(() => {
     const interval = setInterval(() => {
       setTimeUntilNext(prev => (prev <= 1 ? 15 : prev - 1))
@@ -30,11 +32,15 @@ export function DashboardPanel({ pods, threats, rbacBindings, privilegedPods, no
     return () => clearInterval(interval)
   }, [])
 
-  const handleRefresh = () => {
+  const handleRefresh = useCallback(async () => {
     setRefreshing(true)
-    onRefresh()
-    setTimeout(() => setRefreshing(false), 1000)
-  }
+    setTimeUntilNext(15)
+    try {
+      await Promise.resolve(onRefresh())
+    } finally {
+      setRefreshing(false)
+    }
+  }, [onRefresh])
 
   const adminBindings = rbacBindings.filter(b => b.role_ref?.name === 'cluster-admin')
   const criticalThreats = threats.filter(t => t.priority === 'Critical')
@@ -110,7 +116,47 @@ export function DashboardPanel({ pods, threats, rbacBindings, privilegedPods, no
         </div>
       </div>
 
-      <div className="dashboard-grid">
+      <div className="dashboard-grid" style={{ position: 'relative' }}>
+        {loading ? (
+          <>
+            <div className="dashboard-card" style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <Skeleton variant="custom" width="44px" height="44px" style={{ borderRadius: '8px' }} />
+              <Skeleton variant="custom" width="60%" height="28px" />
+              <Skeleton variant="custom" width="40%" height="14px" />
+              <Skeleton variant="custom" width="55%" height="12px" />
+            </div>
+            <div className="dashboard-card" style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <Skeleton variant="custom" width="44px" height="44px" style={{ borderRadius: '8px' }} />
+              <Skeleton variant="custom" width="60%" height="28px" />
+              <Skeleton variant="custom" width="40%" height="14px" />
+              <Skeleton variant="custom" width="55%" height="12px" />
+            </div>
+            <div className="dashboard-card" style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <Skeleton variant="custom" width="44px" height="44px" style={{ borderRadius: '8px' }} />
+              <Skeleton variant="custom" width="60%" height="28px" />
+              <Skeleton variant="custom" width="40%" height="14px" />
+              <Skeleton variant="custom" width="55%" height="12px" />
+            </div>
+            <div className="dashboard-card dashboard-card-wide" style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <Skeleton variant="custom" width="50%" height="18px" />
+              <Skeleton variant="custom" width="100%" height="12px" count={4} style={{ marginBottom: '4px' }} />
+            </div>
+            <div className="dashboard-card dashboard-card-wide" style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <Skeleton variant="custom" width="50%" height="18px" />
+              <Skeleton variant="custom" width="100%" height="40px" />
+              <Skeleton variant="custom" width="100%" height="40px" />
+            </div>
+            <div className="dashboard-card dashboard-card-wide" style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <Skeleton variant="custom" width="50%" height="18px" />
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <Skeleton variant="custom" width="100%" height="48px" />
+                <Skeleton variant="custom" width="100%" height="48px" />
+                <Skeleton variant="custom" width="100%" height="48px" />
+                <Skeleton variant="custom" width="100%" height="48px" />
+              </div>
+            </div>
+          </>
+        ) : (<>
         {/* Pods Card */}
         <div className="dashboard-card">
           <div className="dashboard-card-icon pods-icon">
@@ -252,6 +298,7 @@ export function DashboardPanel({ pods, threats, rbacBindings, privilegedPods, no
             </div>
           </div>
         </div>
+        </>)}
       </div>
     </div>
   )

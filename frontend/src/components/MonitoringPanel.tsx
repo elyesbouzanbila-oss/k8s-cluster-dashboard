@@ -13,6 +13,7 @@ import {
 } from 'chart.js'
 import type { PodMetric, PrometheusResponse, PromSeries } from '../types'
 import { DataSourceBadge } from './DataSourceBadge'
+import { EmptyState } from './EmptyState'
 
 // Register Chart.js components
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend, Filler)
@@ -404,9 +405,15 @@ export function MonitoringPanel({ podMetrics }: MonitoringPanelProps) {
     return (
       <div className="section monitoring-section">
         <h2>Monitoring</h2>
-        <p className="empty">
-          No pod metrics available. Ensure metrics-server and Prometheus are installed.
-        </p>
+        <EmptyState
+          icon={
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+            </svg>
+          }
+          message="No pod metrics available"
+          submessage="Ensure metrics-server and Prometheus are installed in your cluster."
+        />
       </div>
     )
   }

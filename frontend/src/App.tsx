@@ -146,7 +146,16 @@ function App() {
   const [podMetrics, setPodMetrics] = useState<PodMetric[]>([])
   const [storageConfig, setStorageConfig] = useState<StorageData | null>(null)
 
+  const [currentTime, setCurrentTime] = useState(new Date())
   const threatIdRef = useRef(1)
+
+  // ── Live footer clock ──
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentTime(new Date())
+    }, 1000)
+    return () => clearInterval(interval)
+  }, [])
 
   // ── Silent Fetch Helpers (no loading/error — for intervals) ──
   const silentFetchPods = useCallback(async () => {
@@ -533,20 +542,21 @@ function App() {
         <ErrorBoundary>
           <div className="tab-content">
             {activeTab === 'dashboard' && (
-              <DashboardPanel
-                pods={pods}
-                threats={threats}
-                rbacBindings={rbacBindings}
-                privilegedPods={privilegedPods}
-                nodeMetrics={nodeMetrics}
-                wsConnected={wsConnected}
-                lastUpdated={lastUpdated}
-                onRefresh={handleRefresh}
-                podsStatus={podsStatus}
-                rbacStatus={rbacStatus}
-                privilegedStatus={privilegedStatus}
-                nodeMetricsStatus={nodeMetricsStatus}
-              />
+            <DashboardPanel
+              pods={pods}
+              threats={threats}
+              rbacBindings={rbacBindings}
+              privilegedPods={privilegedPods}
+              nodeMetrics={nodeMetrics}
+              wsConnected={wsConnected}
+              lastUpdated={lastUpdated}
+              onRefresh={handleRefresh}
+              podsStatus={podsStatus}
+              rbacStatus={rbacStatus}
+              privilegedStatus={privilegedStatus}
+              nodeMetricsStatus={nodeMetricsStatus}
+              loading={loading}
+            />
             )}
             {activeTab === 'network' && (
               <NetworkPanel pods={pods} topology={topology} podsStatus={podsStatus} topologyStatus={topologyStatus} />
@@ -555,7 +565,7 @@ function App() {
               <SecurityPanel rbacBindings={rbacBindings} privilegedPods={privilegedPods} rbacStatus={rbacStatus} privilegedStatus={privilegedStatus} />
             )}
             {activeTab === 'threats' && (
-              <ThreatPanel threats={threats} wsConnected={wsConnected} />
+              <ThreatPanel threats={threats} wsConnected={wsConnected} onClear={() => setThreats([])} loading={loading} />
             )}
             {activeTab === 'metrics' && (
               <MetricsPanel
@@ -580,7 +590,7 @@ function App() {
         <span className="footer-sep">·</span>
         <span>{pods.length} pods · {rbacBindings.length} RBAC bindings</span>
         <span className="footer-sep">·</span>
-        <span>{new Date().toLocaleTimeString()}</span>
+        <span>{currentTime.toLocaleTimeString()}</span>
       </footer>
     </div>
   )
