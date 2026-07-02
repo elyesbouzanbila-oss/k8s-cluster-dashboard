@@ -181,6 +181,7 @@ function App() {
         setError(`Failed to fetch pods: ${response.statusText}`)
       }
     } catch (err) {
+      if (err instanceof DOMException && err.name === 'AbortError') return
       setError(`Error: ${err instanceof Error ? err.message : 'Unknown error'}`)
     } finally {
       setLoading(false)
@@ -202,6 +203,7 @@ function App() {
         setError(`Failed to fetch topology: ${response.statusText}`)
       }
     } catch (err) {
+      if (err instanceof DOMException && err.name === 'AbortError') return
       setError(`Error: ${err instanceof Error ? err.message : 'Unknown error'}`)
     } finally {
       setLoading(false)
@@ -223,6 +225,7 @@ function App() {
         setError(`Failed to fetch RBAC: ${response.statusText}`)
       }
     } catch (err) {
+      if (err instanceof DOMException && err.name === 'AbortError') return
       setError(`Error: ${err instanceof Error ? err.message : 'Unknown error'}`)
     } finally {
       setLoading(false)
@@ -244,6 +247,7 @@ function App() {
         setError(`Failed to fetch privileged pods: ${response.statusText}`)
       }
     } catch (err) {
+      if (err instanceof DOMException && err.name === 'AbortError') return
       setError(`Error: ${err instanceof Error ? err.message : 'Unknown error'}`)
     } finally {
       setLoading(false)
@@ -254,12 +258,17 @@ function App() {
     setLoading(true)
     setError(null)
     try {
+      // Use a single controller so parallel fetches don't abort each other
+      const controller = new AbortController()
+      fetchAbortRef.current = controller
       const [nodeRes, podRes] = await Promise.all([
-        fetchWithSignal(`${API_BASE_URL}/metrics/nodes`, {
-          headers: { 'X-API-Key': API_KEY }
+        fetch(`${API_BASE_URL}/metrics/nodes`, {
+          headers: { 'X-API-Key': API_KEY },
+          signal: controller.signal
         }),
-        fetchWithSignal(`${API_BASE_URL}/metrics/pods`, {
-          headers: { 'X-API-Key': API_KEY }
+        fetch(`${API_BASE_URL}/metrics/pods`, {
+          headers: { 'X-API-Key': API_KEY },
+          signal: controller.signal
         })
       ])
       if (nodeRes.ok) {
@@ -275,6 +284,7 @@ function App() {
         setPodMetricsStatus(body.status === 'success' ? 'live' : body.status === 'mock' ? 'mock' : 'error')
       }
     } catch (err) {
+      if (err instanceof DOMException && err.name === 'AbortError') return
       setError(`Error: ${err instanceof Error ? err.message : 'Unknown error'}`)
     } finally {
       setLoading(false)
@@ -296,6 +306,7 @@ function App() {
         setError(`Failed to fetch storage config: ${response.statusText}`)
       }
     } catch (err) {
+      if (err instanceof DOMException && err.name === 'AbortError') return
       setError(`Error: ${err instanceof Error ? err.message : 'Unknown error'}`)
     } finally {
       setLoading(false)
