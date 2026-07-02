@@ -405,7 +405,7 @@ export function MonitoringPanel({ podMetrics }: MonitoringPanelProps) {
             <div
               key={ns}
               className="monitoring-ns-block"
-              style={{ '--ns-color': getNsColor(ns) }}
+              style={{ '--ns-color': getNsColor(ns) } as React.CSSProperties}
             >
               <button
                 className="monitoring-ns-toggle"

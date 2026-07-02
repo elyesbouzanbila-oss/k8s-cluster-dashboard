@@ -351,7 +351,7 @@ export function MetricsPanel({ nodeMetrics, podMetrics, nodeMetricsStatus, podMe
                 <div
                   key={ns}
                   className="pod-metrics-ns-section"
-                  style={{ '--ns-color': getNsColor(ns) }}
+                  style={{ '--ns-color': getNsColor(ns) } as React.CSSProperties}
                 >
                   <div className="pod-metrics-ns-header">
                     <span className="pod-metrics-ns-name">{ns}</span>

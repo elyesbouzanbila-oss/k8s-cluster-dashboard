@@ -206,7 +206,7 @@ export function DashboardPanel({ pods, threats, rbacBindings, privilegedPods, no
                   <div className="severity-bar-track">
                     <div
                       className="severity-bar-fill"
-                      style={{ width: `${pct}%`, '--sev-color': getPriorityColor(sev) }}
+                      style={{ width: `${pct}%`, '--sev-color': getPriorityColor(sev) } as React.CSSProperties}
                     />
                   </div>
                   <span className="severity-count">{count}</span>

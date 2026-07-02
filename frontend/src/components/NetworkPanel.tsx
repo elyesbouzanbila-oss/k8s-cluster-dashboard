@@ -72,13 +72,13 @@ function NsSection({ name, pods, defaultOpen }: { name: string; pods: Pod[]; def
   const color = getNsColor(name)
 
   return (
-    <div className="ns-section" style={{ '--ns-color': color }}>
+    <div className="ns-section" style={{ '--ns-color': color } as React.CSSProperties}>
       {/* Collapsible header */}
       <button
         className="ns-section-header"
         onClick={() => setOpen(!open)}
         aria-expanded={open}
-        style={{ '--ns-color': color }}
+        style={{ '--ns-color': color } as React.CSSProperties}
       >
         <Icon
           name="chevron-right"

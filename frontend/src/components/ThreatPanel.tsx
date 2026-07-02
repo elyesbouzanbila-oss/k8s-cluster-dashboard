@@ -183,9 +183,8 @@ export function ThreatPanel({ threats, wsConnected, onClear, loading }: ThreatPa
           icon={<Icon name="search" size={48} />}
           message="No matching threats"
           submessage="Try adjusting your search or filter criteria."
-        />
-      ) : loading || (!wsConnected && threats.length === 0) ? (
-        <div className="threat-list" aria-label="Loading threats">
+        />          ) : loading || (!wsConnected && threats.length === 0) ? (
+        <div className="threat-list" aria-label="Loading threats" data-tick={tick}>
           <Skeleton variant="threat" count={5} />
         </div>
       ) : (
