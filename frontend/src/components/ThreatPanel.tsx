@@ -24,7 +24,7 @@ function getPriorityColor(priority: string): string {
   }
 }
 
-function getRelativeTime(timestamp: string): string {
+function getRelativeTime(timestamp: string, _refreshTick?: number): string {
   const now = NOW()
   const time = new Date(timestamp).getTime()
   const diff = Math.floor((now - time) / 1000)
@@ -239,7 +239,7 @@ export function ThreatPanel({ threats, wsConnected, onClear, loading }: ThreatPa
                 <span className="priority-dot" style={{ backgroundColor: getPriorityColor(threat.priority) }}></span>
                 <span className="priority">{threat.priority}</span>
                 <span className="rule" title={threat.rule}>{threat.rule}</span>
-                <span className="time" title={new Date(threat.time).toLocaleString()}>{getRelativeTime(threat.time)}</span>
+                <span className="time" title={new Date(threat.time).toLocaleString()}>{getRelativeTime(threat.time, tick)}</span>
               </div>
               <p className="output" title={threat.output}>{threat.output}</p>
             </div>
