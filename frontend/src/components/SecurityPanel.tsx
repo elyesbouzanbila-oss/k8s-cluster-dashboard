@@ -194,7 +194,7 @@ function RbacCard({ binding }: { binding: RbacBinding }) {
 }
 
 // ─── Main Component ──────────────────────────────────────────────
-export function SecurityPanel({ rbacBindings, privilegedPods }: SecurityPanelProps) {
+export function SecurityPanel({ rbacBindings, privilegedPods, rbacStatus, privilegedStatus }: SecurityPanelProps) {
   const [searchQuery, setSearchQuery] = useState('')
   const [filterType, setFilterType] = useState<'all' | 'cluster-admin'>('all')
 
