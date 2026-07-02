@@ -186,6 +186,21 @@ body {
   background-color: var(--bg);
   overflow-x: auto;
   scrollbar-width: none;
+  position: relative;
+}
+
+/* Mobile scroll affordance: subtle fade at the right edge */
+.tabs::after {
+  content: '';
+  position: sticky;
+  right: 0;
+  width: 40px;
+  min-height: 100%;
+  flex-shrink: 0;
+  background: linear-gradient(90deg, transparent, var(--bg));
+  pointer-events: none;
+  z-index: 1;
+  margin-left: auto;
 }
 
 .tabs::-webkit-scrollbar {
@@ -234,12 +249,14 @@ body {
   transition: transform 0.2s ease;
 }
 
-.tab:hover .tab-icon svg {
-  transform: scale(1.1);
-}
-
 .tab.active .tab-icon svg {
   transform: scale(1.05);
+}
+
+@media (hover: hover) {
+  .tab:hover .tab-icon svg {
+    transform: scale(1.1);
+  }
 }
 
 .tab-label {
@@ -558,8 +575,12 @@ a:focus-visible {
   background-color: var(--primary-light);
 }
 
-.refresh-btn:active {
-  transform: scale(0.97);
+.refresh-btn:active {}
+
+@media (hover: hover) {
+  .refresh-btn:active {
+    transform: scale(0.97);
+  }
 }
 
 .refresh-btn.refreshing {
@@ -615,7 +636,12 @@ a:focus-visible {
 .dashboard-card:hover {
   border-color: var(--border-hover);
   box-shadow: var(--shadow-hover);
-  transform: translateY(-2px);
+}
+
+@media (hover: hover) {
+  .dashboard-card:hover {
+    transform: translateY(-2px);
+  }
 }
 
 .dashboard-card:hover::before {
@@ -956,7 +982,12 @@ a:focus-visible {
 .pod-card:hover {
   border-color: var(--primary);
   box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.3), var(--shadow-hover);
-  transform: translateY(-2px);
+}
+
+@media (hover: hover) {
+  .pod-card:hover {
+    transform: translateY(-2px);
+  }
 }
 
 .pod-header {
@@ -1140,7 +1171,12 @@ a:focus-visible {
 .security-stat-card:hover {
   border-color: var(--border-hover);
   box-shadow: var(--shadow-hover);
-  transform: translateY(-2px);
+}
+
+@media (hover: hover) {
+  .security-stat-card:hover {
+    transform: translateY(-2px);
+  }
 }
 
 .security-stat-card:hover::before { opacity: 1; }
@@ -1832,8 +1868,13 @@ a:focus-visible {
 }
 
 .threat-card:hover {
-  transform: translateX(2px);
   box-shadow: var(--shadow);
+}
+
+@media (hover: hover) {
+  .threat-card:hover {
+    transform: translateX(2px);
+  }
 }
 
 .threat-card.critical {
@@ -1920,7 +1961,12 @@ a:focus-visible {
 .metrics-card:hover {
   border-color: var(--border-hover);
   box-shadow: var(--shadow-hover);
-  transform: translateY(-2px);
+}
+
+@media (hover: hover) {
+  .metrics-card:hover {
+    transform: translateY(-2px);
+  }
 }
 
 .metrics-card-header h4 {
@@ -2081,7 +2127,12 @@ a:focus-visible {
 .pod-metric-card:hover {
   border-color: var(--border-hover);
   box-shadow: var(--shadow);
-  transform: translateY(-1px);
+}
+
+@media (hover: hover) {
+  .pod-metric-card:hover {
+    transform: translateY(-1px);
+  }
 }
 
 .pod-metric-header {
@@ -2558,7 +2609,12 @@ a:focus-visible {
   border-color: var(--primary);
   color: var(--primary);
   background-color: var(--primary-light);
-  transform: translateY(-1px);
+}
+
+@media (hover: hover) {
+  .monitoring-pod-chip:hover {
+    transform: translateY(-1px);
+  }
 }
 
 .monitoring-pod-chip svg {
@@ -2644,7 +2700,10 @@ a:focus-visible {
 }
 
 .storage-table thead {
-  background-color: rgba(255, 255, 255, 0.04);
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background-color: var(--surface);
 }
 
 .storage-table th {
@@ -2698,6 +2757,19 @@ a:focus-visible {
 .badge-muted {
   background-color: rgba(255, 255, 255, 0.06);
   color: var(--text-tertiary);
+}
+
+/* ─── Screen-reader-only (for accessible data tables) ─────── */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
 
 /* ─── Footer ──────────────────────────────────────────────────── */

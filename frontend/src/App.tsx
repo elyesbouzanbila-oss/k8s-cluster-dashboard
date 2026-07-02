@@ -47,6 +47,8 @@ function App() {
   const softIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const hardIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const wsRef = useRef<WebSocket | null>(null)
+  const abortRef = useRef<AbortController | null>(null)
+  const fetchAbortRef = useRef<AbortController | null>(null)
 
   // Network state
   const [pods, setPods] = useState<Pod[]>([])
@@ -154,12 +156,22 @@ function App() {
     }
   }, [])
 
+  function fetchWithSignal(url: string, options?: RequestInit): Promise<Response> {
+    // Abort any previous explicit fetch
+    if (fetchAbortRef.current) {
+      fetchAbortRef.current.abort()
+    }
+    const controller = new AbortController()
+    fetchAbortRef.current = controller
+    return fetch(url, { ...options, signal: controller.signal })
+  }
+
   // ── Explicit Fetch Helpers (with loading/error — for initial load & manual) ──
   const fetchPods = async () => {
     setLoading(true)
     setError(null)
     try {
-      const response = await fetch(`${API_BASE_URL}/api/network/pods`, {
+      const response = await fetchWithSignal(`${API_BASE_URL}/api/network/pods`, {
         headers: { 'X-API-Key': API_KEY }
       })
       if (response.ok) {
@@ -180,7 +192,7 @@ function App() {
     setLoading(true)
     setError(null)
     try {
-      const response = await fetch(`${API_BASE_URL}/api/network/topology`, {
+      const response = await fetchWithSignal(`${API_BASE_URL}/api/network/topology`, {
         headers: { 'X-API-Key': API_KEY }
       })
       if (response.ok) {
@@ -201,7 +213,7 @@ function App() {
     setLoading(true)
     setError(null)
     try {
-      const response = await fetch(`${API_BASE_URL}/api/security/rbac`, {
+      const response = await fetchWithSignal(`${API_BASE_URL}/api/security/rbac`, {
         headers: { 'X-API-Key': API_KEY }
       })
       if (response.ok) {
@@ -222,7 +234,7 @@ function App() {
     setLoading(true)
     setError(null)
     try {
-      const response = await fetch(`${API_BASE_URL}/api/security/privileged`, {
+      const response = await fetchWithSignal(`${API_BASE_URL}/api/security/privileged`, {
         headers: { 'X-API-Key': API_KEY }
       })
       if (response.ok) {
@@ -244,10 +256,10 @@ function App() {
     setError(null)
     try {
       const [nodeRes, podRes] = await Promise.all([
-        fetch(`${API_BASE_URL}/metrics/nodes`, {
+        fetchWithSignal(`${API_BASE_URL}/metrics/nodes`, {
           headers: { 'X-API-Key': API_KEY }
         }),
-        fetch(`${API_BASE_URL}/metrics/pods`, {
+        fetchWithSignal(`${API_BASE_URL}/metrics/pods`, {
           headers: { 'X-API-Key': API_KEY }
         })
       ])
@@ -274,7 +286,7 @@ function App() {
     setLoading(true)
     setError(null)
     try {
-      const response = await fetch(`${API_BASE_URL}/config/storage`, {
+      const response = await fetchWithSignal(`${API_BASE_URL}/config/storage`, {
         headers: { 'X-API-Key': API_KEY }
       })
       if (response.ok) {
@@ -372,6 +384,16 @@ function App() {
       if (hardIntervalRef.current) clearInterval(hardIntervalRef.current)
     }
   }, [activeTab, silentFetchPods, silentFetchAll])
+
+  // Cleanup abort controller on unmount
+  useEffect(() => {
+    return () => {
+      if (fetchAbortRef.current) {
+        fetchAbortRef.current.abort()
+        fetchAbortRef.current = null
+      }
+    }
+  }, [])
 
   // Load data on tab change
   useEffect(() => {

@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState, useCallback } from 'react'
 import cytoscape from 'cytoscape'
 import './Topology.css'
 import { getNsColor } from './utils'
@@ -47,6 +47,7 @@ export function Topology({ nodes, edges }: TopologyProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const toastRef = useRef<HTMLDivElement>(null)
   const cyRef = useRef<cytoscape.Core | null>(null)
+  const [focusedNodeIdx, setFocusedNodeIdx] = useState(-1)
 
   const clusterNodes = nodes.filter(n => n.type === 'node')
   const masterNodes = clusterNodes.filter(n => n.role === 'master')
@@ -628,8 +629,97 @@ export function Topology({ nodes, edges }: TopologyProps) {
     return acc
   }, {} as Record<string, number>)
 
+  // ── Keyboard navigation ──
+  const selectableNodes = podNodes.length + serviceNodes.length
+  const nodeList = [...podNodes, ...serviceNodes]
+
+  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (!cyRef.current || nodeList.length === 0) return
+    const cy = cyRef.current
+
+    switch (e.key) {
+      case 'Tab': {
+        e.preventDefault()
+        const direction = e.shiftKey ? -1 : 1
+        setFocusedNodeIdx(prev => {
+          const next = (prev + direction + nodeList.length) % nodeList.length
+          // Clear all previous selections
+          cy.nodes().unselect()
+          // Select the new node
+          const targetId = nodeList[next].id
+          const node = cy.getElementById(targetId)
+          if (node.length) {
+            node.select()
+            cy.zoom(cy.zoom())
+            cy.center(node)
+            // Trigger the info toast via tap event
+            cy.emit('tap', { target: node } as any)
+          }
+          return next
+        })
+        break
+      }
+      case 'ArrowRight':
+      case 'ArrowDown': {
+        e.preventDefault()
+        setFocusedNodeIdx(prev => {
+          const next = (prev + 1) % nodeList.length
+          cy.nodes().unselect()
+          const targetId = nodeList[next].id
+          const node = cy.getElementById(targetId)
+          if (node.length) {
+            node.select()
+            cy.center(node)
+            cy.emit('tap', { target: node } as any)
+          }
+          return next
+        })
+        break
+      }
+      case 'ArrowLeft':
+      case 'ArrowUp': {
+        e.preventDefault()
+        setFocusedNodeIdx(prev => {
+          const next = (prev - 1 + nodeList.length) % nodeList.length
+          cy.nodes().unselect()
+          const targetId = nodeList[next].id
+          const node = cy.getElementById(targetId)
+          if (node.length) {
+            node.select()
+            cy.center(node)
+            cy.emit('tap', { target: node } as any)
+          }
+          return next
+        })
+        break
+      }
+      case 'Enter':
+      case ' ': {
+        e.preventDefault()
+        if (focusedNodeIdx >= 0 && focusedNodeIdx < nodeList.length) {
+          cy.nodes().unselect()
+          const targetId = nodeList[focusedNodeIdx].id
+          const node = cy.getElementById(targetId)
+          if (node.length) {
+            node.select()
+            cy.emit('tap', { target: node } as any)
+          }
+        }
+        break
+      }
+      case 'Escape': {
+        cy.nodes().unselect()
+        setFocusedNodeIdx(-1)
+        break
+      }
+    }
+  }, [nodeList, focusedNodeIdx])
+
   return (
-    <div className="topology-container" role="img" aria-label="Cluster topology diagram showing nodes, pods, and services with their connections">
+    <div className="topology-container" role="region" aria-label="Cluster topology diagram showing nodes, pods, and services with their connections. Use Tab/Arrow keys to navigate elements."
+      tabIndex={0}
+      onKeyDown={handleKeyDown}
+    >
       <div className="topology-stats-bar">
         <div className="stat">
           <span className="stat-dot master-dot" />

@@ -88,7 +88,7 @@ function TimeSeriesChart({ series, title, unit }: {
   const formatValue = unit === 'cpu' ? formatCPU : formatBytes
 
   return (
-    <div className="monitoring-chart">
+    <div className="monitoring-chart" aria-label={`${title}: ${datasets.map(d => `${d.label} ${formatValue(d.data[d.data.length - 1])}`).join(', ')}`}>
       <h4 className="monitoring-chart-title">{title}</h4>
       <Line
         data={{ labels, datasets }}
@@ -149,6 +149,24 @@ function TimeSeriesChart({ series, title, unit }: {
           },
         }}
       />
+      {/* Fallback data table for screen readers */}
+      <table className="sr-only">
+        <caption>{title}</caption>
+        <thead>
+          <tr>
+            <th>Time</th>
+            {datasets.map(d => <th key={d.label}>{d.label}</th>)}
+          </tr>
+        </thead>
+        <tbody>
+          {labels.map((label, i) => (
+            <tr key={label}>
+              <td>{label}</td>
+              {datasets.map(d => <td key={d.label}>{formatValue(d.data[i])}</td>)}
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   )
 }

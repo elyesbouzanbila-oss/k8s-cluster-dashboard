@@ -87,6 +87,9 @@
 
 .topology-toast.visible {
   opacity: 1;
+}
+
+.topology-toast.visible {
   transform: translateX(-50%) translateY(0);
 }
 
