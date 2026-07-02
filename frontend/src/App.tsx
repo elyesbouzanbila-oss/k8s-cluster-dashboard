@@ -47,7 +47,6 @@ function App() {
   const softIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const hardIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const wsRef = useRef<WebSocket | null>(null)
-  const abortRef = useRef<AbortController | null>(null)
   const fetchAbortRef = useRef<AbortController | null>(null)
 
   // Network state

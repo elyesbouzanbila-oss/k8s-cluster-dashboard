@@ -630,7 +630,6 @@ export function Topology({ nodes, edges }: TopologyProps) {
   }, {} as Record<string, number>)
 
   // ── Keyboard navigation ──
-  const selectableNodes = podNodes.length + serviceNodes.length
   const nodeList = [...podNodes, ...serviceNodes]
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
