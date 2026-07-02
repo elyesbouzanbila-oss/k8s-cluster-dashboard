@@ -1,16 +1,21 @@
-import type { StorageData } from '../types'
+import type { StorageData, DataSourceStatus } from '../types'
+import { DataSourceBadge } from './DataSourceBadge'
 
 interface StoragePanelProps {
   storageConfig: StorageData | null
+  storageStatus?: DataSourceStatus
 }
 
-export function StoragePanel({ storageConfig }: StoragePanelProps) {
+export function StoragePanel({ storageConfig, storageStatus }: StoragePanelProps) {
   return (
     <div className="section storage-section">
       <h2>Storage Configuration</h2>
 
       <div className="subsection">
-        <h3>Storage Classes</h3>
+        <div className="subsection-header">
+          <h3>Storage Classes</h3>
+          <DataSourceBadge status={storageStatus} label="Storage data" />
+        </div>
         {!storageConfig || storageConfig.storageClasses.length === 0 ? (
           <p className="empty">No storage classes found.</p>
         ) : (

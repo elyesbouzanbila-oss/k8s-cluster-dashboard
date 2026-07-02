@@ -90,11 +90,11 @@ async def fetch_storage_config(api_client=Depends(get_k8s_client), _: Settings =
         result = await get_storage_config(api_client)
         if not result or not result.get("storageClasses"):
             print("Storage config empty, using mock data")
-            return MOCK_STORAGE
-        return result
+            return {"status": "mock", "data": MOCK_STORAGE}
+        return {"status": "success", "data": result}
     except Exception as e:
         print(f"Config K8s connection failed: {e}, using mock data")
-        return MOCK_STORAGE
+        return {"status": "mock", "data": MOCK_STORAGE}
 
 @router.get("/config/network")
 async def fetch_network_config(api_client=Depends(get_k8s_client), _: Settings = Depends(verify_api_key)):

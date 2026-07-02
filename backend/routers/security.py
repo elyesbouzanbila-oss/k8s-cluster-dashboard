@@ -12,20 +12,22 @@ router = APIRouter()
 MOCK_RBAC = _MOCK_RBAC
 MOCK_PRIVILEGED = _MOCK_PRIVILEGED
 
-@router.get("/rbac", response_model=List[RbacBinding])
+@router.get("/rbac")
 async def list_rbac(connection: ConnectionConfig = Depends(get_connection_config), api_client=Depends(get_k8s_client)):
     #Return a summary of ClusterRoleBindings and RoleBindings.
     try:
-        return await security_service.get_rbac(api_client)
+        data = await security_service.get_rbac(api_client)
+        return {"status": "success", "data": [d.model_dump() for d in data]}
     except Exception as e:
         print(f"K8s connection failed: {e}, using mock RBAC data")
-        return MOCK_RBAC
+        return {"status": "mock", "data": MOCK_RBAC}
 
-@router.get("/privileged", response_model=List[PrivilegedPod])
+@router.get("/privileged")
 async def privileged_pods(connection: ConnectionConfig = Depends(get_connection_config), api_client=Depends(get_k8s_client)):
     #List pods that are running with privileged or runAsRoot security contexts.
     try:
-        return await security_service.get_privileged_pods(api_client)
+        data = await security_service.get_privileged_pods(api_client)
+        return {"status": "success", "data": [d.model_dump() for d in data]}
     except Exception as e:
         print(f"K8s connection failed: {e}, using mock privileged pods data")
-        return MOCK_PRIVILEGED
+        return {"status": "mock", "data": MOCK_PRIVILEGED}

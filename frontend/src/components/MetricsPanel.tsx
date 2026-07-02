@@ -1,10 +1,13 @@
 import { useState, useMemo } from 'react'
-import type { NodeMetric, PodMetric } from '../types'
+import type { NodeMetric, PodMetric, DataSourceStatus } from '../types'
 import { parseCPU, parseMemory } from '../utils'
+import { DataSourceBadge } from './DataSourceBadge'
 
 interface MetricsPanelProps {
   nodeMetrics: NodeMetric[]
   podMetrics: PodMetric[]
+  nodeMetricsStatus?: DataSourceStatus
+  podMetricsStatus?: DataSourceStatus
 }
 
 // ─── Namespace Colors ──────────────────────────────────────────
@@ -204,7 +207,7 @@ function PodMetricCard({ pod }: { pod: PodMetric }) {
 }
 
 // ─── Main Component ────────────────────────────────────────────
-export function MetricsPanel({ nodeMetrics, podMetrics }: MetricsPanelProps) {
+export function MetricsPanel({ nodeMetrics, podMetrics, nodeMetricsStatus, podMetricsStatus }: MetricsPanelProps) {
   // Group pod metrics by namespace
   const podsByNs = useMemo(() => {
     const grouped: Record<string, PodMetric[]> = {}
@@ -254,7 +257,10 @@ export function MetricsPanel({ nodeMetrics, podMetrics }: MetricsPanelProps) {
 
       {/* Node-level metrics (existing) */}
       <div className="subsection">
-        <h3>Node Resource Usage</h3>
+        <div className="subsection-header">
+          <h3>Node Resource Usage</h3>
+          <DataSourceBadge status={nodeMetricsStatus} label="Node metrics" />
+        </div>
         {nodeMetrics.length === 0 ? (
           <p className="empty">No node metrics found. Ensure metrics-server is installed in your cluster.</p>
         ) : (
@@ -304,7 +310,10 @@ export function MetricsPanel({ nodeMetrics, podMetrics }: MetricsPanelProps) {
 
       {/* Pod-level resource consumption (NEW — cAdvisor data) */}
       <div className="subsection">
-        <h3>Per-Pod Resource Consumption</h3>
+        <div className="subsection-header">
+          <h3>Per-Pod Resource Consumption</h3>
+          <DataSourceBadge status={podMetricsStatus} label="Pod metrics" />
+        </div>
         {podMetrics.length === 0 ? (
           <p className="empty">No pod metrics found. cAdvisor / metrics-server may not be running.</p>
         ) : (

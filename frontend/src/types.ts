@@ -118,3 +118,10 @@ export interface PrometheusResponse {
     }>
   } | null
 }
+
+export type DataSourceStatus = 'live' | 'mock' | 'error' | 'unknown'
+
+export interface MetricsResponse<T> {
+  status: 'success' | 'mock' | 'error'
+  data: T
+}

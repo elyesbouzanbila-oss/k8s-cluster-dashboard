@@ -38,11 +38,11 @@ async def list_pods(
 				}
 			)
 
-		return {"items": items}
+		return {"status": "success", "items": items}
 	except Exception as e:
 		# Fall back to mock data if K8s not available
 		print(f"K8s connection failed: {e}, using mock data")
-		return {"items": MOCK_PODS}
+		return {"status": "mock", "items": MOCK_PODS}
 
 def label_selector_matches(pod_labels: Dict[str, str], selector: Dict[str, str]) -> bool:
 	"""Check if pod labels match service selector."""
@@ -160,8 +160,9 @@ async def get_topology(
 						"target": svc["id"]
 					})
 
-		return {"nodes": nodes, "edges": edges}
+		return {"status": "success", "nodes": nodes, "edges": edges}
 	except Exception as e:
 		# Fall back to rich mock data if K8s not available
 		print(f"K8s connection failed: {e}, using mock topology")
-		return build_mock_topology()
+		mock = build_mock_topology()
+		return {"status": "mock", "nodes": mock["nodes"], "edges": mock["edges"]}

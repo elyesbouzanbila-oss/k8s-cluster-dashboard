@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
-import type { Pod, ThreatEvent, RbacBinding, PrivilegedPod, NodeMetric } from '../types'
+import type { Pod, ThreatEvent, RbacBinding, PrivilegedPod, NodeMetric, DataSourceStatus } from '../types'
 import { parseCPU, parseMemory } from '../utils'
+import { DataSourceBadge } from './DataSourceBadge'
 
 interface DashboardPanelProps {
   pods: Pod[]
@@ -11,9 +12,13 @@ interface DashboardPanelProps {
   wsConnected: boolean
   lastUpdated: Date | null
   onRefresh: () => void
+  podsStatus?: DataSourceStatus
+  rbacStatus?: DataSourceStatus
+  privilegedStatus?: DataSourceStatus
+  nodeMetricsStatus?: DataSourceStatus
 }
 
-export function DashboardPanel({ pods, threats, rbacBindings, privilegedPods, nodeMetrics, wsConnected, lastUpdated, onRefresh }: DashboardPanelProps) {
+export function DashboardPanel({ pods, threats, rbacBindings, privilegedPods, nodeMetrics, wsConnected, lastUpdated, onRefresh, podsStatus, rbacStatus, privilegedStatus, nodeMetricsStatus }: DashboardPanelProps) {
   const [refreshing, setRefreshing] = useState(false)
   const [timeUntilNext, setTimeUntilNext] = useState(15)
 
@@ -56,10 +61,15 @@ export function DashboardPanel({ pods, threats, rbacBindings, privilegedPods, no
   }
 
   return (
-    <div className="dashboard">
-      <div className="dashboard-header">
+    <div className="dashboard">        <div className="dashboard-header">
         <h2>Cluster Overview</h2>
         <div className="dashboard-header-actions">
+          <div className="dashboard-source-status">
+            <DataSourceBadge status={podsStatus} label="Pods" />
+            <DataSourceBadge status={nodeMetricsStatus} label="Metrics" />
+            <DataSourceBadge status={rbacStatus} label="RBAC" />
+            <DataSourceBadge status={privilegedStatus} label="Privileged" />
+          </div>
           <div className="dashboard-header-status">
             <span className={`indicator ${wsConnected ? 'connected' : 'disconnected'}`}></span>
             <span>{wsConnected ? 'Threat Stream Active' : 'Threat Stream Disconnected'}</span>

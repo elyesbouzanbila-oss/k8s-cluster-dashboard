@@ -37,11 +37,11 @@ async def fetch_node_metrics(api_client=Depends(get_k8s_client), _: Settings = D
         result = await get_node_metrics(api_client)
         if not result:
             print("Metrics returned empty (metrics-server likely not installed), using mock data")
-            return MOCK_NODE_METRICS
-        return result
+            return {"status": "mock", "data": MOCK_NODE_METRICS}
+        return {"status": "success", "data": result}
     except Exception as e:
         print(f"Metrics K8s connection failed: {e}, using mock data")
-        return MOCK_NODE_METRICS
+        return {"status": "mock", "data": MOCK_NODE_METRICS}
 
 @router.get("/metrics/pods/{namespace}")
 async def fetch_pod_metrics(namespace: str, api_client=Depends(get_k8s_client), _: Settings = Depends(verify_api_key)):
@@ -49,11 +49,11 @@ async def fetch_pod_metrics(namespace: str, api_client=Depends(get_k8s_client), 
         result = await get_pod_metrics(api_client, namespace)
         if not result:
             print("Pod metrics empty, returning empty")
-            return []
-        return result
+            return {"status": "mock", "data": []}
+        return {"status": "success", "data": result}
     except Exception as e:
         print(f"Metrics K8s connection failed: {e}, returning empty")
-        return []
+        return {"status": "error", "data": []}
 
 
 @router.get("/metrics/pods")
@@ -67,8 +67,8 @@ async def fetch_all_pod_metrics(api_client=Depends(get_k8s_client), _: Settings 
         result = await get_all_pod_metrics(api_client)
         if not result:
             print("Pod metrics returned empty (metrics-server likely not installed), using mock data")
-            return MOCK_POD_METRICS
-        return result
+            return {"status": "mock", "data": MOCK_POD_METRICS}
+        return {"status": "success", "data": result}
     except Exception as e:
         print(f"Pod metrics K8s connection failed: {e}, using mock data")
-        return MOCK_POD_METRICS
+        return {"status": "mock", "data": MOCK_POD_METRICS}

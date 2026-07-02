@@ -12,6 +12,7 @@ import {
   Filler,
 } from 'chart.js'
 import type { PodMetric, PrometheusResponse, PromSeries } from '../types'
+import { DataSourceBadge } from './DataSourceBadge'
 
 // Register Chart.js components
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend, Filler)
@@ -173,6 +174,7 @@ function PodDetailCharts({ namespace, pod }: { namespace: string; pod: string })
   const [memSeries, setMemSeries] = useState<PromSeries[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [promStatus, setPromStatus] = useState<string>('unknown')
 
   useEffect(() => {
     let cancelled = false
@@ -192,11 +194,22 @@ function PodDetailCharts({ namespace, pod }: { namespace: string; pod: string })
 
         if (cpuRes.ok) {
           const data: PrometheusResponse = await cpuRes.json()
-          if (!cancelled) setCpuSeries(parsePromResult(data.data))
+          if (!cancelled) {
+            setCpuSeries(parsePromResult(data.data))
+            setPromStatus(prev => {
+              const newStatus = data.status === 'success' ? 'success' : data.status === 'mock' ? 'mock' : 'error'
+              return prev === 'unknown' ? newStatus : prev
+            })
+          }
         }
         if (memRes.ok) {
           const data: PrometheusResponse = await memRes.json()
-          if (!cancelled) setMemSeries(parsePromResult(data.data))
+          if (!cancelled) {
+            setMemSeries(parsePromResult(data.data))
+            if (data.status !== 'success') {
+              setPromStatus(data.status === 'mock' ? 'mock' : 'error')
+            }
+          }
         }
       } catch (err) {
         if (!cancelled) setError(err instanceof Error ? err.message : 'Failed to load')
@@ -217,10 +230,15 @@ function PodDetailCharts({ namespace, pod }: { namespace: string; pod: string })
   }
 
   return (
-    <div className="monitoring-pod-charts">
-      <TimeSeriesChart series={cpuSeries} title="CPU Usage" unit="cpu" />
-      <TimeSeriesChart series={memSeries} title="Memory Usage" unit="memory" />
-    </div>
+    <>
+      <div className="monitoring-status-bar">
+        <DataSourceBadge status={promStatus} label="Prometheus" />
+      </div>
+      <div className="monitoring-pod-charts">
+        <TimeSeriesChart series={cpuSeries} title="CPU Usage" unit="cpu" />
+        <TimeSeriesChart series={memSeries} title="Memory Usage" unit="memory" />
+      </div>
+    </>
   )
 }
 
@@ -229,6 +247,7 @@ function NamespaceOverviewCharts({ namespace }: { namespace: string }) {
   const [cpuSeries, setCpuSeries] = useState<PromSeries[]>([])
   const [memSeries, setMemSeries] = useState<PromSeries[]>([])
   const [loading, setLoading] = useState(false)
+  const [promStatus, setPromStatus] = useState<string>('unknown')
   const [duration, setDuration] = useState(60)
 
   useEffect(() => {
@@ -248,11 +267,22 @@ function NamespaceOverviewCharts({ namespace }: { namespace: string }) {
 
         if (cpuRes.ok) {
           const data: PrometheusResponse = await cpuRes.json()
-          if (!cancelled) setCpuSeries(parsePromResult(data.data))
+          if (!cancelled) {
+            setCpuSeries(parsePromResult(data.data))
+            setPromStatus(prev => {
+              const newStatus = data.status === 'success' ? 'success' : data.status === 'mock' ? 'mock' : 'error'
+              return prev === 'unknown' ? newStatus : prev
+            })
+          }
         }
         if (memRes.ok) {
           const data: PrometheusResponse = await memRes.json()
-          if (!cancelled) setMemSeries(parsePromResult(data.data))
+          if (!cancelled) {
+            setMemSeries(parsePromResult(data.data))
+            if (data.status !== 'success') {
+              setPromStatus(data.status === 'mock' ? 'mock' : 'error')
+            }
+          }
         }
       } catch {
         // ignore
@@ -287,6 +317,9 @@ function NamespaceOverviewCharts({ namespace }: { namespace: string }) {
             </button>
           ))}
         </div>
+      </div>
+      <div className="monitoring-status-bar">
+        <DataSourceBadge status={promStatus} label="Prometheus" />
       </div>
       {loading ? (
         <div className="monitoring-chart-loading"><div className="spinner" /></div>

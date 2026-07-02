@@ -1,9 +1,12 @@
 import { useState, useMemo } from 'react'
-import type { RbacBinding, PrivilegedPod } from '../types'
+import type { RbacBinding, PrivilegedPod, DataSourceStatus } from '../types'
+import { DataSourceBadge } from './DataSourceBadge'
 
 interface SecurityPanelProps {
   rbacBindings: RbacBinding[]
   privilegedPods: PrivilegedPod[]
+  rbacStatus?: DataSourceStatus
+  privilegedStatus?: DataSourceStatus
 }
 
 // ─── Subject Type Icons ───────────────────────────────────────────
@@ -373,7 +376,10 @@ export function SecurityPanel({ rbacBindings, privilegedPods }: SecurityPanelPro
 
       {/* ── RBAC Bindings Section ───────────────────────────── */}
       <div className="subsection">
-        <h3>RBAC Bindings ({rbacBindings.length})</h3>
+        <div className="subsection-header">
+          <h3>RBAC Bindings ({rbacBindings.length})</h3>
+          <DataSourceBadge status={rbacStatus} label="RBAC data" />
+        </div>
 
         {!hasAnyData ? (
           <EmptyState
@@ -442,7 +448,10 @@ export function SecurityPanel({ rbacBindings, privilegedPods }: SecurityPanelPro
 
       {/* ── Privileged Pods Section ─────────────────────────── */}
       <div className="subsection">
-        <h3>Privileged Pods ({privilegedPods.length})</h3>
+        <div className="subsection-header">
+          <h3>Privileged Pods ({privilegedPods.length})</h3>
+          <DataSourceBadge status={privilegedStatus} label="Privileged data" />
+        </div>
 
         {privilegedPods.length === 0 ? (
           <EmptyState

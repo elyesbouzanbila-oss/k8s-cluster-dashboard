@@ -7,7 +7,7 @@ import { ThreatPanel } from './components/ThreatPanel'
 import { MetricsPanel } from './components/MetricsPanel'
 import { StoragePanel } from './components/StoragePanel'
 import { MonitoringPanel } from './components/MonitoringPanel'
-import type { Pod, TopologyNode, TopologyEdge, ThreatEvent, RbacBinding, PrivilegedPod, NodeMetric, PodMetric, StorageData } from './types'
+import type { Pod, TopologyNode, TopologyEdge, ThreatEvent, RbacBinding, PrivilegedPod, NodeMetric, PodMetric, StorageData, DataSourceStatus, MetricsResponse } from './types'
 
 // Use relative URLs (nginx proxies /api/*, /metrics/*, /config/* to backend in-cluster)
 // For local dev, set VITE_API_URL=http://localhost:8000
@@ -131,6 +131,15 @@ function App() {
   const [threats, setThreats] = useState<ThreatEvent[]>([])
   const [wsConnected, setWsConnected] = useState(false)
 
+  // Data source status tracking
+  const [nodeMetricsStatus, setNodeMetricsStatus] = useState<DataSourceStatus>('unknown')
+  const [podMetricsStatus, setPodMetricsStatus] = useState<DataSourceStatus>('unknown')
+  const [podsStatus, setPodsStatus] = useState<DataSourceStatus>('unknown')
+  const [topologyStatus, setTopologyStatus] = useState<DataSourceStatus>('unknown')
+  const [rbacStatus, setRbacStatus] = useState<DataSourceStatus>('unknown')
+  const [privilegedStatus, setPrivilegedStatus] = useState<DataSourceStatus>('unknown')
+  const [storageStatus, setStorageStatus] = useState<DataSourceStatus>('unknown')
+
   // Metrics & Storage state
   const [nodeMetrics, setNodeMetrics] = useState<NodeMetric[]>([])
   const [podMetrics, setPodMetrics] = useState<PodMetric[]>([])
@@ -145,6 +154,7 @@ function App() {
       if (response.ok) {
         const data = await response.json()
         setPods(data.items || [])
+        setPodsStatus(data.status === 'success' ? 'live' : data.status === 'mock' ? 'mock' : 'error')
       }
     } catch {
       // Silently ignore — errors shown via explicit fetches
@@ -164,18 +174,22 @@ function App() {
       if (podsRes.ok) {
         const data = await podsRes.json()
         setPods(data.items || [])
+        setPodsStatus(data.status === 'success' ? 'live' : data.status === 'mock' ? 'mock' : 'error')
       }
       if (rbacRes.ok) {
         const data = await rbacRes.json()
-        setRbacBindings(Array.isArray(data) ? data : [])
+        setRbacBindings(Array.isArray(data.data) ? data.data : [])
+        setRbacStatus(data.status === 'success' ? 'live' : data.status === 'mock' ? 'mock' : 'error')
       }
       if (privRes.ok) {
         const data = await privRes.json()
-        setPrivilegedPods(Array.isArray(data) ? data : [])
+        setPrivilegedPods(Array.isArray(data.data) ? data.data : [])
+        setPrivilegedStatus(data.status === 'success' ? 'live' : data.status === 'mock' ? 'mock' : 'error')
       }
       if (metricsRes.ok) {
-        const data = await metricsRes.json()
-        setNodeMetrics(data)
+        const body: MetricsResponse<NodeMetric[]> = await metricsRes.json()
+        setNodeMetrics(body.data || [])
+        setNodeMetricsStatus(body.status === 'success' ? 'live' : body.status === 'mock' ? 'mock' : 'error')
       }
       // Also fetch pod metrics silently
       try {
@@ -183,12 +197,15 @@ function App() {
           headers: { 'X-API-Key': API_KEY }
         })
         if (podMetricsRes.ok) {
-          setPodMetrics(await podMetricsRes.json())
+          const body: MetricsResponse<PodMetric[]> = await podMetricsRes.json()
+          setPodMetrics(body.data || [])
+          setPodMetricsStatus(body.status === 'success' ? 'live' : body.status === 'mock' ? 'mock' : 'error')
         }
       } catch { /* ignore */ }
       if (storageRes.ok) {
         const data = await storageRes.json()
-        setStorageConfig(data)
+        setStorageConfig(data.data || null)
+        setStorageStatus(data.status === 'success' ? 'live' : data.status === 'mock' ? 'mock' : 'error')
       }
 
       setLastUpdated(new Date())
@@ -208,6 +225,7 @@ function App() {
       if (response.ok) {
         const data = await response.json()
         setPods(data.items || [])
+        setPodsStatus(data.status === 'success' ? 'live' : data.status === 'mock' ? 'mock' : 'error')
       } else {
         setError(`Failed to fetch pods: ${response.statusText}`)
       }
@@ -227,7 +245,8 @@ function App() {
       })
       if (response.ok) {
         const data = await response.json()
-        setTopology(data)
+        setTopology({ nodes: data.nodes || [], edges: data.edges || [] })
+        setTopologyStatus(data.status === 'success' ? 'live' : data.status === 'mock' ? 'mock' : 'error')
       } else {
         setError(`Failed to fetch topology: ${response.statusText}`)
       }
@@ -247,7 +266,8 @@ function App() {
       })
       if (response.ok) {
         const data = await response.json()
-        setRbacBindings(Array.isArray(data) ? data : [])
+        setRbacBindings(Array.isArray(data.data) ? data.data : [])
+        setRbacStatus(data.status === 'success' ? 'live' : data.status === 'mock' ? 'mock' : 'error')
       } else {
         setError(`Failed to fetch RBAC: ${response.statusText}`)
       }
@@ -267,7 +287,8 @@ function App() {
       })
       if (response.ok) {
         const data = await response.json()
-        setPrivilegedPods(Array.isArray(data) ? data : [])
+        setPrivilegedPods(Array.isArray(data.data) ? data.data : [])
+        setPrivilegedStatus(data.status === 'success' ? 'live' : data.status === 'mock' ? 'mock' : 'error')
       } else {
         setError(`Failed to fetch privileged pods: ${response.statusText}`)
       }
@@ -291,13 +312,16 @@ function App() {
         })
       ])
       if (nodeRes.ok) {
-        const data = await nodeRes.json()
-        setNodeMetrics(data)
+        const body: MetricsResponse<NodeMetric[]> = await nodeRes.json()
+        setNodeMetrics(body.data || [])
+        setNodeMetricsStatus(body.status === 'success' ? 'live' : body.status === 'mock' ? 'mock' : 'error')
       } else {
         setError(`Failed to fetch metrics: ${nodeRes.statusText}`)
       }
       if (podRes.ok) {
-        setPodMetrics(await podRes.json())
+        const body: MetricsResponse<PodMetric[]> = await podRes.json()
+        setPodMetrics(body.data || [])
+        setPodMetricsStatus(body.status === 'success' ? 'live' : body.status === 'mock' ? 'mock' : 'error')
       }
     } catch (err) {
       setError(`Error: ${err instanceof Error ? err.message : 'Unknown error'}`)
@@ -315,7 +339,8 @@ function App() {
       })
       if (response.ok) {
         const data = await response.json()
-        setStorageConfig(data)
+        setStorageConfig(data.data || null)
+        setStorageStatus(data.status === 'success' ? 'live' : data.status === 'mock' ? 'mock' : 'error')
       } else {
         setError(`Failed to fetch storage config: ${response.statusText}`)
       }
@@ -512,25 +537,34 @@ function App() {
               wsConnected={wsConnected}
               lastUpdated={lastUpdated}
               onRefresh={handleRefresh}
+              podsStatus={podsStatus}
+              rbacStatus={rbacStatus}
+              privilegedStatus={privilegedStatus}
+              nodeMetricsStatus={nodeMetricsStatus}
             />
           )}
           {activeTab === 'network' && (
-            <NetworkPanel pods={pods} topology={topology} />
+            <NetworkPanel pods={pods} topology={topology} podsStatus={podsStatus} topologyStatus={topologyStatus} />
           )}
           {activeTab === 'security' && (
-            <SecurityPanel rbacBindings={rbacBindings} privilegedPods={privilegedPods} />
+            <SecurityPanel rbacBindings={rbacBindings} privilegedPods={privilegedPods} rbacStatus={rbacStatus} privilegedStatus={privilegedStatus} />
           )}
           {activeTab === 'threats' && (
             <ThreatPanel threats={threats} wsConnected={wsConnected} />
           )}
           {activeTab === 'metrics' && (
-            <MetricsPanel nodeMetrics={nodeMetrics} podMetrics={podMetrics} />
+            <MetricsPanel
+              nodeMetrics={nodeMetrics}
+              podMetrics={podMetrics}
+              nodeMetricsStatus={nodeMetricsStatus}
+              podMetricsStatus={podMetricsStatus}
+            />
           )}
           {activeTab === 'monitoring' && (
             <MonitoringPanel podMetrics={podMetrics} />
           )}
           {activeTab === 'storage' && (
-            <StoragePanel storageConfig={storageConfig} />
+            <StoragePanel storageConfig={storageConfig} storageStatus={storageStatus} />
           )}
         </div>
       </main>

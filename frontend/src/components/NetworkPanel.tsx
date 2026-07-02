@@ -1,10 +1,13 @@
 import { useState } from 'react'
-import type { Pod, TopologyNode, TopologyEdge } from '../types'
+import type { Pod, TopologyNode, TopologyEdge, DataSourceStatus } from '../types'
 import { Topology } from '../Topology'
+import { DataSourceBadge } from './DataSourceBadge'
 
 interface NetworkPanelProps {
   pods: Pod[]
   topology: { nodes: TopologyNode[]; edges: TopologyEdge[] }
+  podsStatus?: DataSourceStatus
+  topologyStatus?: DataSourceStatus
 }
 
 // ─── Namespace color palette (consistent with topology) ─────────
@@ -104,7 +107,7 @@ function NsSection({ name, pods, defaultOpen }: { name: string; pods: Pod[]; def
 }
 
 // ─── Main Component ─────────────────────────────────────────────
-export function NetworkPanel({ pods, topology }: NetworkPanelProps) {
+export function NetworkPanel({ pods, topology, podsStatus, topologyStatus }: NetworkPanelProps) {
   const nsGroups = groupByNamespace(pods)
 
   return (
@@ -112,7 +115,10 @@ export function NetworkPanel({ pods, topology }: NetworkPanelProps) {
       <h2>Network Discovery</h2>
 
       <div className="subsection">
-        <h3>Pods ({pods.length})</h3>
+        <div className="subsection-header">
+          <h3>Pods ({pods.length})</h3>
+          <DataSourceBadge status={podsStatus} label="Pod data" />
+        </div>
         {pods.length === 0 ? (
           <p className="empty">No pods found. Ensure K8s cluster is configured.</p>
         ) : (
@@ -125,7 +131,10 @@ export function NetworkPanel({ pods, topology }: NetworkPanelProps) {
       </div>
 
       <div className="subsection">
-        <h3>Topology</h3>
+        <div className="subsection-header">
+          <h3>Topology</h3>
+          <DataSourceBadge status={topologyStatus} label="Topology data" />
+        </div>
         {topology.nodes.length === 0 ? (
           <p className="empty">No topology data. Ensure K8s cluster is configured.</p>
         ) : (
