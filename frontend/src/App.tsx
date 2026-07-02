@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import './App.css'
+import { ErrorBoundary } from './components/ErrorBoundary'
 import { DashboardPanel } from './components/DashboardPanel'
 import { NetworkPanel } from './components/NetworkPanel'
 import { SecurityPanel } from './components/SecurityPanel'
@@ -144,6 +145,8 @@ function App() {
   const [nodeMetrics, setNodeMetrics] = useState<NodeMetric[]>([])
   const [podMetrics, setPodMetrics] = useState<PodMetric[]>([])
   const [storageConfig, setStorageConfig] = useState<StorageData | null>(null)
+
+  const threatIdRef = useRef(1)
 
   // ── Silent Fetch Helpers (no loading/error — for intervals) ──
   const silentFetchPods = useCallback(async () => {
@@ -361,8 +364,8 @@ function App() {
     }
 
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-    const wsUrl = `${protocol}//${window.location.host}/api/threats/ws/threats?api_key=${API_KEY}`
-    const ws = new WebSocket(wsUrl)
+    const wsUrl = `${protocol}//${window.location.host}/api/threats/ws/threats`
+    const ws = new WebSocket(wsUrl, [API_KEY])
     wsRef.current = ws
 
     ws.onopen = () => {
@@ -373,6 +376,7 @@ function App() {
     ws.onmessage = (event) => {
       try {
         const threat = JSON.parse(event.data)
+        threat.id = `threat-${threatIdRef.current++}`
         setThreats(prev => [threat, ...prev].slice(0, 50))
       } catch (err) {
         console.error('Failed to parse threat event:', err)
@@ -526,47 +530,49 @@ function App() {
           </div>
         )}
 
-        <div className="tab-content">
-          {activeTab === 'dashboard' && (
-            <DashboardPanel
-              pods={pods}
-              threats={threats}
-              rbacBindings={rbacBindings}
-              privilegedPods={privilegedPods}
-              nodeMetrics={nodeMetrics}
-              wsConnected={wsConnected}
-              lastUpdated={lastUpdated}
-              onRefresh={handleRefresh}
-              podsStatus={podsStatus}
-              rbacStatus={rbacStatus}
-              privilegedStatus={privilegedStatus}
-              nodeMetricsStatus={nodeMetricsStatus}
-            />
-          )}
-          {activeTab === 'network' && (
-            <NetworkPanel pods={pods} topology={topology} podsStatus={podsStatus} topologyStatus={topologyStatus} />
-          )}
-          {activeTab === 'security' && (
-            <SecurityPanel rbacBindings={rbacBindings} privilegedPods={privilegedPods} rbacStatus={rbacStatus} privilegedStatus={privilegedStatus} />
-          )}
-          {activeTab === 'threats' && (
-            <ThreatPanel threats={threats} wsConnected={wsConnected} />
-          )}
-          {activeTab === 'metrics' && (
-            <MetricsPanel
-              nodeMetrics={nodeMetrics}
-              podMetrics={podMetrics}
-              nodeMetricsStatus={nodeMetricsStatus}
-              podMetricsStatus={podMetricsStatus}
-            />
-          )}
-          {activeTab === 'monitoring' && (
-            <MonitoringPanel podMetrics={podMetrics} />
-          )}
-          {activeTab === 'storage' && (
-            <StoragePanel storageConfig={storageConfig} storageStatus={storageStatus} />
-          )}
-        </div>
+        <ErrorBoundary>
+          <div className="tab-content">
+            {activeTab === 'dashboard' && (
+              <DashboardPanel
+                pods={pods}
+                threats={threats}
+                rbacBindings={rbacBindings}
+                privilegedPods={privilegedPods}
+                nodeMetrics={nodeMetrics}
+                wsConnected={wsConnected}
+                lastUpdated={lastUpdated}
+                onRefresh={handleRefresh}
+                podsStatus={podsStatus}
+                rbacStatus={rbacStatus}
+                privilegedStatus={privilegedStatus}
+                nodeMetricsStatus={nodeMetricsStatus}
+              />
+            )}
+            {activeTab === 'network' && (
+              <NetworkPanel pods={pods} topology={topology} podsStatus={podsStatus} topologyStatus={topologyStatus} />
+            )}
+            {activeTab === 'security' && (
+              <SecurityPanel rbacBindings={rbacBindings} privilegedPods={privilegedPods} rbacStatus={rbacStatus} privilegedStatus={privilegedStatus} />
+            )}
+            {activeTab === 'threats' && (
+              <ThreatPanel threats={threats} wsConnected={wsConnected} />
+            )}
+            {activeTab === 'metrics' && (
+              <MetricsPanel
+                nodeMetrics={nodeMetrics}
+                podMetrics={podMetrics}
+                nodeMetricsStatus={nodeMetricsStatus}
+                podMetricsStatus={podMetricsStatus}
+              />
+            )}
+            {activeTab === 'monitoring' && (
+              <MonitoringPanel podMetrics={podMetrics} />
+            )}
+            {activeTab === 'storage' && (
+              <StoragePanel storageConfig={storageConfig} storageStatus={storageStatus} />
+            )}
+          </div>
+        </ErrorBoundary>
       </main>
 
       <footer className="footer">

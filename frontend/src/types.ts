@@ -27,6 +27,7 @@ export interface TopologyEdge {
 }
 
 export interface ThreatEvent {
+  id: string
   priority: 'Critical' | 'High' | 'Medium' | 'Warning'
   rule: string
   output: string

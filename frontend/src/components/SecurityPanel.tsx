@@ -179,8 +179,8 @@ function RbacCard({ binding }: { binding: RbacBinding }) {
           <span className="subject-badge">{subjectCount}</span>
         </div>
         <div className="rbac-subject-list">
-          {binding.subjects.map((s, i) => (
-            <div key={i} className={`rbac-subject ${subjectKindClass(s.kind)}`}>
+          {binding.subjects.map((s) => (
+            <div key={`${s.kind}-${s.name}-${s.namespace || ''}`} className={`rbac-subject ${subjectKindClass(s.kind)}`}>
               <SubjectIcon kind={s.kind} />
               <span className="subject-kind">{s.kind}</span>
               <span className="subject-name">{s.name}</span>
@@ -408,8 +408,8 @@ export function SecurityPanel({ rbacBindings, privilegedPods, rbacStatus, privil
             {clusterRoleBindings.length > 0 && (
               <CollapsibleSection title="ClusterRoleBindings" count={clusterRoleBindings.length} defaultOpen={true}>
                 <div className="rbac-list">
-                  {clusterRoleBindings.map((binding, idx) => (
-                    <RbacCard key={idx} binding={binding} />
+                  {clusterRoleBindings.map((binding) => (
+                    <RbacCard key={`${binding.binding_type}-${binding.name}`} binding={binding} />
                   ))}
                 </div>
               </CollapsibleSection>
@@ -433,8 +433,8 @@ export function SecurityPanel({ rbacBindings, privilegedPods, rbacStatus, privil
                         <span className="security-ns-count">{bindings.length}</span>
                       </div>
                       <div className="rbac-list">
-                        {bindings.map((binding, idx) => (
-                          <RbacCard key={idx} binding={binding} />
+                        {bindings.map((binding) => (
+                          <RbacCard key={`${binding.binding_type}-${binding.name}`} binding={binding} />
                         ))}
                       </div>
                     </div>
@@ -500,12 +500,12 @@ export function SecurityPanel({ rbacBindings, privilegedPods, rbacStatus, privil
             </div>
 
             <div className="privileged-list">
-              {filteredPrivileged.map((pod, idx) => {
+              {filteredPrivileged.map((pod) => {
                 const isPrivileged = pod.privileged
                 const isRoot = pod.run_as_user === 0
                 const riskLevel = isPrivileged && isRoot ? 'critical' : 'high'
                 return (
-                  <div key={idx} className={`privileged-card risk-${riskLevel}`}>
+                  <div key={`${pod.namespace}-${pod.name}-${pod.container}`} className={`privileged-card risk-${riskLevel}`}>
                     <div className="pod-header">
                       <h4>{pod.name}</h4>
                       <span className={`risk-badge risk-${riskLevel}`}>

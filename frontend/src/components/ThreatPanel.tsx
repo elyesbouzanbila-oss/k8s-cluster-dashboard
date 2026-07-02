@@ -32,8 +32,8 @@ export function ThreatPanel({ threats, wsConnected }: ThreatPanelProps) {
         <p className="empty">No threats detected</p>
       ) : (
         <div className="threat-list">
-          {threats.map((threat, idx) => (
-            <div key={idx} className={`threat-card ${threat.priority.toLowerCase()}`}>
+          {threats.map((threat) => (
+            <div key={threat.id} className={`threat-card ${threat.priority.toLowerCase()}`}>
               <div className="threat-header">
                 <span className="priority-dot" style={{ backgroundColor: getPriorityColor(threat.priority) }}></span>
                 <span className="priority">{threat.priority}</span>
