@@ -182,6 +182,7 @@ async def connectivity_diagnostics(
         nc_timeout = max(1, clamped_timeout - 5)
 
         # Build command: test TCP connectivity, measure latency, capture DNS
+        # NOTE: double quotes for echo LATENCY_MS so $((...)) arithmetic expands
         cmd = (
             f"echo '=== DIAGNOSTIC START ===' && "
             f"echo 'Target: {target_host}:{target_port}' && "
@@ -191,10 +192,10 @@ async def connectivity_diagnostics(
             # TCP connectivity test with timing
             f"echo '--- TCP CHECK ---' && "
             f"START=$(date +%s%N) && "
-            f"nc -zv -w {nc_timeout} {target_host} {target_port} 2>&1 && "
-            f"echo 'RESULT=OK' || echo 'RESULT=FAIL' && "
+            f"rc=0; nc -zv -w {nc_timeout} {target_host} {target_port} 2>&1 || rc=$? && "
+            f"if [ $rc -eq 0 ]; then echo 'RESULT=OK'; else echo 'RESULT=FAIL'; fi && "
             f"END=$(date +%s%N) && "
-            f"echo 'LATENCY_MS=$(( (END - START) / 1000000 ))' && "
+            f"echo \"LATENCY_MS=$(( (END - START) / 1000000 ))\" && "
             f"echo '=== DIAGNOSTIC END ==='"
         )
 
