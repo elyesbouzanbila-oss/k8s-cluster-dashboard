@@ -3,11 +3,8 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from config import get_settings
 from routers import network as network_router
-from routers import security as security_router
 from routers import threats as threats_router
 from routers import mock
-from routers import metrics, config
-from routers import prometheus as prometheus_router
 from routers import cni as cni_router
 
 
@@ -35,9 +32,5 @@ app.include_router(mock.router, prefix="", tags=["mock"])
 
 # Include real endpoints (will override mock if K8s available)
 app.include_router(network_router.router, prefix="/api/network", tags=["network"])
-app.include_router(security_router.router, prefix="/api/security", tags=["security"])
 app.include_router(threats_router.router, prefix="/api/threats", tags=["threats"])
-app.include_router(metrics.router, tags=["Metrics"])
-app.include_router(config.router, tags=["Cluster Configuration"])
-app.include_router(prometheus_router.router)
 app.include_router(cni_router.router)

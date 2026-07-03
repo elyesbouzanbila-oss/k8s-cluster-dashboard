@@ -1,16 +1,142 @@
-# Kubernetes Dashboard
+# CNI Command Center
 
-Real-time Kubernetes cluster monitoring with interactive topology visualization, security auditing, threat detection, Prometheus-powered time-series metrics, and per-pod resource consumption monitoring.
+A dedicated Calico CNI diagnostics and command center for Kubernetes clusters.
+General cluster/resource monitoring (node CPU/mem, pod resources, storage) is handled by Grafana
+(via kube-prometheus-stack). This app focuses exclusively on Calico CNI health, IPAM, network policy
+inspection, topology, and connectivity diagnostics.
 
 ## Features
 
-- **Dashboard** — Cluster overview with pod counts, threat summaries, resource usage bars, and RBAC breakdown
-- **Network** — Interactive topology graph showing cluster nodes, pods, services, and their connections
-- **Security** — RBAC binding analysis with cluster-admin flagging, privileged pod and root-user detection
-- **Threats** — Real-time threat event streaming via WebSocket (Falco webhook ingestion)
-- **Metrics** — Node-level CPU/memory usage bars, per-pod resource consumption with container-level breakdown
-- **Monitoring** — Time-series CPU and memory charts powered by Prometheus, with per-container drill-down
-- **Storage** — StorageClass and PersistentVolumeClaim overview
+- **Dashboard** — CNI Command Center overview: Calico agent health, BGP peers, IPAM utilization, policy counts, Felix performance
+- **CNI Health** — Per-node Felix and BIRD/BGP agent status cards with color-coded health indicators
+- **IPAM** — IP pool utilization bars, block allocation statistics, pool definition tables
+- **Policies** — Searchable/filterable Calico NetworkPolicy and GlobalNetworkPolicy table with Allow/Deny badges
+- **Topology** — Interactive node-to-node BGP mesh + pod overlay topology graph
+- **Diagnostics** — On-demand pod-to-pod / pod-to-service connectivity test runner
+- **Threats** — Real-time network-scoped threat event streaming via WebSocket (Falco webhook ingestion)
+
+> **Note:** General cluster monitoring (node CPU/memory, pod resource consumption, storage) has been moved to **Grafana** (see [Grafana Handoff](#grafana-handoff)).
+
+## Grafana Handoff
+
+General cluster/resource monitoring is handled by Grafana (via `kube-prometheus-stack`).
+The CNI Command Center focuses exclusively on Calico diagnostics.
+
+### Grafana Access
+
+**Service:** `monitor-grafana.monitoring.svc.cluster.local` (typically `ClusterIP` by default)
+
+**Expose Grafana externally** via NodePort:
+
+```bash
+# Check current Grafana service type
+kubectl get svc -n monitoring monitor-grafana
+
+# Patch to NodePort (if currently ClusterIP)
+kubectl patch svc -n monitoring monitor-grafana -p '{"spec":{"type":"NodePort"}}'
+
+# Get the assigned NodePort
+kubectl get svc -n monitoring monitor-grafana -o jsonpath='{.spec.ports[0].nodePort}'
+```
+
+**Default credentials** (kube-prometheus-stack):
+- Username: `admin`
+- Password: `prom-operator`
+
+If the password has been changed, retrieve it from the secret:
+```bash
+kubectl get secret -n monitoring monitor-grafana -o jsonpath="{.data.admin-password}" | base64 --decode
+```
+
+**URL:** `http://<node-ip>:<node-port>`
+
+### Default Dashboards (kube-prometheus-stack)
+
+The following dashboards are included by default with `kube-prometheus-stack` and fully replace the old Monitoring/Storage tabs:
+
+| Dashboard | What it replaces |
+|-----------|-----------------|
+| **Kubernetes / Compute Resources / Node** | Node CPU/memory usage (was old Metrics tab) |
+| **Kubernetes / Compute Resources / Pod** | Per-pod resource consumption with container drill-down |
+| **Kubernetes / Compute Resources / Namespace** | Namespace-level CPU/memory aggregation |
+| **Kubernetes / Networking** | Network traffic, dropped packets |
+| **Kubernetes / Storage / PersistentVolumes** | PVC overview (was old Storage tab) |
+| **Kubernetes / Kubelet** | Kubelet metrics, pod startup latency |
+
+### Calico Felix Dashboard
+
+For deeper Felix metrics beyond what the CNI Command Center surfaces, import the official
+community dashboard:
+
+| Field | Value |
+|-------|-------|
+| **Dashboard ID** | `12175` |
+| **Title** | Calico Felix (Tigera) |
+| **Source** | [grafana.com/grafana/dashboards/12175-calico-felix](https://grafana.com/grafana/dashboards/12175-calico-felix/) |
+
+**Import steps:**
+1. Open Grafana in your browser
+2. Click **+** → **Import** (or go to Dashboards → New → Import)
+3. Enter dashboard ID `12175`
+4. Select the Prometheus data source (default: `Prometheus`)
+5. Click **Import**
+
+This dashboard provides:
+- Per-node Felix endpoint counts for workloads and host endpoints
+- iptables restore errors and dataplane failures over time
+- BGP session status and peer counts per node
+- Policy evaluation rates and latency
+- Felix memory usage and goroutine counts
+
+### Felix Metrics Scraping
+
+Ensure Prometheus is scraping Felix metrics from calico-node (port `9091`):
+
+```bash
+# Verify Felix metrics are being scraped
+kubectl get pod -n kube-system -l k8s-app=calico-node -o yaml | grep -i 9091
+
+# Test query in Prometheus
+# Open Prometheus: kubectl port-forward -n monitoring svc/monitor-kube-prometheus-st-prometheus 9090:9090
+# Then query: felix_active_local_endpoints
+```
+
+If Felix metrics are not being scraped, add a `PodMonitor` or `ServiceMonitor` targeting
+`calico-node` pods on port `9091` with label `k8s-app: calico-node`.
+
+---
+
+## RBAC Permissions
+
+The dashboard requires the following ClusterRole permissions to operate. These are defined in
+[`k8s/clusterrole.yaml`](k8s/clusterrole.yaml).
+
+| API Group | Resources | Verbs | Purpose |
+|-----------|-----------|-------|---------|
+| `(core)` | `pods`, `services`, `nodes`, `endpoints`, `namespaces` | `get, list, watch` | Pod discovery, topology, diagnostics |
+| `rbac.authorization.k8s.io` | `clusterrolebindings`, `rolebindings`, `clusterroles`, `roles` | `get, list` | RBAC audit (Security tab) |
+| `(core)` | `serviceaccounts`, `secrets` | `get, list` | Security context enrichment |
+| `metrics.k8s.io` | `pods`, `nodes` | `get, list, watch` | Resource usage panels (if metrics-server installed) |
+| `storage.k8s.io` | `storageclasses` | `get, list` | Storage class discovery |
+| `(core)` | `persistentvolumes`, `persistentvolumeclaims` | `get, list, watch` | PVC/PV overview |
+| `networking.k8s.io` | `networkpolicies` | `get, list` | Kubernetes NetworkPolicy discovery |
+| `crd.projectcalico.org` | `ippools`, `ipamblocks`, `ipamconfigs`, `bgppeers`, `bgpconfigurations`, `felixconfigurations`, `networkpolicies`, `globalnetworkpolicies`, `hostendpoints`, `clusterinformations` | `get, list, watch` | Calico CNI diagnostics — IPAM, BGP, policies, Felix |
+| `(core)` | `pods` | `create, delete` | Ephemeral connectivity test pods (Diagnostics tab) |
+| `(core)` | `pods/log` | `get` | Read diagnostic pod output |
+
+> **Note:** The `pods` `create/delete` and `pods/log` `get` permissions are the only write/mutate
+> permissions required. They are scoped cluster-wide for convenience but can be narrowed to a
+> specific namespace via a `Role` + `RoleBinding` instead.
+
+### Verify RBAC
+
+```bash
+kubectl auth can-i list ippools --as=system:serviceaccount:k8s-dashboard:dashboard-sa
+kubectl auth can-i create pods --as=system:serviceaccount:k8s-dashboard:dashboard-sa
+kubectl auth can-i get pods/log --as=system:serviceaccount:k8s-dashboard:dashboard-sa
+```
+
+---
 
 ## Quick Start
 
@@ -93,35 +219,40 @@ All endpoints require the `X-API-Key` header.
 | `/mock/topology`                 | GET        | Mock topology                           |
 | `/api/network/pods`              | GET        | List all pods across namespaces         |
 | `/api/network/topology`          | GET        | Cluster topology graph (nodes + edges)  |
-| `/api/security/rbac`             | GET        | RBAC bindings                           |
-| `/api/security/privileged`       | GET        | Privileged/root pods                    |
 | `/api/threats/falco`             | POST       | Falco webhook — ingest threat events   |
 | `/api/threats/ws/threats`        | WebSocket  | Real-time threat stream                |
-| `/metrics/nodes`                 | GET        | Node CPU/memory usage                  |
-| `/metrics/pods`                  | GET        | Per-pod resource consumption           |
-| `/metrics/pods/{namespace}`      | GET        | Pod metrics for a specific namespace   |
-| `/config/storage`                | GET        | StorageClass and PVC list              |
-| `/api/prometheus/query`          | GET        | Arbitrary instant PromQL query         |
-| `/api/prometheus/query-range`    | GET        | Arbitrary range PromQL query           |
-| `/api/prometheus/namespace/cpu`  | GET        | Namespace-pod CPU time-series          |
-| `/api/prometheus/namespace/memory` | GET      | Namespace-pod memory time-series       |
-| `/api/prometheus/pod/cpu`        | GET        | Per-container CPU time-series          |
-| `/api/prometheus/pod/memory`     | GET        | Per-container memory time-series       |
+| `/api/cni/nodes`                 | GET        | Per-node Calico agent status           |
+| `/api/cni/bgp-peers`             | GET        | BGP peer list + session state          |
+| `/api/cni/ippools`               | GET        | IP pool definitions                    |
+| `/api/cni/ipam/utilization`      | GET        | Allocated vs. free IPs per pool        |
+| `/api/cni/policies`              | GET        | Calico NetworkPolicy + GlobalNetworkPolicy |
+| `/api/cni/topology`              | GET        | BGP mesh + overlay topology            |
+| `/api/cni/metrics/felix`         | GET        | Felix performance counters             |
+| `/api/cni/diagnostics/connectivity` | POST    | On-demand connectivity test (Phase 4)  |
 
 ## Architecture
 
 ```
-┌─────────────┐     HTTP + X-API-Key      ┌──────────────┐
-│   Frontend  │ ──────────────────────────▶│   Backend    │
-│ (React+Vite)│◀──────────────────────────│ (FastAPI)    │
-└─────────────┘     JSON responses         └──────┬───────┘
-                                                  │
-                          ┌───────────────────────┼─────────┐
-                          ▼                       ▼         ▼
-                   ┌──────────────┐     ┌────────────┐  ┌────┐
-                   │  Kubernetes  │     │ Prometheus │  │Redis│
-                   │    API       │     │ (optional) │  └────┘
-                   └──────────────┘     └────────────┘
+┌────────────────────┐     HTTP + X-API-Key      ┌──────────────────┐
+│  CNI Command Center │ ──────────────────────────▶│   Backend        │
+│  (React+Vite)      │◀──────────────────────────│ (FastAPI)        │
+└────────────────────┘     JSON responses         └────────┬─────────┘
+                                                          │
+                         ┌───────────────────────────────┼──────────────┐
+                         ▼                               ▼              ▼
+                  ┌──────────────┐              ┌──────────────┐  ┌──────┐
+                  │  Kubernetes  │              │  Prometheus  │  │Redis │
+                  │  API (CRDs)  │              │ (Felix + k8s)│  └──────┘
+                  └──────────────┘              └──────────────┘
+                         │
+                         ▼
+                  ┌──────────────┐
+                  │  Calico CRDs │
+                  │ (IPPool, BGP,│
+                  │  IPAM, Pol.) │
+                  └──────────────┘
+
+📊 Cluster monitoring (node/pod resources, storage) → **Grafana** (separate, via kube-prometheus-stack)
 ```
 
 All data sources have mock fallbacks — the dashboard works without a live cluster for development and evaluation.
@@ -135,32 +266,50 @@ All data sources have mock fallbacks — the dashboard works without a live clus
 │   ├── main.py                  # FastAPI entry point
 │   ├── config.py                # Settings via Pydantic
 │   ├── dependencies.py          # Auth middleware (X-API-Key)
-│   ├── routers/                 # API endpoints by domain
-│   ├── services/                # Business logic (K8s API calls, PromQL)
-│   ├── models/                  # Pydantic models + mock data
-│   ├── connection/              # K8s client factory (kubeconfig/token/incluster)
+│   ├── routers/
+│   │   ├── cni.py               # CNI diagnostics (Calico CRDs, IPAM, BGP, Felix)
+│   │   ├── network.py           # Pod discovery, topology
+│   │   ├── threats.py           # Falco webhook + WebSocket
+│   │   └── mock.py              # Mock fallback endpoints
+│   ├── services/
+│   │   ├── calico_service.py    # Calico CRD access (IPPool, BGP, IPAM, policies)
+│   │   ├── felix_metrics_service.py # Felix PromQL via Prometheus
+│   │   ├── network_service.py   # Pod & service discovery
+│   │   ├── prometheus_service.py # PromQL query proxy
+│   │   └── threat_service.py    # Redis pub/sub for Falco events
+│   ├── models/
+│   │   ├── cni_models.py        # CNI Pydantic schemas
+│   │   ├── network.py           # Pod/topology models
+│   │   ├── threat.py            # Falco event schema
+│   │   └── mock_data.py         # Shared mock data (including CNI mocks)
+│   ├── connection/              # K8s client factory (kubeconfig/token/in-cluster)
 │   └── requirements.txt
 ├── frontend/
 │   ├── src/
-│   │   ├── App.tsx              # Main app with tab routing
-│   │   ├── App.css              # Global dark-theme styles
+│   │   ├── App.tsx              # CNI Command Center tab routing
+│   │   ├── App.css              # Dark-theme styles + CNI panel styles
 │   │   ├── Topology.tsx         # Cytoscape.js topology graph
-│   │   ├── components/          # Panel components per tab
-│   │   └── types.ts             # TypeScript interfaces
+│   │   ├── components/
+│   │   │   ├── CniHealthPanel.tsx     # Per-node Felix/BIRD status cards
+│   │   │   ├── IpamPanel.tsx          # IP pool utilization + block table
+│   │   │   ├── PolicyInspectorPanel.tsx  # Searchable policy table
+│   │   │   ├── CniTopologyPanel.tsx   # BGP mesh + overlay topology
+│   │   │   ├── DiagnosticsPanel.tsx   # Connectivity test runner
+│   │   │   ├── DashboardPanel.tsx     # CNI Command Center overview
+│   │   │   ├── ThreatPanel.tsx        # Real-time threat stream
+│   │   │   └── shared (DataSourceBadge, EmptyState, Icon, Skeleton, ErrorBoundary)
+│   │   └── types.ts             # TypeScript interfaces (+ CNI types)
 │   ├── package.json
-│   └── nginx.conf               # SPA proxy config for in-cluster deployment
-├── k8s/                          # Kubernetes deployment manifests
-│   ├── deploy-backend.yaml
-│   ├── deploy-frontend.yaml
-│   ├── deploy-redis.yaml
-│   ├── svc-backend.yaml
-│   ├── svc-frontend.yaml
-│   ├── svc-redis.yaml
+│   └── nginx.conf               # SPA proxy config
+├── k8s/                          # K8s deployment manifests
+│   ├── deploy-backend.yaml      # Backend deployment + service
+│   ├── deploy-frontend.yaml     # Frontend deployment + service
+│   ├── deploy-redis.yaml        # Redis deployment + service
 │   ├── namespace.yaml
-│   ├── sa.yaml                  # ServiceAccount with cluster-reader role
-│   ├── clusterrole.yaml
+│   ├── sa.yaml                  # ServiceAccount
+│   ├── clusterrole.yaml         # RBAC: Calico CRDs, pods, network policies
 │   ├── clusterrolebinding.yaml
-│   └── secret.yaml
+│   └── secret.yaml              # API key secret
 └── README.md
 ```
 
@@ -187,7 +336,8 @@ kubectl apply -k k8s/     # or: kubectl apply -f k8s/
 
 ## Extending
 
-- **Adding a new Prometheus chart** — add a new PromQL function in `backend/services/prometheus_service.py`, a route in `routers/prometheus.py`, and a chart card in `frontend/src/components/MonitoringPanel.tsx`
+- **Adding a new CNI panel** — create a new service function in `backend/services/calico_service.py`, a route in `backend/routers/cni.py`, and a React component in `frontend/src/components/` following the existing patterns
+- **Adding a new Prometheus chart** — add a new PromQL function in `backend/services/prometheus_service.py` and a chart card in the relevant frontend component
 - **Adding a new data source** — create a new service + router in the backend following the existing patterns (K8s API client is injected via FastAPI dependency)
 - **All data sources fall back to mock data** — add mock data to `models/mock_data.py` to keep the dashboard functional without a live cluster
 

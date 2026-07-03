@@ -3,32 +3,33 @@ kind: ClusterRole
 metadata:
   name: dashboard-role
 rules:
-  # Network discovery
+  # Network discovery — pod/service/node listing for topology, dashboards, diagnostics
   - apiGroups: [""]
     resources: [pods, services, nodes, endpoints, namespaces]
     verbs: [get, list, watch]
-  # Security / RBAC
+  # Security / RBAC — cluster and namespace role binding audit
   - apiGroups: [rbac.authorization.k8s.io]
     resources: [clusterrolebindings, rolebindings, clusterroles, roles]
     verbs: [get, list]
   - apiGroups: [""]
     resources: [serviceaccounts, secrets]
     verbs: [get, list]
-  # Metrics (if metrics-server is installed)
+  # Metrics — node/pod resource usage (only needed if metrics-server is installed)
   - apiGroups: ["metrics.k8s.io"]
     resources: [pods, nodes]
     verbs: [get, list, watch]
-  # Config / Storage
+  # Storage — storage class, PVC, and PV discovery
   - apiGroups: ["storage.k8s.io"]
     resources: [storageclasses]
     verbs: [get, list]
   - apiGroups: [""]
     resources: [persistentvolumes, persistentvolumeclaims]
     verbs: [get, list, watch]
+  # Kubernetes NetworkPolicy discovery
   - apiGroups: ["networking.k8s.io"]
     resources: [networkpolicies]
     verbs: [get, list]
-  # CNI (Calico)
+  # CNI (Calico) — IPAM, BGP, Felix, policies, host endpoints
   - apiGroups: ["crd.projectcalico.org"]
     resources:
       - ippools
@@ -42,3 +43,11 @@ rules:
       - hostendpoints
       - clusterinformations
     verbs: [get, list, watch]
+  # Connectivity diagnostics — create/delete ephemeral busybox pods for connectivity tests
+  - apiGroups: [""]
+    resources: [pods]
+    verbs: [create, delete]
+  # Connectivity diagnostics — read logs from test pods to capture results
+  - apiGroups: [""]
+    resources: [pods/log]
+    verbs: [get]

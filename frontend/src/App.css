@@ -2822,6 +2822,399 @@ a:focus-visible {
   }
 }
 
+/* ─── CNI Health Panel ───────────────────────────────────────── */
+.cni-health-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: 14px;
+}
+
+.cni-health-card {
+  background-color: var(--surface);
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--health-color, var(--text-tertiary));
+  border-radius: var(--radius-lg);
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  transition: all 0.25s ease;
+}
+
+.cni-health-card:hover {
+  border-color: var(--border-hover);
+  box-shadow: var(--shadow-hover);
+}
+
+@media (hover: hover) {
+  .cni-health-card:hover {
+    transform: translateY(-2px);
+  }
+}
+
+.cni-health-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.cni-health-card-name {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.cni-health-indicator {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  box-shadow: 0 0 6px var(--health-color, transparent);
+}
+
+.cni-health-badge {
+  padding: 3px 10px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  flex-shrink: 0;
+}
+
+.cni-health-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.cni-health-detail {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 4px 0;
+}
+
+.cni-health-detail-label {
+  font-size: 12px;
+  color: var(--text-tertiary);
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
+.cni-health-detail-value {
+  font-size: 13px;
+  color: var(--text-secondary);
+  font-family: 'SF Mono', 'Courier New', monospace;
+  font-weight: 600;
+}
+
+/* ─── IPAM Panel ─────────────────────────────────────────────── */
+.ipam-pool-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.ipam-pool-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.ipam-pool-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  font-family: 'SF Mono', 'Courier New', monospace;
+}
+
+.ipam-pool-stats {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  font-family: 'SF Mono', 'Courier New', monospace;
+}
+
+.ipam-blocks-badge {
+  background-color: rgba(255, 255, 255, 0.06);
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-tertiary);
+}
+
+.ipam-pool-bar-track {
+  width: 100%;
+  height: 10px;
+  background-color: rgba(255, 255, 255, 0.06);
+  border-radius: 5px;
+  overflow: hidden;
+}
+
+.ipam-pool-bar-fill {
+  height: 100%;
+  border-radius: 5px;
+  transition: width 0.8s ease, background-color 0.4s ease;
+  min-width: 2px;
+}
+
+.ipam-pool-pct {
+  font-size: 12px;
+  font-weight: 600;
+  margin-top: 6px;
+  font-family: 'SF Mono', 'Courier New', monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ─── Topology Stats (CNI) ────────────────────────────────────── */
+.cni-topology-stats {}
+
+.cni-topology-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 12px 18px;
+  background-color: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  min-width: 100px;
+  flex: 1;
+  transition: border-color 0.2s ease;
+}
+
+.cni-topology-stat:hover {
+  border-color: var(--border-hover);
+}
+
+.cni-topology-stat-value {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.cni-topology-stat-label {
+  font-size: 11px;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  font-weight: 500;
+}
+
+/* ─── Diagnostics Panel ───────────────────────────────────────── */
+.diagnostics-layout {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  align-items: start;
+}
+
+.diagnostics-form {}
+
+.diagnostics-form-section {
+  margin-bottom: 16px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.diagnostics-form-section:last-child {
+  border-bottom: none;
+  margin-bottom: 0;
+  padding-bottom: 0;
+}
+
+.diagnostics-form-label {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-secondary);
+  margin-bottom: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.diagnostics-form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.diagnostics-form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.diagnostics-field-label {
+  font-size: 11px;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  font-weight: 500;
+}
+
+.diagnostics-select,
+.diagnostics-input {
+  background-color: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text);
+  font-size: 13px;
+  padding: 8px 12px;
+  font-family: inherit;
+  transition: border-color 0.2s ease;
+  width: 100%;
+}
+
+.diagnostics-select:focus,
+.diagnostics-input:focus {
+  border-color: var(--primary);
+  outline: none;
+  box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.3);
+}
+
+.diagnostics-target-type {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.diagnostics-run-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 12px 20px;
+  background-color: var(--primary);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin-top: 8px;
+}
+
+.diagnostics-run-btn:hover {
+  background-color: var(--primary-hover);
+}
+
+.diagnostics-run-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+/* Diagnostics log panel */
+.diagnostics-log {
+  display: flex;
+  flex-direction: column;
+  background-color: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.diagnostics-log-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--border);
+  background-color: rgba(255, 255, 255, 0.03);
+}
+
+.diagnostics-log-content {
+  padding: 12px 16px;
+  min-height: 400px;
+  max-height: 600px;
+  overflow-y: auto;
+  font-family: 'SF Mono', 'Courier New', monospace;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.diagnostics-log-content::-webkit-scrollbar {
+  width: 6px;
+}
+
+.diagnostics-log-content::-webkit-scrollbar-track {
+  background-color: var(--surface);
+  border-radius: 3px;
+}
+
+.diagnostics-log-content::-webkit-scrollbar-thumb {
+  background-color: var(--border);
+  border-radius: 3px;
+}
+
+.diagnostics-log-content::-webkit-scrollbar-thumb:hover {
+  background-color: var(--text-tertiary);
+}
+
+.diagnostics-log-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 60px 20px;
+  color: var(--text-tertiary);
+  text-align: center;
+}
+
+.diagnostics-log-entry {
+  display: flex;
+  gap: 10px;
+  padding: 3px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.diagnostics-log-entry:last-child {
+  border-bottom: none;
+}
+
+.diagnostics-log-time {
+  color: var(--text-tertiary);
+  flex-shrink: 0;
+  opacity: 0.6;
+  font-size: 11px;
+}
+
+.diagnostics-log-info .diagnostics-log-msg {
+  color: var(--text-secondary);
+}
+
+.diagnostics-log-success .diagnostics-log-msg {
+  color: var(--success);
+}
+
+.diagnostics-log-error .diagnostics-log-msg {
+  color: var(--danger);
+}
+
+.diagnostics-log-command .diagnostics-log-msg {
+  color: var(--primary);
+  font-style: italic;
+}
+
+@media (max-width: 900px) {
+  .diagnostics-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ─── Old removed panels no longer used — keeping generic helpers ── */
+
 @media (max-width: 768px) {
   .header {
     flex-direction: column;
@@ -2855,9 +3248,6 @@ a:focus-visible {
   }
   .pod-list,
   .node-list {
-    grid-template-columns: 1fr;
-  }
-  .metrics-grid {
     grid-template-columns: 1fr;
   }
   .storage-table {

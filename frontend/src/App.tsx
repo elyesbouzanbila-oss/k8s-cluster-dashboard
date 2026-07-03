@@ -3,23 +3,23 @@ import './App.css'
 import { Icon } from './components/Icon'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { DashboardPanel } from './components/DashboardPanel'
-import { NetworkPanel } from './components/NetworkPanel'
-import { SecurityPanel } from './components/SecurityPanel'
+import { CniHealthPanel } from './components/CniHealthPanel'
+import { IpamPanel } from './components/IpamPanel'
+import { PolicyInspectorPanel } from './components/PolicyInspectorPanel'
+import { CniTopologyPanel } from './components/CniTopologyPanel'
+import { DiagnosticsPanel } from './components/DiagnosticsPanel'
 import { ThreatPanel } from './components/ThreatPanel'
-import { MetricsPanel } from './components/MetricsPanel'
-import { StoragePanel } from './components/StoragePanel'
-import { MonitoringPanel } from './components/MonitoringPanel'
-import type { Pod, TopologyNode, TopologyEdge, ThreatEvent, RbacBinding, PrivilegedPod, NodeMetric, PodMetric, StorageData, DataSourceStatus, MetricsResponse } from './types'
+import type {
+  Pod, ThreatEvent, CalicoNodeStatus, BGPPeer, IPPool, IPAMBlockSummary,
+  CniPolicy, CniTopologyNode, CniTopologyEdge, FelixMetrics,
+  DataSourceStatus, ApiResponse,
+} from './types'
 
-// Use relative URLs (nginx proxies /api/*, /metrics/*, /config/* to backend in-cluster)
-// For local dev, set VITE_API_URL=http://localhost:8000
 const API_BASE_URL = import.meta.env.VITE_API_URL || ''
 const API_KEY = import.meta.env.VITE_API_KEY || 'your-secret-api-key-change-this'
 
-const SOFT_REFRESH_MS = 15_000   // 15s — lightweight (pods only)
-const HARD_REFRESH_MS = 60_000   // 60s — full data
+const REFRESH_MS = 30_000  // 30s background refresh
 
-// ─── Tab Definition ───────────────────────────────────────────────
 interface TabDef {
   id: string
   label: string
@@ -28,296 +28,153 @@ interface TabDef {
 
 const TABS: TabDef[] = [
   { id: 'dashboard', label: 'Dashboard', icon: <Icon name="layout-dashboard" /> },
-  { id: 'network', label: 'Network', icon: <Icon name="network" /> },
-  { id: 'security', label: 'Security', icon: <Icon name="shield" /> },
+  { id: 'cni-health', label: 'CNI Health', icon: <Icon name="activity" /> },
+  { id: 'ipam', label: 'IPAM', icon: <Icon name="bar-chart" /> },
+  { id: 'policies', label: 'Policies', icon: <Icon name="shield" /> },
+  { id: 'topology', label: 'Topology', icon: <Icon name="network" /> },
+  { id: 'diagnostics', label: 'Diagnostics', icon: <Icon name="play" /> },
   { id: 'threats', label: 'Threats', icon: <Icon name="alert-triangle" /> },
-  { id: 'metrics', label: 'Metrics', icon: <Icon name="bar-chart" /> },
-  { id: 'storage', label: 'Storage', icon: <Icon name="hard-drive" /> },
-  { id: 'monitoring', label: 'Monitoring', icon: <Icon name="activity" /> },
 ]
 
-// ─── App Component ────────────────────────────────────────────────
 function App() {
   const [activeTab, setActiveTab] = useState('dashboard')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
 
-  // Refs for interval cleanup and WebSocket
-  const softIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
-  const hardIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const refreshIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const wsRef = useRef<WebSocket | null>(null)
   const fetchAbortRef = useRef<AbortController | null>(null)
+  const threatIdRef = useRef(1)
 
-  // Network state
+  // Shared state
   const [pods, setPods] = useState<Pod[]>([])
-  const [topology, setTopology] = useState<{ nodes: TopologyNode[]; edges: TopologyEdge[] }>({ nodes: [], edges: [] })
 
-  // Security state
-  const [rbacBindings, setRbacBindings] = useState<RbacBinding[]>([])
-  const [privilegedPods, setPrivilegedPods] = useState<PrivilegedPod[]>([])
+  // CNI state
+  const [cniNodes, setCniNodes] = useState<CalicoNodeStatus[]>([])
+  const [bgpPeers, setBgpPeers] = useState<BGPPeer[]>([])
+  const [ipPools, setIpPools] = useState<IPPool[]>([])
+  const [ipamBlocks, setIpamBlocks] = useState<IPAMBlockSummary[]>([])
+  const [cniPolicies, setCniPolicies] = useState<CniPolicy[]>([])
+  const [cniTopology, setCniTopology] = useState<{ nodes: CniTopologyNode[]; edges: CniTopologyEdge[] } | null>(null)
+  const [felixMetrics, setFelixMetrics] = useState<FelixMetrics | null>(null)
 
   // Threats state
   const [threats, setThreats] = useState<ThreatEvent[]>([])
   const [wsConnected, setWsConnected] = useState(false)
 
   // Data source status tracking
-  const [nodeMetricsStatus, setNodeMetricsStatus] = useState<DataSourceStatus>('unknown')
-  const [podMetricsStatus, setPodMetricsStatus] = useState<DataSourceStatus>('unknown')
-  const [podsStatus, setPodsStatus] = useState<DataSourceStatus>('unknown')
+  const [cniNodesStatus, setCniNodesStatus] = useState<DataSourceStatus>('unknown')
+  const [ipamStatus, setIpamStatus] = useState<DataSourceStatus>('unknown')
+  const [policiesStatus, setPoliciesStatus] = useState<DataSourceStatus>('unknown')
+  const [felixStatus, setFelixStatus] = useState<DataSourceStatus>('unknown')
   const [topologyStatus, setTopologyStatus] = useState<DataSourceStatus>('unknown')
-  const [rbacStatus, setRbacStatus] = useState<DataSourceStatus>('unknown')
-  const [privilegedStatus, setPrivilegedStatus] = useState<DataSourceStatus>('unknown')
-  const [storageStatus, setStorageStatus] = useState<DataSourceStatus>('unknown')
-
-  // Metrics & Storage state
-  const [nodeMetrics, setNodeMetrics] = useState<NodeMetric[]>([])
-  const [podMetrics, setPodMetrics] = useState<PodMetric[]>([])
-  const [storageConfig, setStorageConfig] = useState<StorageData | null>(null)
+  const [podsStatus, setPodsStatus] = useState<DataSourceStatus>('unknown')
 
   const [currentTime, setCurrentTime] = useState(new Date())
-  const threatIdRef = useRef(1)
 
-  // ── Live footer clock ──
+  // Live footer clock
   useEffect(() => {
-    const interval = setInterval(() => {
-      setCurrentTime(new Date())
-    }, 1000)
+    const interval = setInterval(() => setCurrentTime(new Date()), 1000)
     return () => clearInterval(interval)
   }, [])
 
-  // ── Silent Fetch Helpers (no loading/error — for intervals) ──
-  const silentFetchPods = useCallback(async () => {
+  // Generic fetch helper
+  async function cniFetch<T>(url: string): Promise<{ data: T | null; status: DataSourceStatus }> {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/network/pods`, {
-        headers: { 'X-API-Key': API_KEY }
-      })
-      if (response.ok) {
-        const data = await response.json()
-        setPods(data.items || [])
-        setPodsStatus(data.status === 'success' ? 'live' : data.status === 'mock' ? 'mock' : 'error')
+      const res = await fetch(`${API_BASE_URL}${url}`, { headers: { 'X-API-Key': API_KEY } })
+      if (res.ok) {
+        const body: ApiResponse<T> = await res.json()
+        return {
+          data: body.data ?? null,
+          status: body.status === 'success' ? 'live' : body.status === 'mock' ? 'mock' : 'error',
+        }
       }
+      return { data: null, status: 'error' }
     } catch {
-      // Silently ignore — errors shown via explicit fetches
+      return { data: null, status: 'error' }
     }
-  }, [])
+  }
 
-  const silentFetchAll = useCallback(async () => {
+  // ── Silent refresh (background) ──
+  const silentRefresh = useCallback(async () => {
     try {
-      const [podsRes, rbacRes, privRes, metricsRes, storageRes] = await Promise.all([
+      // Always fetch pods and CNI data
+      const [podsRes, nodesRes, poolsRes, ipamRes, policiesRes, bgpRes] = await Promise.all([
         fetch(`${API_BASE_URL}/api/network/pods`, { headers: { 'X-API-Key': API_KEY } }),
-        fetch(`${API_BASE_URL}/api/security/rbac`, { headers: { 'X-API-Key': API_KEY } }),
-        fetch(`${API_BASE_URL}/api/security/privileged`, { headers: { 'X-API-Key': API_KEY } }),
-        fetch(`${API_BASE_URL}/metrics/nodes`, { headers: { 'X-API-Key': API_KEY } }),
-        fetch(`${API_BASE_URL}/config/storage`, { headers: { 'X-API-Key': API_KEY } }),
+        fetch(`${API_BASE_URL}/api/cni/nodes`, { headers: { 'X-API-Key': API_KEY } }),
+        fetch(`${API_BASE_URL}/api/cni/ippools`, { headers: { 'X-API-Key': API_KEY } }),
+        fetch(`${API_BASE_URL}/api/cni/ipam/utilization`, { headers: { 'X-API-Key': API_KEY } }),
+        fetch(`${API_BASE_URL}/api/cni/policies`, { headers: { 'X-API-Key': API_KEY } }),
+        fetch(`${API_BASE_URL}/api/cni/bgp-peers`, { headers: { 'X-API-Key': API_KEY } }),
       ])
 
       if (podsRes.ok) {
-        const data = await podsRes.json()
-        setPods(data.items || [])
-        setPodsStatus(data.status === 'success' ? 'live' : data.status === 'mock' ? 'mock' : 'error')
+        const d = await podsRes.json()
+        setPods(d.items || [])
+        setPodsStatus(d.status === 'success' ? 'live' : d.status === 'mock' ? 'mock' : 'error')
       }
-      if (rbacRes.ok) {
-        const data = await rbacRes.json()
-        setRbacBindings(Array.isArray(data.data) ? data.data : [])
-        setRbacStatus(data.status === 'success' ? 'live' : data.status === 'mock' ? 'mock' : 'error')
+      if (nodesRes.ok) {
+        const d: ApiResponse<CalicoNodeStatus[]> = await nodesRes.json()
+        setCniNodes(d.data || [])
+        setCniNodesStatus(d.status === 'success' ? 'live' : d.status === 'mock' ? 'mock' : 'error')
       }
-      if (privRes.ok) {
-        const data = await privRes.json()
-        setPrivilegedPods(Array.isArray(data.data) ? data.data : [])
-        setPrivilegedStatus(data.status === 'success' ? 'live' : data.status === 'mock' ? 'mock' : 'error')
+      if (poolsRes.ok) {
+        const d: ApiResponse<IPPool[]> = await poolsRes.json()
+        setIpPools(d.data || [])
       }
-      if (metricsRes.ok) {
-        const body: MetricsResponse<NodeMetric[]> = await metricsRes.json()
-        setNodeMetrics(body.data || [])
-        setNodeMetricsStatus(body.status === 'success' ? 'live' : body.status === 'mock' ? 'mock' : 'error')
+      if (ipamRes.ok) {
+        const d: ApiResponse<IPAMBlockSummary[]> = await ipamRes.json()
+        setIpamBlocks(d.data || [])
+        setIpamStatus(d.status === 'success' ? 'live' : d.status === 'mock' ? 'mock' : 'error')
       }
-      // Also fetch pod metrics silently
-      try {
-        const podMetricsRes = await fetch(`${API_BASE_URL}/metrics/pods`, {
-          headers: { 'X-API-Key': API_KEY }
-        })
-        if (podMetricsRes.ok) {
-          const body: MetricsResponse<PodMetric[]> = await podMetricsRes.json()
-          setPodMetrics(body.data || [])
-          setPodMetricsStatus(body.status === 'success' ? 'live' : body.status === 'mock' ? 'mock' : 'error')
-        }
-      } catch { /* ignore */ }
-      if (storageRes.ok) {
-        const data = await storageRes.json()
-        setStorageConfig(data.data || null)
-        setStorageStatus(data.status === 'success' ? 'live' : data.status === 'mock' ? 'mock' : 'error')
+      if (policiesRes.ok) {
+        const d: ApiResponse<CniPolicy[]> = await policiesRes.json()
+        setCniPolicies(d.data || [])
+        setPoliciesStatus(d.status === 'success' ? 'live' : d.status === 'mock' ? 'mock' : 'error')
+      }
+      if (bgpRes.ok) {
+        const d: ApiResponse<BGPPeer[]> = await bgpRes.json()
+        setBgpPeers(d.data || [])
+      }
+
+      // Fetch topology
+      const topoRes = await fetch(`${API_BASE_URL}/api/cni/topology`, { headers: { 'X-API-Key': API_KEY } })
+      if (topoRes.ok) {
+        const d: ApiResponse<{ nodes: CniTopologyNode[]; edges: CniTopologyEdge[] }> = await topoRes.json()
+        setCniTopology(d.data || null)
+        setTopologyStatus(d.status === 'success' ? 'live' : d.status === 'mock' ? 'mock' : 'error')
+      }
+
+      // Fetch Felix metrics
+      const felixRes = await fetch(`${API_BASE_URL}/api/cni/metrics/felix`, { headers: { 'X-API-Key': API_KEY } })
+      if (felixRes.ok) {
+        const d: ApiResponse<FelixMetrics> = await felixRes.json()
+        setFelixMetrics(d.data || null)
+        setFelixStatus(d.status === 'success' ? 'live' : d.status === 'mock' ? 'mock' : 'error')
       }
 
       setLastUpdated(new Date())
-    } catch {
-      // Silently ignore background refresh errors
-    }
+    } catch { /* silent */ }
   }, [])
 
-  function fetchWithSignal(url: string, options?: RequestInit): Promise<Response> {
-    // Abort any previous explicit fetch
-    if (fetchAbortRef.current) {
-      fetchAbortRef.current.abort()
-    }
-    const controller = new AbortController()
-    fetchAbortRef.current = controller
-    return fetch(url, { ...options, signal: controller.signal })
-  }
-
-  // ── Explicit Fetch Helpers (with loading/error — for initial load & manual) ──
-  const fetchPods = async () => {
+  // ── Explicit fetches with loading state ──
+  const fetchData = useCallback(async () => {
     setLoading(true)
     setError(null)
     try {
-      const response = await fetchWithSignal(`${API_BASE_URL}/api/network/pods`, {
-        headers: { 'X-API-Key': API_KEY }
-      })
-      if (response.ok) {
-        const data = await response.json()
-        setPods(data.items || [])
-        setPodsStatus(data.status === 'success' ? 'live' : data.status === 'mock' ? 'mock' : 'error')
-      } else {
-        setError(`Failed to fetch pods: ${response.statusText}`)
-      }
+      await silentRefresh()
     } catch (err) {
-      if (err instanceof DOMException && err.name === 'AbortError') return
       setError(`Error: ${err instanceof Error ? err.message : 'Unknown error'}`)
     } finally {
       setLoading(false)
     }
-  }
+  }, [silentRefresh])
 
-  const fetchTopology = async () => {
-    setLoading(true)
-    setError(null)
-    try {
-      const response = await fetchWithSignal(`${API_BASE_URL}/api/network/topology`, {
-        headers: { 'X-API-Key': API_KEY }
-      })
-      if (response.ok) {
-        const data = await response.json()
-        setTopology({ nodes: data.nodes || [], edges: data.edges || [] })
-        setTopologyStatus(data.status === 'success' ? 'live' : data.status === 'mock' ? 'mock' : 'error')
-      } else {
-        setError(`Failed to fetch topology: ${response.statusText}`)
-      }
-    } catch (err) {
-      if (err instanceof DOMException && err.name === 'AbortError') return
-      setError(`Error: ${err instanceof Error ? err.message : 'Unknown error'}`)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const fetchRbac = async () => {
-    setLoading(true)
-    setError(null)
-    try {
-      const response = await fetchWithSignal(`${API_BASE_URL}/api/security/rbac`, {
-        headers: { 'X-API-Key': API_KEY }
-      })
-      if (response.ok) {
-        const data = await response.json()
-        setRbacBindings(Array.isArray(data.data) ? data.data : [])
-        setRbacStatus(data.status === 'success' ? 'live' : data.status === 'mock' ? 'mock' : 'error')
-      } else {
-        setError(`Failed to fetch RBAC: ${response.statusText}`)
-      }
-    } catch (err) {
-      if (err instanceof DOMException && err.name === 'AbortError') return
-      setError(`Error: ${err instanceof Error ? err.message : 'Unknown error'}`)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const fetchPrivilegedPods = async () => {
-    setLoading(true)
-    setError(null)
-    try {
-      const response = await fetchWithSignal(`${API_BASE_URL}/api/security/privileged`, {
-        headers: { 'X-API-Key': API_KEY }
-      })
-      if (response.ok) {
-        const data = await response.json()
-        setPrivilegedPods(Array.isArray(data.data) ? data.data : [])
-        setPrivilegedStatus(data.status === 'success' ? 'live' : data.status === 'mock' ? 'mock' : 'error')
-      } else {
-        setError(`Failed to fetch privileged pods: ${response.statusText}`)
-      }
-    } catch (err) {
-      if (err instanceof DOMException && err.name === 'AbortError') return
-      setError(`Error: ${err instanceof Error ? err.message : 'Unknown error'}`)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const fetchNodeMetrics = async () => {
-    setLoading(true)
-    setError(null)
-    try {
-      // Use a single controller so parallel fetches don't abort each other
-      const controller = new AbortController()
-      fetchAbortRef.current = controller
-      const [nodeRes, podRes] = await Promise.all([
-        fetch(`${API_BASE_URL}/metrics/nodes`, {
-          headers: { 'X-API-Key': API_KEY },
-          signal: controller.signal
-        }),
-        fetch(`${API_BASE_URL}/metrics/pods`, {
-          headers: { 'X-API-Key': API_KEY },
-          signal: controller.signal
-        })
-      ])
-      if (nodeRes.ok) {
-        const body: MetricsResponse<NodeMetric[]> = await nodeRes.json()
-        setNodeMetrics(body.data || [])
-        setNodeMetricsStatus(body.status === 'success' ? 'live' : body.status === 'mock' ? 'mock' : 'error')
-      } else {
-        setError(`Failed to fetch metrics: ${nodeRes.statusText}`)
-      }
-      if (podRes.ok) {
-        const body: MetricsResponse<PodMetric[]> = await podRes.json()
-        setPodMetrics(body.data || [])
-        setPodMetricsStatus(body.status === 'success' ? 'live' : body.status === 'mock' ? 'mock' : 'error')
-      }
-    } catch (err) {
-      if (err instanceof DOMException && err.name === 'AbortError') return
-      setError(`Error: ${err instanceof Error ? err.message : 'Unknown error'}`)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const fetchStorageConfig = async () => {
-    setLoading(true)
-    setError(null)
-    try {
-      const response = await fetchWithSignal(`${API_BASE_URL}/config/storage`, {
-        headers: { 'X-API-Key': API_KEY }
-      })
-      if (response.ok) {
-        const data = await response.json()
-        setStorageConfig(data.data || null)
-        setStorageStatus(data.status === 'success' ? 'live' : data.status === 'mock' ? 'mock' : 'error')
-      } else {
-        setError(`Failed to fetch storage config: ${response.statusText}`)
-      }
-    } catch (err) {
-      if (err instanceof DOMException && err.name === 'AbortError') return
-      setError(`Error: ${err instanceof Error ? err.message : 'Unknown error'}`)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  // WebSocket for threats — stored in ref to avoid leaks
-  const connectWebSocket = () => {
-    // Close any existing connection first
+  // ── WebSocket for threats ──
+  const connectWebSocket = useCallback(() => {
     if (wsRef.current) {
-      wsRef.current.onclose = null  // prevent reconnect loop
+      wsRef.current.onclose = null
       wsRef.current.close()
       wsRef.current = null
     }
@@ -327,37 +184,24 @@ function App() {
     const ws = new WebSocket(wsUrl, [API_KEY])
     wsRef.current = ws
 
-    ws.onopen = () => {
-      setWsConnected(true)
-      setError(null)
-    }
-
+    ws.onopen = () => { setWsConnected(true); setError(null) }
     ws.onmessage = (event) => {
       try {
         const threat = JSON.parse(event.data)
         threat.id = `threat-${threatIdRef.current++}`
         setThreats(prev => [threat, ...prev].slice(0, 50))
-      } catch (err) {
-        console.error('Failed to parse threat event:', err)
-      }
+      } catch { /* ignore parse errors */ }
     }
-
-    ws.onerror = () => {
-      setWsConnected(false)
-      setError('WebSocket connection failed')
-    }
-
+    ws.onerror = () => { setWsConnected(false); setError('WebSocket connection failed') }
     ws.onclose = () => {
-      // Only reconnect if this is still the active connection
       if (wsRef.current === ws) {
         wsRef.current = null
         setWsConnected(false)
         setTimeout(connectWebSocket, 3000)
       }
     }
-  }
+  }, [])
 
-  // Cleanup WebSocket on unmount
   useEffect(() => {
     return () => {
       if (wsRef.current) {
@@ -368,32 +212,14 @@ function App() {
     }
   }, [])
 
-  // ── Start / stop intervals based on active tab ──
+  // ── Interval for background refresh ──
   useEffect(() => {
-    // Clear any previous intervals
-    if (softIntervalRef.current) clearInterval(softIntervalRef.current)
-    if (hardIntervalRef.current) clearInterval(hardIntervalRef.current)
-    softIntervalRef.current = null
-    hardIntervalRef.current = null
-
-    // Only run intervals when dashboard is active
-    if (activeTab === 'dashboard') {
-      // Soft refresh: lightweight — pods only (15s)
-      softIntervalRef.current = setInterval(() => {
-        silentFetchPods()
-      }, SOFT_REFRESH_MS)
-
-      // Hard refresh: full data (60s)
-      hardIntervalRef.current = setInterval(() => {
-        silentFetchAll()
-      }, HARD_REFRESH_MS)
-    }
-
+    if (refreshIntervalRef.current) clearInterval(refreshIntervalRef.current)
+    refreshIntervalRef.current = setInterval(silentRefresh, REFRESH_MS)
     return () => {
-      if (softIntervalRef.current) clearInterval(softIntervalRef.current)
-      if (hardIntervalRef.current) clearInterval(hardIntervalRef.current)
+      if (refreshIntervalRef.current) clearInterval(refreshIntervalRef.current)
     }
-  }, [activeTab, silentFetchPods, silentFetchAll])
+  }, [silentRefresh])
 
   // Cleanup abort controller on unmount
   useEffect(() => {
@@ -409,38 +235,26 @@ function App() {
   useEffect(() => {
     switch (activeTab) {
       case 'dashboard':
-        silentFetchAll()
+        fetchData()
         break
-      case 'network':
-        fetchPods()
-        fetchTopology()
+      case 'cni-health':
+      case 'ipam':
+      case 'policies':
+      case 'topology':
+        fetchData()
         break
-      case 'security':
-        fetchRbac()
-        fetchPrivilegedPods()
+      case 'diagnostics':
+        // pods already loaded, just ensure they're fresh
+        if (pods.length === 0) fetchData()
         break
       case 'threats':
         connectWebSocket()
         break
-      case 'metrics':
-        fetchNodeMetrics()
-        break
-      case 'storage':
-        fetchStorageConfig()
-        break
-      case 'monitoring':
-        fetchNodeMetrics()  // pod metrics are fetched here
-        break
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab])
 
-  // Manual refresh handler (passed to DashboardPanel)
-  const handleRefresh = useCallback(() => {
-    silentFetchAll()
-  }, [silentFetchAll])
-
-  // ── Keyboard navigation for tablist ──
+  // ── Keyboard navigation for tabs ──
   const tabIndexMap = useMemo(() => Object.fromEntries(TABS.map((t, i) => [t.id, i])), [])
 
   const handleTabKeyDown = useCallback((e: React.KeyboardEvent) => {
@@ -466,10 +280,6 @@ function App() {
         e.preventDefault()
         nextIdx = TABS.length - 1
         break
-      case 'Enter':
-      case ' ':
-        // Activate the currently focused tab (already happens via click)
-        break
       default:
         return
     }
@@ -477,25 +287,22 @@ function App() {
     if (nextIdx !== null) {
       const nextTab = TABS[nextIdx]
       setActiveTab(nextTab.id)
-      // Focus the newly activated tab button
       setTimeout(() => {
-        const btn = document.getElementById(`tab-${nextTab.id}`)
-        btn?.focus()
+        document.getElementById(`tab-${nextTab.id}`)?.focus()
       }, 0)
     }
   }, [activeTab, tabIndexMap])
 
-  // ── Render ──
   return (
     <div className="app">
       <header className="header">
         <div className="header-left">
-          <h1>K8s Dashboard</h1>
-          <span className="header-subtitle">Cluster Monitoring</span>
+          <h1>CNI Command Center</h1>
+          <span className="header-subtitle">Calico Network Diagnostics</span>
         </div>
         <div className="header-right">
           <div className={`status ${wsConnected ? 'status-ok' : 'status-warn'}`}>
-            <span className={`indicator ${wsConnected ? 'connected' : 'disconnected'}`} role="img" aria-label={wsConnected ? 'Connected' : 'Disconnected'}></span>
+            <span className={`indicator ${wsConnected ? 'connected' : 'disconnected'}`} role="img" aria-label={wsConnected ? 'Connected' : 'Disconnected'} />
             <span>{wsConnected ? 'Threats Live' : 'Disconnected'}</span>
           </div>
         </div>
@@ -513,7 +320,7 @@ function App() {
         </div>
       )}
 
-      <nav className="tabs" role="tablist" aria-label="Dashboard tabs" onKeyDown={handleTabKeyDown}>
+      <nav className="tabs" role="tablist" aria-label="CNI Command Center tabs" onKeyDown={handleTabKeyDown}>
         {TABS.map(tab => (
           <button
             key={tab.id}
@@ -550,44 +357,50 @@ function App() {
               hidden={activeTab !== tab.id}
             >
               {activeTab === 'dashboard' && (
-              <DashboardPanel
-                pods={pods}
-                threats={threats}
-                rbacBindings={rbacBindings}
-                privilegedPods={privilegedPods}
-                nodeMetrics={nodeMetrics}
-                wsConnected={wsConnected}
-                lastUpdated={lastUpdated}
-                onRefresh={handleRefresh}
-                podsStatus={podsStatus}
-                rbacStatus={rbacStatus}
-                privilegedStatus={privilegedStatus}
-                nodeMetricsStatus={nodeMetricsStatus}
-                loading={loading}
-              />
+                <DashboardPanel
+                  cniNodes={cniNodes}
+                  bgpPeers={bgpPeers.length}
+                  ipPools={ipPools.length}
+                  ipamBlocks={ipamBlocks}
+                  policies={cniPolicies}
+                  felixMetrics={felixMetrics}
+                  cniTopologyEdges={cniTopology?.edges.length || 0}
+                  cniTopologyNodes={cniTopology?.nodes.length || 0}
+                  cniNodesStatus={cniNodesStatus}
+                  ipamStatus={ipamStatus}
+                  policiesStatus={policiesStatus}
+                  felixStatus={felixStatus}
+                  loading={loading}
+                />
               )}
-              {activeTab === 'network' && (
-                <NetworkPanel pods={pods} topology={topology} podsStatus={podsStatus} topologyStatus={topologyStatus} loading={loading} />
+              {activeTab === 'cni-health' && (
+                <CniHealthPanel nodes={cniNodes} status={cniNodesStatus} />
               )}
-              {activeTab === 'security' && (
-                <SecurityPanel rbacBindings={rbacBindings} privilegedPods={privilegedPods} rbacStatus={rbacStatus} privilegedStatus={privilegedStatus} />
+              {activeTab === 'ipam' && (
+                <IpamPanel
+                  pools={ipPools}
+                  blocks={ipamBlocks}
+                  poolsStatus={cniNodesStatus}
+                  ipamStatus={ipamStatus}
+                />
+              )}
+              {activeTab === 'policies' && (
+                <PolicyInspectorPanel policies={cniPolicies} status={policiesStatus} />
+              )}
+              {activeTab === 'topology' && (
+                <CniTopologyPanel
+                  pods={pods}
+                  cniTopology={cniTopology}
+                  podsStatus={podsStatus}
+                  topologyStatus={topologyStatus}
+                  loading={loading}
+                />
+              )}
+              {activeTab === 'diagnostics' && (
+                <DiagnosticsPanel pods={pods} />
               )}
               {activeTab === 'threats' && (
                 <ThreatPanel threats={threats} wsConnected={wsConnected} onClear={() => setThreats([])} loading={loading} />
-              )}
-              {activeTab === 'metrics' && (
-                <MetricsPanel
-                  nodeMetrics={nodeMetrics}
-                  podMetrics={podMetrics}
-                  nodeMetricsStatus={nodeMetricsStatus}
-                  podMetricsStatus={podMetricsStatus}
-                />
-              )}
-              {activeTab === 'monitoring' && (
-                <MonitoringPanel podMetrics={podMetrics} />
-              )}
-              {activeTab === 'storage' && (
-                <StoragePanel storageConfig={storageConfig} storageStatus={storageStatus} loading={loading} />
               )}
             </div>
           ))}
@@ -595,9 +408,9 @@ function App() {
       </main>
 
       <footer className="footer">
-        <span>K8s Dashboard</span>
+        <span>CNI Command Center</span>
         <span className="footer-sep">·</span>
-        <span>{pods.length} pods · {rbacBindings.length} RBAC bindings</span>
+        <span>{cniNodes.length} agents · {bgpPeers.length} BGP peers</span>
         <span className="footer-sep">·</span>
         <span>{currentTime.toLocaleTimeString()}</span>
       </footer>

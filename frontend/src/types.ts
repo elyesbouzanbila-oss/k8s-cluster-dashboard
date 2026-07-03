@@ -126,3 +126,81 @@ export interface MetricsResponse<T> {
   status: 'success' | 'mock' | 'error'
   data: T
 }
+
+// ─── CNI (Calico) Types ──────────────────────────────────────────
+
+export interface CalicoNodeStatus {
+  node: string
+  felix_ready: boolean
+  bird_ready: boolean
+  ip?: string | null
+  uptime_seconds?: number | null
+  last_reported?: string | null
+}
+
+export interface BGPPeer {
+  name: string
+  node?: string | null
+  peer_ip?: string | null
+  peer_as_number?: number | null
+  node_as_number?: number | null
+  session_state?: string | null
+}
+
+export interface IPPool {
+  name: string
+  cidr: string
+  nat_outgoing: boolean
+  disabled: boolean
+  mode: string
+  node_selector?: string | null
+}
+
+export interface IPAMBlockSummary {
+  pool: string
+  blocks: number
+  allocated: number
+  total: number
+  utilization_pct: number
+}
+
+export interface CniPolicy {
+  name: string
+  namespace?: string | null
+  type: 'NetworkPolicy' | 'GlobalNetworkPolicy'
+  policy_type?: string[] | null
+  selector?: string | null
+  order?: number | null
+  rules_count: number
+}
+
+export interface CniTopologyNode {
+  id: string
+  name: string
+  role: string
+  ip?: string | null
+}
+
+export interface CniTopologyEdge {
+  source: string
+  target: string
+  type: 'bgp' | 'overlay'
+}
+
+export interface CniTopologyResponse {
+  nodes: CniTopologyNode[]
+  edges: CniTopologyEdge[]
+}
+
+export interface FelixMetrics {
+  active_local_endpoints?: number
+  cluster_network_policies?: number
+  iptables_restore_errors?: number
+  bgp_sessions_active?: number
+  int_dataplane_failures?: number
+}
+
+export interface ApiResponse<T> {
+  status: 'success' | 'mock' | 'error'
+  data: T
+}
