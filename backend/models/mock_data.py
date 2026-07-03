@@ -381,7 +381,8 @@ MOCK_CNI_POLICIES = [
         "policy_type": ["Ingress", "Egress"],
         "selector": "all()",
         "order": 1000.0,
-        "rules_count": 2
+        "rules_count": 2,
+        "rule_actions": ["Deny"]
     },
     {
         "name": "allow-kube-dns",
@@ -390,7 +391,8 @@ MOCK_CNI_POLICIES = [
         "policy_type": ["Egress"],
         "selector": "all()",
         "order": 900.0,
-        "rules_count": 1
+        "rules_count": 1,
+        "rule_actions": ["Allow"]
     },
     {
         "name": "allow-frontend-ingress",
@@ -399,7 +401,8 @@ MOCK_CNI_POLICIES = [
         "policy_type": ["Ingress"],
         "selector": "app == 'frontend'",
         "order": 500.0,
-        "rules_count": 3
+        "rules_count": 3,
+        "rule_actions": ["Allow"]
     },
     {
         "name": "allow-monitoring-scrape",
@@ -408,7 +411,8 @@ MOCK_CNI_POLICIES = [
         "policy_type": ["Ingress"],
         "selector": "app == 'prometheus'",
         "order": 400.0,
-        "rules_count": 1
+        "rules_count": 1,
+        "rule_actions": ["Allow"]
     }
 ]
 

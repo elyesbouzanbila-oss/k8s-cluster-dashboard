@@ -111,7 +111,7 @@ export function DiagnosticsPanel({ pods }: DiagnosticsPanelProps) {
       setRunning(false)
       addLog('info', 'Connectivity test completed.')
     }
-  }, [sourceNs, sourcePod, targetNs, targetPod, targetService, targetType, addLog])
+  }, [sourceNs, sourcePod, targetNs, targetPod, targetService, targetType, targetPort, addLog])
 
   const handleClearLogs = useCallback(() => {
     setLogs([])

@@ -67,7 +67,6 @@ function App() {
   const [policiesStatus, setPoliciesStatus] = useState<DataSourceStatus>('unknown')
   const [felixStatus, setFelixStatus] = useState<DataSourceStatus>('unknown')
   const [topologyStatus, setTopologyStatus] = useState<DataSourceStatus>('unknown')
-  const [podsStatus, setPodsStatus] = useState<DataSourceStatus>('unknown')
 
   const [currentTime, setCurrentTime] = useState(new Date())
 
@@ -93,7 +92,6 @@ function App() {
       if (podsRes.ok) {
         const d = await podsRes.json()
         setPods(d.items || [])
-        setPodsStatus(d.status === 'success' ? 'live' : d.status === 'mock' ? 'mock' : 'error')
       }
       if (nodesRes.ok) {
         const d: ApiResponse<CalicoNodeStatus[]> = await nodesRes.json()
@@ -371,9 +369,7 @@ function App() {
                 <CniTopologyPanel
                   pods={pods}
                   cniTopology={cniTopology}
-                  podsStatus={podsStatus}
                   topologyStatus={topologyStatus}
-                  loading={loading}
                 />
               )}
               {activeTab === 'diagnostics' && (

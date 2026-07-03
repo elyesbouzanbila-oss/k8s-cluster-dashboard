@@ -191,6 +191,7 @@ async def get_cni_policies(api_client) -> List[Dict[str, Any]]:
                 "selector": spec.get("selector"),
                 "order": spec.get("order"),
                 "rules_count": _count_policy_rules(spec),
+                "rule_actions": _extract_rule_actions(spec),
             })
     except Exception:
         pass
@@ -218,6 +219,7 @@ async def get_cni_policies(api_client) -> List[Dict[str, Any]]:
                         "selector": spec.get("selector"),
                         "order": spec.get("order"),
                         "rules_count": _count_policy_rules(spec),
+                        "rule_actions": _extract_rule_actions(spec),
                     })
             except Exception:
                 continue
@@ -235,6 +237,19 @@ def _count_policy_rules(spec: Dict[str, Any]) -> int:
         if isinstance(rules, list):
             count += len(rules)
     return count
+
+
+def _extract_rule_actions(spec: Dict[str, Any]) -> List[str]:
+    """Extract unique action values (Allow, Deny, Log, Pass) from all rules."""
+    actions: set[str] = set()
+    for direction in ("ingress", "egress"):
+        rules = spec.get(direction, [])
+        if isinstance(rules, list):
+            for rule in rules:
+                if isinstance(rule, dict):
+                    action = rule.get("action", "Allow")
+                    actions.add(action)
+    return sorted(actions)
 
 
 async def get_cni_topology(api_client) -> Dict[str, Any]:

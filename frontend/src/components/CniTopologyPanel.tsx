@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import type { CniTopologyNode, CniTopologyEdge, Pod, DataSourceStatus } from '../types'
+import type { CniTopologyNode, CniTopologyEdge, Pod, DataSourceStatus, TopologyNode, TopologyEdge as TopologyEdgeType } from '../types'
 import { DataSourceBadge } from './DataSourceBadge'
 import { Topology } from '../Topology'
 import { EmptyState } from './EmptyState'
@@ -8,16 +8,14 @@ import { Icon } from './Icon'
 interface CniTopologyPanelProps {
   pods: Pod[]
   cniTopology: { nodes: CniTopologyNode[]; edges: CniTopologyEdge[] } | null
-  podsStatus?: DataSourceStatus
   topologyStatus?: DataSourceStatus
-  loading?: boolean
 }
 
 export function CniTopologyPanel({ pods, cniTopology, topologyStatus }: CniTopologyPanelProps) {
   // Convert CNI topology to the format expected by Topology component
   const adaptedTopology = useMemo(() => {
-    const nodes: any[] = []
-    const edges: any[] = []
+    const nodes: TopologyNode[] = []
+    const edges: TopologyEdgeType[] = []
 
     if (cniTopology) {
       // Add cluster nodes as node-type entries
@@ -38,7 +36,6 @@ export function CniTopologyPanel({ pods, cniTopology, topologyStatus }: CniTopol
           id: edgeId,
           source: e.source,
           target: e.target,
-          label: e.type === 'bgp' ? 'BGP' : 'Overlay',
         })
 
         // If BGP peer target is a bgp:IP address, add it as a node so it renders
@@ -101,8 +98,8 @@ export function CniTopologyPanel({ pods, cniTopology, topologyStatus }: CniTopol
           />
         ) : (
           <Topology
-            nodes={adaptedTopology.nodes as any}
-            edges={adaptedTopology.edges as any}
+            nodes={adaptedTopology.nodes}
+            edges={adaptedTopology.edges}
           />
         )}
       </div>

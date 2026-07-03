@@ -172,6 +172,7 @@ export interface CniPolicy {
   selector?: string | null
   order?: number | null
   rules_count: number
+  rule_actions?: string[] | null
 }
 
 export interface CniTopologyNode {

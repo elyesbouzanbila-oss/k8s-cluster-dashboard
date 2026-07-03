@@ -9,12 +9,47 @@ interface PolicyInspectorPanelProps {
   status?: DataSourceStatus
 }
 
-function getPolicyActionLabel(rulesCount: number): string {
-  return rulesCount > 0 ? 'Allow' : 'Deny'
+const ACTION_COLORS: Record<string, string> = {
+  Allow: 'var(--success)',
+  Deny: 'var(--danger)',
+  Log: 'var(--warning)',
+  Pass: 'var(--info)',
 }
 
-function getPolicyActionColor(rulesCount: number): string {
-  return rulesCount > 0 ? 'var(--success)' : 'var(--danger)'
+const ACTION_BG: Record<string, string> = {
+  Allow: 'var(--success-light)',
+  Deny: 'var(--danger-light)',
+  Log: 'rgba(234, 179, 8, 0.15)',
+  Pass: 'rgba(6, 182, 212, 0.15)',
+}
+
+function ActionBadge({ actions }: { actions: string[] | null | undefined }) {
+  if (!actions || actions.length === 0) {
+    return (
+      <span className="badge" style={{ backgroundColor: 'var(--danger-light)', color: 'var(--danger)' }}>
+        Deny
+      </span>
+    )
+  }
+
+  // Multiple actions — show mixed
+  if (actions.length > 1) {
+    return (
+      <span className="badge" style={{ backgroundColor: 'rgba(139, 92, 246, 0.15)', color: '#8B5CF6' }}>
+        Mixed
+      </span>
+    )
+  }
+
+  const action = actions[0]
+  return (
+    <span className="badge" style={{
+      backgroundColor: ACTION_BG[action] || 'var(--danger-light)',
+      color: ACTION_COLORS[action] || 'var(--danger)',
+    }}>
+      {action}
+    </span>
+  )
 }
 
 export function PolicyInspectorPanel({ policies, status }: PolicyInspectorPanelProps) {
@@ -39,6 +74,17 @@ export function PolicyInspectorPanel({ policies, status }: PolicyInspectorPanelP
 
   const isFiltered = searchQuery.trim().length > 0 || typeFilter !== 'all'
 
+  // Derive rule_actions stats from all policies
+  const allActions = useMemo(() => {
+    const count: Record<string, number> = {}
+    for (const p of policies) {
+      for (const a of p.rule_actions || []) {
+        count[a] = (count[a] || 0) + 1
+      }
+    }
+    return count
+  }, [policies])
+
   return (
     <div className="section policies-section">
       <h2>Network Policies</h2>
@@ -60,9 +106,20 @@ export function PolicyInspectorPanel({ policies, status }: PolicyInspectorPanelP
           </div>
           <div className="security-stat-content">
             <span className="security-stat-value" style={{ color: 'var(--success)' }}>
-              {policies.filter(p => p.rules_count > 0).length}
+              {allActions['Allow'] || 0}
             </span>
-            <span className="security-stat-label">With Rules</span>
+            <span className="security-stat-label">Allow Rules</span>
+          </div>
+        </div>
+        <div className="security-stat-card">
+          <div className="security-stat-icon" style={{ backgroundColor: 'var(--danger-light)', color: 'var(--danger)' }}>
+            <Icon name="x" size={24} />
+          </div>
+          <div className="security-stat-content">
+            <span className="security-stat-value" style={{ color: 'var(--danger)' }}>
+              {allActions['Deny'] || 0}
+            </span>
+            <span className="security-stat-label">Deny Rules</span>
           </div>
         </div>
         <div className="security-stat-card">
@@ -74,17 +131,6 @@ export function PolicyInspectorPanel({ policies, status }: PolicyInspectorPanelP
               {policies.filter(p => p.type === 'GlobalNetworkPolicy').length}
             </span>
             <span className="security-stat-label">Global Policies</span>
-          </div>
-        </div>
-        <div className="security-stat-card">
-          <div className="security-stat-icon" style={{ backgroundColor: 'rgba(6, 182, 212, 0.15)', color: 'var(--info)' }}>
-            <Icon name="pod" size={24} />
-          </div>
-          <div className="security-stat-content">
-            <span className="security-stat-value" style={{ color: 'var(--info)' }}>
-              {policies.filter(p => p.type === 'NetworkPolicy').length}
-            </span>
-            <span className="security-stat-label">Namespaced</span>
           </div>
         </div>
       </div>
@@ -156,7 +202,7 @@ export function PolicyInspectorPanel({ policies, status }: PolicyInspectorPanelP
                   <th>Namespace</th>
                   <th>Selector</th>
                   <th>Order</th>
-                  <th>Action</th>
+                  <th>Actions</th>
                   <th>Rules</th>
                 </tr>
               </thead>
@@ -168,14 +214,7 @@ export function PolicyInspectorPanel({ policies, status }: PolicyInspectorPanelP
                     <td className="cell-mono" style={{ color: 'var(--text-tertiary)' }}>—</td>
                     <td className="cell-mono" style={{ maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.selector || 'all()'}</td>
                     <td>{p.order != null ? p.order.toFixed(1) : '—'}</td>
-                    <td>
-                      <span className="badge" style={{
-                        backgroundColor: p.rules_count > 0 ? 'var(--success-light)' : 'var(--danger-light)',
-                        color: getPolicyActionColor(p.rules_count),
-                      }}>
-                        {getPolicyActionLabel(p.rules_count)}
-                      </span>
-                    </td>
+                    <td><ActionBadge actions={p.rule_actions} /></td>
                     <td>{p.rules_count}</td>
                   </tr>
                 ))}
@@ -186,14 +225,7 @@ export function PolicyInspectorPanel({ policies, status }: PolicyInspectorPanelP
                     <td>{p.namespace}</td>
                     <td className="cell-mono" style={{ maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.selector || 'all()'}</td>
                     <td>{p.order != null ? p.order.toFixed(1) : '—'}</td>
-                    <td>
-                      <span className="badge" style={{
-                        backgroundColor: p.rules_count > 0 ? 'var(--success-light)' : 'var(--danger-light)',
-                        color: getPolicyActionColor(p.rules_count),
-                      }}>
-                        {getPolicyActionLabel(p.rules_count)}
-                      </span>
-                    </td>
+                    <td><ActionBadge actions={p.rule_actions} /></td>
                     <td>{p.rules_count}</td>
                   </tr>
                 ))}
