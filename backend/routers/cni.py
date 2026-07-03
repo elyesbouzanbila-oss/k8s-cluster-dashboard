@@ -189,13 +189,12 @@ async def connectivity_diagnostics(
             # DNS resolution test
             f"echo '--- DNS ---' && "
             f"nslookup {target_host} 2>&1 | head -20 && "
-            # TCP connectivity test with timing
             f"echo '--- TCP CHECK ---' && "
-            f"START=$(date +%s%N) && "
+            f"START=$(awk '{{print int($$1*1000)}}' /proc/uptime) && "
             f"rc=0; nc -zv -w {nc_timeout} {target_host} {target_port} 2>&1 || rc=$? && "
             f"if [ $rc -eq 0 ]; then echo 'RESULT=OK'; else echo 'RESULT=FAIL'; fi && "
-            f"END=$(date +%s%N) && "
-            f"echo \"LATENCY_MS=$(( (END - START) / 1000000 ))\" && "
+            f"END=$(awk '{{print int($$1*1000)}}' /proc/uptime) && "
+            f"echo \"LATENCY_MS=$((END - START))\" && "
             f"echo '=== DIAGNOSTIC END ==='"
         )
 

@@ -111,16 +111,21 @@ async def get_ipam_utilization(api_client) -> List[Dict[str, Any]]:
     """Aggregate IPAMBlock allocations per pool."""
     custom_api = k8s_client.CustomObjectsApi(api_client)
 
-    # Fetch pools first to get pool names
+    # Fetch pools first to get pool names and CIDRs
     pools_raw = await custom_api.list_cluster_custom_object(
         group=CALICO_GROUP,
         version=CALICO_VERSION,
         plural="ippools",
     )
+    # name -> CIDR lookup (e.g. "default-ipv4-ippool" -> "192.168.0.0/16")
     pool_cidrs: Dict[str, str] = {}
+    # CIDR -> name reverse lookup (for IPAM blocks that reference pool by CIDR)
+    cidr_to_name: Dict[str, str] = {}
     for item in (pools_raw.get("items") or []):
         cidr = item.get("spec", {}).get("cidr", "")
-        pool_cidrs[item["metadata"]["name"]] = cidr
+        name = item["metadata"]["name"]
+        pool_cidrs[name] = cidr
+        cidr_to_name[cidr] = name
 
     # Fetch all IPAM blocks
     blocks_raw = await custom_api.list_cluster_custom_object(
@@ -134,7 +139,11 @@ async def get_ipam_utilization(api_client) -> List[Dict[str, Any]]:
     pool_blocks = defaultdict(list)
     for block in blocks:
         spec = block.get("spec", {})
-        pool_name = spec.get("pool", "unknown")
+        pool_raw = spec.get("pool", "")
+        # Resolve: IPAM blocks may reference the pool by name OR by CIDR
+        pool_name = cidr_to_name.get(pool_raw, pool_raw)
+        if not pool_name:
+            pool_name = "unknown"
         pool_blocks[pool_name].append(block)
 
     result = []
