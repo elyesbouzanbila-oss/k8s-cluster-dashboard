@@ -281,6 +281,145 @@ MOCK_POD_METRICS = [
 ]
 
 
+# ─── CNI (Calico) Mock Data ─────────────────────────────────────────────
+
+MOCK_CALICO_NODES = [
+    {
+        "node": "master-1",
+        "felix_ready": True,
+        "bird_ready": True,
+        "ip": "192.168.1.10",
+        "uptime_seconds": 86400 * 14,  # 14 days
+        "last_reported": "2025-07-03T12:00:00Z"
+    },
+    {
+        "node": "worker-1",
+        "felix_ready": True,
+        "bird_ready": True,
+        "ip": "192.168.1.20",
+        "uptime_seconds": 86400 * 7,
+        "last_reported": "2025-07-03T12:00:00Z"
+    },
+    {
+        "node": "worker-2",
+        "felix_ready": False,
+        "bird_ready": False,
+        "ip": "192.168.1.21",
+        "uptime_seconds": 3600 * 3,  # 3 hours
+        "last_reported": "2025-07-03T09:00:00Z"
+    }
+]
+
+MOCK_BGP_PEERS = [
+    {
+        "name": "bgppeer-global-64512",
+        "node": None,
+        "peer_ip": "10.0.0.1",
+        "peer_as_number": 64512,
+        "node_as_number": 64513,
+        "session_state": "up"
+    },
+    {
+        "name": "bgppeer-worker-1-to-spine",
+        "node": "worker-1",
+        "peer_ip": "10.0.0.2",
+        "peer_as_number": 64512,
+        "node_as_number": 64513,
+        "session_state": "up"
+    },
+    {
+        "name": "bgppeer-worker-2-to-spine",
+        "node": "worker-2",
+        "peer_ip": "10.0.0.3",
+        "peer_as_number": 64512,
+        "node_as_number": 64513,
+        "session_state": "down"
+    }
+]
+
+MOCK_IP_POOLS = [
+    {
+        "name": "default-ipv4-ippool",
+        "cidr": "10.244.0.0/16",
+        "nat_outgoing": True,
+        "disabled": False,
+        "mode": "vxlan",
+        "node_selector": "all()"
+    },
+    {
+        "name": "infra-pool",
+        "cidr": "10.245.0.0/24",
+        "nat_outgoing": False,
+        "disabled": False,
+        "mode": "ipip",
+        "node_selector": "has(role-infra)"
+    }
+]
+
+MOCK_IPAM_BLOCKS = [
+    {
+        "pool": "default-ipv4-ippool",
+        "blocks": 3,
+        "allocated": 24,
+        "total": 256,
+        "utilization_pct": 9.4
+    },
+    {
+        "pool": "infra-pool",
+        "blocks": 1,
+        "allocated": 2,
+        "total": 256,
+        "utilization_pct": 0.8
+    }
+]
+
+MOCK_CNI_POLICIES = [
+    {
+        "name": "default-deny",
+        "namespace": None,
+        "type": "GlobalNetworkPolicy",
+        "policy_type": ["Ingress", "Egress"],
+        "selector": "all()",
+        "order": 1000.0,
+        "rules_count": 2
+    },
+    {
+        "name": "allow-kube-dns",
+        "namespace": None,
+        "type": "GlobalNetworkPolicy",
+        "policy_type": ["Egress"],
+        "selector": "all()",
+        "order": 900.0,
+        "rules_count": 1
+    },
+    {
+        "name": "allow-frontend-ingress",
+        "namespace": "production",
+        "type": "NetworkPolicy",
+        "policy_type": ["Ingress"],
+        "selector": "app == 'frontend'",
+        "order": 500.0,
+        "rules_count": 3
+    },
+    {
+        "name": "allow-monitoring-scrape",
+        "namespace": "monitoring",
+        "type": "NetworkPolicy",
+        "policy_type": ["Ingress"],
+        "selector": "app == 'prometheus'",
+        "order": 400.0,
+        "rules_count": 1
+    }
+]
+
+MOCK_FELIX_METRICS = {
+    "active_local_endpoints": 14,
+    "cluster_network_policies": 2,
+    "iptables_restore_errors": 0,
+    "bgp_sessions_active": 2,
+    "int_dataplane_failures": 0
+}
+
 def build_mock_topology():
     """Build mock topology dict from shared mock data."""
     nodes = []

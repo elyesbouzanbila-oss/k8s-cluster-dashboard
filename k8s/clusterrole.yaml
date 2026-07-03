@@ -28,3 +28,17 @@ rules:
   - apiGroups: ["networking.k8s.io"]
     resources: [networkpolicies]
     verbs: [get, list]
+  # CNI (Calico)
+  - apiGroups: ["crd.projectcalico.org"]
+    resources:
+      - ippools
+      - ipamblocks
+      - ipamconfigs
+      - bgppeers
+      - bgpconfigurations
+      - felixconfigurations
+      - networkpolicies
+      - globalnetworkpolicies
+      - hostendpoints
+      - clusterinformations
+    verbs: [get, list, watch]
