@@ -1,5 +1,6 @@
 """Service layer for Calico CNI resources accessed via Kubernetes CustomObjectsApi."""
 
+import ipaddress
 from typing import Any, Dict, List, Optional
 from collections import defaultdict
 from datetime import datetime, timezone
@@ -108,26 +109,37 @@ async def get_ip_pools(api_client) -> List[Dict[str, Any]]:
 
 
 async def get_ipam_utilization(api_client) -> List[Dict[str, Any]]:
-    """Aggregate IPAMBlock allocations per pool."""
+    """Aggregate IPAMBlock allocations per pool.
+
+    IPAMBlocks do NOT have a "pool" field — they reference their parent
+    pool by CIDR containment. This function:
+      1. Fetches all IPPools to build a list of (name, ip_network)
+      2. Fetches all IPAMBlocks and reads spec.cidr
+      3. Resolves each block to its parent pool by checking which pool's
+         CIDR network contains the block's CIDR
+    """
     custom_api = k8s_client.CustomObjectsApi(api_client)
 
-    # Fetch pools first to get pool names and CIDRs
+    # ── Fetch IPPools and build CIDR networks ─────────────────────
     pools_raw = await custom_api.list_cluster_custom_object(
         group=CALICO_GROUP,
         version=CALICO_VERSION,
         plural="ippools",
     )
-    # name -> CIDR lookup (e.g. "default-ipv4-ippool" -> "192.168.0.0/16")
+    # (pool_name, pool_cidr_string) for pools with no blocks
     pool_cidrs: Dict[str, str] = {}
-    # CIDR -> name reverse lookup (for IPAM blocks that reference pool by CIDR)
-    cidr_to_name: Dict[str, str] = {}
+    # (pool_name, ip_network) for CIDR containment checks
+    pool_networks: List[tuple] = []
     for item in (pools_raw.get("items") or []):
         cidr = item.get("spec", {}).get("cidr", "")
         name = item["metadata"]["name"]
         pool_cidrs[name] = cidr
-        cidr_to_name[cidr] = name
+        try:
+            pool_networks.append((name, ipaddress.ip_network(cidr)))
+        except Exception:
+            pass
 
-    # Fetch all IPAM blocks
+    # ── Fetch all IPAM blocks ────────────────────────────────────
     blocks_raw = await custom_api.list_cluster_custom_object(
         group=CALICO_GROUP,
         version=CALICO_VERSION,
@@ -135,17 +147,27 @@ async def get_ipam_utilization(api_client) -> List[Dict[str, Any]]:
     )
     blocks = blocks_raw.get("items") or []
 
-    # Aggregate blocks per pool
+    # ── Aggregate blocks per pool via CIDR containment ────────────
     pool_blocks = defaultdict(list)
     for block in blocks:
         spec = block.get("spec", {})
-        pool_raw = spec.get("pool", "")
-        # Resolve: IPAM blocks may reference the pool by name OR by CIDR
-        pool_name = cidr_to_name.get(pool_raw, pool_raw)
-        if not pool_name:
-            pool_name = "unknown"
+        block_cidr = spec.get("cidr", "")
+
+        # Resolve parent pool by checking CIDR containment
+        pool_name = "unknown"
+        if block_cidr:
+            try:
+                block_net = ipaddress.ip_network(block_cidr)
+                for pname, pnet in pool_networks:
+                    if block_net.subnet_of(pnet):
+                        pool_name = pname
+                        break
+            except Exception:
+                pass
+
         pool_blocks[pool_name].append(block)
 
+    # ── Compute per-pool statistics ───────────────────────────────
     result = []
     for pool_name, pool_block_list in pool_blocks.items():
         total = 0
@@ -164,7 +186,7 @@ async def get_ipam_utilization(api_client) -> List[Dict[str, Any]]:
             "utilization_pct": round(utilization_pct, 1),
         })
 
-    # Include pools with no blocks
+    # ── Include pools that exist but have no blocks ───────────────
     for pname in pool_cidrs:
         if not any(r["pool"] == pname for r in result):
             result.append({
