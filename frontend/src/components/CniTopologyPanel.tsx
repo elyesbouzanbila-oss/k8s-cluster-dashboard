@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useMemo } from 'react'
 import type { CniTopologyNode, CniTopologyEdge, Pod, DataSourceStatus } from '../types'
 import { DataSourceBadge } from './DataSourceBadge'
 import { Topology } from '../Topology'
@@ -13,7 +13,7 @@ interface CniTopologyPanelProps {
   loading?: boolean
 }
 
-export function CniTopologyPanel({ pods, cniTopology, podsStatus, topologyStatus, loading }: CniTopologyPanelProps) {
+export function CniTopologyPanel({ pods, cniTopology, topologyStatus }: CniTopologyPanelProps) {
   // Convert CNI topology to the format expected by Topology component
   const adaptedTopology = useMemo(() => {
     const nodes: any[] = []

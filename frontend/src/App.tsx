@@ -40,8 +40,6 @@ function App() {
   const [activeTab, setActiveTab] = useState('dashboard')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
-
   const refreshIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const wsRef = useRef<WebSocket | null>(null)
   const fetchAbortRef = useRef<AbortController | null>(null)
@@ -78,23 +76,6 @@ function App() {
     const interval = setInterval(() => setCurrentTime(new Date()), 1000)
     return () => clearInterval(interval)
   }, [])
-
-  // Generic fetch helper
-  async function cniFetch<T>(url: string): Promise<{ data: T | null; status: DataSourceStatus }> {
-    try {
-      const res = await fetch(`${API_BASE_URL}${url}`, { headers: { 'X-API-Key': API_KEY } })
-      if (res.ok) {
-        const body: ApiResponse<T> = await res.json()
-        return {
-          data: body.data ?? null,
-          status: body.status === 'success' ? 'live' : body.status === 'mock' ? 'mock' : 'error',
-        }
-      }
-      return { data: null, status: 'error' }
-    } catch {
-      return { data: null, status: 'error' }
-    }
-  }
 
   // ── Silent refresh (background) ──
   const silentRefresh = useCallback(async () => {
@@ -154,7 +135,6 @@ function App() {
         setFelixStatus(d.status === 'success' ? 'live' : d.status === 'mock' ? 'mock' : 'error')
       }
 
-      setLastUpdated(new Date())
     } catch { /* silent */ }
   }, [])
 

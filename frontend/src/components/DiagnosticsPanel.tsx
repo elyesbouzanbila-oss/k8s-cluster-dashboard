@@ -1,6 +1,5 @@
 import { useState, useRef, useMemo, useCallback } from 'react'
 import type { Pod } from '../types'
-import { EmptyState } from './EmptyState'
 import { Icon } from './Icon'
 
 interface DiagnosticsPanelProps {

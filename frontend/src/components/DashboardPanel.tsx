@@ -1,4 +1,4 @@
-import type { CalicoNodeStatus, IPAMBlockSummary, CniPolicy, FelixMetrics, CniTopologyNode, CniTopologyEdge, DataSourceStatus } from '../types'
+import type { CalicoNodeStatus, IPAMBlockSummary, CniPolicy, FelixMetrics, DataSourceStatus } from '../types'
 import { DataSourceBadge } from './DataSourceBadge'
 import { Skeleton } from './Skeleton'
 import { Icon } from './Icon'

@@ -32,7 +32,6 @@ function getModeLabel(mode: string): string {
 
 export function IpamPanel({ pools, blocks, poolsStatus, ipamStatus }: IpamPanelProps) {
   const totalPools = pools.length
-  const totalBlocks = blocks.reduce((acc, b) => acc + b.blocks, 0)
   const totalAllocated = blocks.reduce((acc, b) => acc + b.allocated, 0)
   const totalCapacity = blocks.reduce((acc, b) => acc + b.total, 0)
   const overallPct = totalCapacity > 0 ? (totalAllocated / totalCapacity) * 100 : 0
