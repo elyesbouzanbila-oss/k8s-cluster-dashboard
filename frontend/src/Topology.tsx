@@ -21,6 +21,7 @@ interface TopologyEdge {
   id: string
   source: string
   target: string
+  label?: string
 }
 
 interface TopologyProps {
@@ -263,6 +264,7 @@ export function Topology({ nodes, edges }: TopologyProps) {
           id: edge.id,
           source: edge.source,
           target: edge.target,
+          ...(edge.label ? { label: edge.label } : {}),
         },
       })),
     ]

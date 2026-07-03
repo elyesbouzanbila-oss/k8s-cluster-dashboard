@@ -18,12 +18,14 @@ export interface TopologyNode {
   node_name?: string
   role?: 'master' | 'worker'
   capacity?: Record<string, string>
+  ready?: boolean
 }
 
 export interface TopologyEdge {
   id: string
   source: string
   target: string
+  label?: string
 }
 
 export interface ThreatEvent {
@@ -177,15 +179,21 @@ export interface CniPolicy {
 
 export interface CniTopologyNode {
   id: string
+  type?: 'node' | 'pod' | 'service'
   name: string
-  role: string
+  role?: string | null
   ip?: string | null
+  namespace?: string | null
+  labels?: Record<string, string> | null
+  node_name?: string | null
+  ready?: boolean | null
 }
 
 export interface CniTopologyEdge {
+  id?: string
   source: string
   target: string
-  type: 'bgp' | 'overlay'
+  type?: 'bgp' | 'overlay' | null
 }
 
 export interface CniTopologyResponse {

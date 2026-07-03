@@ -103,20 +103,9 @@ async def cni_topology(
         return {"status": "success", "data": data}
     except Exception as e:
         print(f"CNI topology failed: {e}, using mock data")
-        from models.mock_data import MOCK_NODES
-        nodes = [{"id": f"node:{n['name']}", "name": n["name"], "role": n["role"], "ip": n["ip"]} for n in MOCK_NODES]
-        return {
-            "status": "mock",
-            "data": {
-                "nodes": nodes,
-                "edges": [
-                    {"source": "node:master-1", "target": "bgp:10.0.0.1", "type": "bgp"},
-                    {"source": "node:worker-1", "target": "bgp:10.0.0.1", "type": "bgp"},
-                    {"source": "node:master-1", "target": "node:worker-1", "type": "overlay"},
-                    {"source": "node:master-1", "target": "node:worker-2", "type": "overlay"},
-                ],
-            },
-        }
+        from models.mock_data import build_mock_topology
+        mock = build_mock_topology()
+        return {"status": "mock", "data": mock}
 
 
 @router.get("/metrics/felix")

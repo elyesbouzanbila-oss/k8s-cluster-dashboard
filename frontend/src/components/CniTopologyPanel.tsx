@@ -18,37 +18,78 @@ export function CniTopologyPanel({ pods, cniTopology, topologyStatus }: CniTopol
     const edges: TopologyEdgeType[] = []
 
     if (cniTopology) {
-      // Add cluster nodes as node-type entries
+      // Add all nodes from the topology (cluster nodes, pods, services)
       for (const n of cniTopology.nodes) {
-        nodes.push({
-          id: n.id,
-          type: 'node' as const,
-          name: n.name,
-          role: n.role as 'master' | 'worker',
-          ip: n.ip || undefined,
-        })
+        const nodeType = n.type || 'node'
+        if (nodeType === 'node') {
+          nodes.push({
+            id: n.id,
+            type: 'node' as const,
+            name: n.name,
+            role: (n.role as 'master' | 'worker') || 'worker',
+            ip: n.ip || undefined,
+            ready: n.ready ?? true,
+          })
+        } else if (nodeType === 'pod') {
+          nodes.push({
+            id: n.id,
+            type: 'pod' as const,
+            namespace: n.namespace || undefined,
+            name: n.name,
+            ip: n.ip || undefined,
+            labels: n.labels || undefined,
+            node_name: n.node_name || undefined,
+          })
+        } else if (nodeType === 'service') {
+          nodes.push({
+            id: n.id,
+            type: 'service' as const,
+            namespace: n.namespace || undefined,
+            name: n.name,
+            ip: n.ip || undefined,
+          })
+        }
       }
 
-      // Add BGP edges - convert to TopologyEdge format
+      // Add edges - convert to TopologyEdge format
       for (const e of cniTopology.edges) {
-        const edgeId = `cni-${e.source}-to-${e.target}-${e.type}`
-        edges.push({
-          id: edgeId,
-          source: e.source,
-          target: e.target,
-        })
+        if (e.type === 'bgp') {
+          // BGP edges get a label and may need synthetic BGP peer nodes
+          const edgeId = e.id || `cni-${e.source}-to-${e.target}-bgp`
+          edges.push({
+            id: edgeId,
+            source: e.source,
+            target: e.target,
+            label: 'BGP',
+          })
 
-        // If BGP peer target is a bgp:IP address, add it as a node so it renders
-        if (e.type === 'bgp' && e.target.startsWith('bgp:')) {
-          const ip = e.target.replace('bgp:', '')
-          if (!nodes.some(n => n.id === e.target)) {
-            nodes.push({
-              id: e.target,
-              type: 'service' as const,
-              name: `BGP ${ip}`,
-              ip,
-            })
+          // If BGP peer target is a bgp:IP address, add it as a node so it renders
+          if (e.target.startsWith('bgp:')) {
+            const ip = e.target.replace('bgp:', '')
+            if (!nodes.some(n => n.id === e.target)) {
+              nodes.push({
+                id: e.target,
+                type: 'service' as const,
+                name: `BGP ${ip}`,
+                ip,
+              })
+            }
           }
+        } else if (e.type === 'overlay') {
+          const edgeId = e.id || `cni-${e.source}-to-${e.target}-overlay`
+          edges.push({
+            id: edgeId,
+            source: e.source,
+            target: e.target,
+            label: 'Overlay',
+          })
+        } else {
+          // Pod-to-service edges (no type field) — use the edge's id directly
+          edges.push({
+            id: e.id || `${e.source}-to-${e.target}`,
+            source: e.source,
+            target: e.target,
+          })
         }
       }
     }

@@ -253,15 +253,22 @@ def _extract_rule_actions(spec: Dict[str, Any]) -> List[str]:
 
 
 async def get_cni_topology(api_client) -> Dict[str, Any]:
-    """Build CNI-aware topology: nodes with their BGP peers and overlay connections."""
-    # Reuse the existing node discovery from the pods API
-    v1 = k8s_client.CoreV1Api(api_client)
+    """Build CNI-aware topology: cluster nodes, pods, services, BGP peers, overlay connections.
 
-    # Get nodes
-    node_list = await v1.list_node()
+    Returns a rich graph with:
+      - Cluster nodes (type: "node") with BGP/overlay edges
+      - Pods (type: "pod") nested under their parent node
+      - Services (type: "service") with label-matched pod-to-service edges
+    """
+    v1 = k8s_client.CoreV1Api(api_client)
     custom_api = k8s_client.CustomObjectsApi(api_client)
 
-    # Get BGP peers for edge creation
+    # ── Fetch all resources in parallel ──────────────────────────
+    node_list = await v1.list_node()
+    pods = await v1.list_pod_for_all_namespaces(watch=False)
+    svc_list = await v1.list_service_for_all_namespaces()
+
+    # ── BGP peer edges ───────────────────────────────────────────
     bgp_edges = []
     try:
         peers_raw = await custom_api.list_cluster_custom_object(
@@ -275,6 +282,7 @@ async def get_cni_topology(api_client) -> Dict[str, Any]:
             peer_ip = spec.get("peerIP", "")
             if peer_node and peer_ip:
                 bgp_edges.append({
+                    "id": f"bgp-{peer_node}-to-{peer_ip}",
                     "source": f"node:{peer_node}",
                     "target": f"bgp:{peer_ip}",
                     "type": "bgp",
@@ -282,8 +290,12 @@ async def get_cni_topology(api_client) -> Dict[str, Any]:
     except Exception:
         pass
 
-    # Build node entries
-    nodes = []
+    # ── Build node entries ───────────────────────────────────────
+    nodes: List[Dict[str, Any]] = []
+    services_data: List[Dict[str, Any]] = []
+    pods_data: List[Dict[str, Any]] = []
+
+    # Cluster nodes
     for n in node_list.items:
         labels = n.metadata.labels or {}
         role = "worker"
@@ -297,33 +309,101 @@ async def get_cni_topology(api_client) -> Dict[str, Any]:
                 ip = addr.address
                 break
 
+        # Determine if node is ready
+        ready = True
+        for condition in n.status.conditions or []:
+            if condition.type == "Ready":
+                ready = condition.status == "True"
+                break
+
         nodes.append({
             "id": f"node:{n.metadata.name}",
+            "type": "node",
             "name": n.metadata.name,
             "role": role,
             "ip": ip,
+            "ready": ready,
         })
 
-    # Get pod overlay edges (pods-to-pods on different nodes)
-    pods = await v1.list_pod_for_all_namespaces(watch=False)
-    overlay_edges = []
-    pod_sets: Dict[str, List[str]] = {}
-    for p in pods.items:
-        node_name = getattr(p.spec, "node_name", None)
-        if node_name:
-            pod_sets.setdefault(node_name, []).append(p.metadata.name)
+    # Services
+    for s in svc_list.items:
+        # Skip the default/kubernetes API service
+        if s.metadata.namespace == "default" and s.metadata.name == "kubernetes":
+            continue
 
-    # Create overlay edges between different nodes (simplified mesh)
-    node_names = list(pod_sets.keys())
-    for i in range(len(node_names)):
-        for j in range(i + 1, len(node_names)):
-            overlay_edges.append({
-                "source": f"node:{node_names[i]}",
-                "target": f"node:{node_names[j]}",
+        svc_id = f"svc:{s.metadata.namespace}/{s.metadata.name}"
+        nodes.append({
+            "id": svc_id,
+            "type": "service",
+            "namespace": s.metadata.namespace,
+            "name": s.metadata.name,
+            "ip": s.spec.cluster_ip if s.spec.cluster_ip and s.spec.cluster_ip != "None" else None,
+        })
+        services_data.append({
+            "id": svc_id,
+            "namespace": s.metadata.namespace,
+            "selector": s.spec.selector or {},
+        })
+
+    # Pods
+    for p in pods.items:
+        pod_id = f"pod:{p.metadata.namespace}/{p.metadata.name}"
+        node_name = getattr(p.spec, "node_name", None)
+        nodes.append({
+            "id": pod_id,
+            "type": "pod",
+            "namespace": p.metadata.namespace,
+            "name": p.metadata.name,
+            "ip": getattr(p.status, "pod_ip", None),
+            "labels": p.metadata.labels or {},
+            "node_name": node_name,
+        })
+        pods_data.append({
+            "id": pod_id,
+            "namespace": p.metadata.namespace,
+            "labels": p.metadata.labels or {},
+            "node_name": node_name,
+        })
+
+    # ── Build edges ──────────────────────────────────────────────
+    edges: List[Dict[str, Any]] = list(bgp_edges)
+
+    # Pod-to-service edges via label-selector matching
+    for svc in services_data:
+        for pod in pods_data:
+            if pod["namespace"] != svc["namespace"]:
+                continue
+            if _label_selector_matches(pod["labels"], svc["selector"]):
+                edges.append({
+                    "id": f"{pod['id']}-to-{svc['id']}",
+                    "source": pod["id"],
+                    "target": svc["id"],
+                })
+
+    # Overlay edges between nodes with pods
+    node_names_with_pods = list(dict.fromkeys(
+        p["node_name"] for p in pods_data if p["node_name"]
+    ))
+    for i in range(len(node_names_with_pods)):
+        for j in range(i + 1, len(node_names_with_pods)):
+            edges.append({
+                "id": f"overlay-{node_names_with_pods[i]}-to-{node_names_with_pods[j]}",
+                "source": f"node:{node_names_with_pods[i]}",
+                "target": f"node:{node_names_with_pods[j]}",
                 "type": "overlay",
             })
 
     return {
         "nodes": nodes,
-        "edges": bgp_edges + overlay_edges,
+        "edges": edges,
     }
+
+
+def _label_selector_matches(pod_labels: Dict[str, str], selector: Dict[str, str]) -> bool:
+    """Check if pod labels match a service's label selector."""
+    if not selector:
+        return False
+    for key, value in selector.items():
+        if pod_labels.get(key) != value:
+            return False
+    return True
