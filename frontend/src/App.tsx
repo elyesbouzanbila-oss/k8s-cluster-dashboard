@@ -6,13 +6,14 @@ import { DashboardPanel } from './components/DashboardPanel'
 import { CniHealthPanel } from './components/CniHealthPanel'
 import { IpamPanel } from './components/IpamPanel'
 import { PolicyInspectorPanel } from './components/PolicyInspectorPanel'
+import { PolicyCoveragePanel } from './components/PolicyCoveragePanel'
 import { CniTopologyPanel } from './components/CniTopologyPanel'
 import { DiagnosticsPanel } from './components/DiagnosticsPanel'
 import { ThreatPanel } from './components/ThreatPanel'
 import type {
   Pod, ThreatEvent, CalicoNodeStatus, BGPPeer, IPPool, IPAMBlockSummary,
   CniPolicy, CniTopologyNode, CniTopologyEdge, FelixMetrics,
-  DataSourceStatus, ApiResponse,
+  DataSourceStatus, ApiResponse, PodCoverageItem,
 } from './types'
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || ''
@@ -56,6 +57,8 @@ function App() {
   const [cniPolicies, setCniPolicies] = useState<CniPolicy[]>([])
   const [cniTopology, setCniTopology] = useState<{ nodes: CniTopologyNode[]; edges: CniTopologyEdge[] } | null>(null)
   const [felixMetrics, setFelixMetrics] = useState<FelixMetrics | null>(null)
+  const [policyCoverage, setPolicyCoverage] = useState<PodCoverageItem[]>([])
+  const [policyCoverageView, setPolicyCoverageView] = useState<'definitions' | 'coverage'>('definitions')
 
   // Threats state
   const [threats, setThreats] = useState<ThreatEvent[]>([])
@@ -131,6 +134,13 @@ function App() {
         const d: ApiResponse<FelixMetrics> = await felixRes.json()
         setFelixMetrics(d.data || null)
         setFelixStatus(d.status === 'success' ? 'live' : d.status === 'mock' ? 'mock' : 'error')
+      }
+
+      // Fetch policy coverage
+      const coverageRes = await fetch(`${API_BASE_URL}/api/cni/policies/coverage`, { headers: { 'X-API-Key': API_KEY } })
+      if (coverageRes.ok) {
+        const d: ApiResponse<PodCoverageItem[]> = await coverageRes.json()
+        setPolicyCoverage(d.data || [])
       }
 
     } catch { /* silent */ }
@@ -363,7 +373,29 @@ function App() {
                 />
               )}
               {activeTab === 'policies' && (
-                <PolicyInspectorPanel policies={cniPolicies} status={policiesStatus} />
+                <>
+                  {/* Sub-view toggle */}
+                  <div className="coverage-view-toggle" style={{ marginBottom: '20px' }}>
+                    <button
+                      className={`coverage-view-btn ${policyCoverageView === 'definitions' ? 'active' : ''}`}
+                      onClick={() => setPolicyCoverageView('definitions')}
+                    >
+                      <Icon name="list" size={16} /> Definitions
+                    </button>
+                    <button
+                      className={`coverage-view-btn ${policyCoverageView === 'coverage' ? 'active' : ''}`}
+                      onClick={() => setPolicyCoverageView('coverage')}
+                    >
+                      <Icon name="shield" size={16} /> Coverage
+                    </button>
+                  </div>
+
+                  {policyCoverageView === 'definitions' ? (
+                    <PolicyInspectorPanel policies={cniPolicies} status={policiesStatus} />
+                  ) : (
+                    <PolicyCoveragePanel coverage={policyCoverage} status={policiesStatus} />
+                  )}
+                </>
               )}
               {activeTab === 'topology' && (
                 <CniTopologyPanel

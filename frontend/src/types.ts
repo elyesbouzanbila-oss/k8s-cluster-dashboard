@@ -209,6 +209,14 @@ export interface FelixMetrics {
   int_dataplane_failures?: number
 }
 
+export interface PodCoverageItem {
+  pod_name: string
+  namespace: string
+  labels: Record<string, string>
+  selecting_policies: string[]
+  exposed: boolean
+}
+
 export interface ApiResponse<T> {
   status: 'success' | 'mock' | 'error'
   data: T

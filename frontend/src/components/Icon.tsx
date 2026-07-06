@@ -37,6 +37,9 @@ export type IconName =
   | 'network'
   | 'square'
   | 'circle'
+  | 'list'
+  | 'layers'
+  | 'globe'
 
 const ICON_PATHS: Record<IconName, { viewBox: string; paths: React.ReactNode }> = {
   'chevron-right': {
@@ -294,6 +297,39 @@ const ICON_PATHS: Record<IconName, { viewBox: string; paths: React.ReactNode }> 
   circle: {
     viewBox: '0 0 24 24',
     paths: <circle cx="12" cy="12" r="10" strokeWidth="2" />,
+  },
+  list: {
+    viewBox: '0 0 24 24',
+    paths: (
+      <>
+        <line x1="8" y1="6" x2="21" y2="6" strokeWidth="2" />
+        <line x1="8" y1="12" x2="21" y2="12" strokeWidth="2" />
+        <line x1="8" y1="18" x2="21" y2="18" strokeWidth="2" />
+        <line x1="3" y1="6" x2="3.01" y2="6" strokeWidth="2" />
+        <line x1="3" y1="12" x2="3.01" y2="12" strokeWidth="2" />
+        <line x1="3" y1="18" x2="3.01" y2="18" strokeWidth="2" />
+      </>
+    ),
+  },
+  layers: {
+    viewBox: '0 0 24 24',
+    paths: (
+      <>
+        <polygon points="12 2 2 7 12 12 22 7 12 2" strokeWidth="2" />
+        <polyline points="2 17 12 22 22 17" strokeWidth="2" />
+        <polyline points="2 12 12 17 22 12" strokeWidth="2" />
+      </>
+    ),
+  },
+  globe: {
+    viewBox: '0 0 24 24',
+    paths: (
+      <>
+        <circle cx="12" cy="12" r="10" strokeWidth="2" />
+        <line x1="2" y1="12" x2="22" y2="12" strokeWidth="2" />
+        <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" strokeWidth="2" />
+      </>
+    ),
   },
 }
 

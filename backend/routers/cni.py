@@ -92,6 +92,45 @@ async def list_cni_policies(
         return {"status": "mock", "data": MOCK_CNI_POLICIES}
 
 
+@router.get("/policies/coverage")
+async def policy_coverage(
+    api_client=Depends(get_k8s_client),
+    _: Settings = Depends(verify_api_key),
+) -> Dict[str, Any]:
+    """Per-pod policy coverage: which policies select each pod.
+
+    Surfaces pods with no NetworkPolicy selecting them ("exposed" pods)
+    that accept traffic from anywhere by default in Calico's allow-all
+    default behavior.
+    """
+    try:
+        # Fetch pods and policies in parallel
+        from services.network_service import get_pods
+        from services.utils import compute_policy_coverage
+
+        pods, policies_raw = await asyncio.gather(
+            get_pods(api_client),
+            calico_service.get_cni_policies(api_client),
+        )
+
+        # Convert PodNetwork models to dicts
+        pod_dicts = [
+            {
+                "name": p.name,
+                "namespace": p.namespace,
+                "labels": p.labels,
+            }
+            for p in pods
+        ]
+
+        data = compute_policy_coverage(pod_dicts, policies_raw)
+        return {"status": "success", "data": data}
+    except Exception as e:
+        print(f"Policy coverage failed: {e}, using mock data")
+        from models.mock_data import MOCK_COVERAGE
+        return {"status": "mock", "data": MOCK_COVERAGE}
+
+
 @router.get("/topology")
 async def cni_topology(
     api_client=Depends(get_k8s_client),

@@ -424,6 +424,90 @@ MOCK_FELIX_METRICS = {
     "int_dataplane_failures": 0
 }
 
+# ─── Policy Coverage Mock Data ────────────────────────────────────────
+# Pre-computed coverage for demo purposes. Matches MOCK_PODS against
+# MOCK_CNI_POLICIES using calico_selector_matches.
+# Pods with no specific policy (non-"all()") selecting them are "exposed".
+MOCK_COVERAGE = [
+    {
+        "pod_name": "kube-apiserver",
+        "namespace": "kube-system",
+        "labels": {"app": "kube-apiserver", "component": "control-plane"},
+        "selecting_policies": ["default-deny", "allow-kube-dns"],
+        "exposed": False,
+    },
+    {
+        "pod_name": "kube-scheduler",
+        "namespace": "kube-system",
+        "labels": {"app": "kube-scheduler", "component": "control-plane"},
+        "selecting_policies": ["default-deny", "allow-kube-dns"],
+        "exposed": False,
+    },
+    {
+        "pod_name": "etcd-operator",
+        "namespace": "kube-system",
+        "labels": {"app": "etcd", "component": "control-plane"},
+        "selecting_policies": ["default-deny", "allow-kube-dns"],
+        "exposed": False,
+    },
+    {
+        "pod_name": "coredns-7d5c8f5d6f-abc12",
+        "namespace": "kube-system",
+        "labels": {"app": "coredns", "k8s-app": "kube-dns"},
+        "selecting_policies": ["default-deny", "allow-kube-dns"],
+        "exposed": False,
+    },
+    {
+        "pod_name": "api-server-prod-1",
+        "namespace": "production",
+        "labels": {"app": "api-server", "version": "v2.1.0"},
+        "selecting_policies": ["default-deny", "allow-kube-dns"],
+        "exposed": False,
+    },
+    {
+        "pod_name": "redis-cache",
+        "namespace": "production",
+        "labels": {"app": "redis"},
+        "selecting_policies": ["default-deny", "allow-kube-dns"],
+        "exposed": False,
+    },
+    {
+        "pod_name": "database-backup",
+        "namespace": "production",
+        "labels": {"app": "database", "job": "backup"},
+        "selecting_policies": ["default-deny", "allow-kube-dns"],
+        "exposed": False,
+    },
+    {
+        "pod_name": "prometheus-0",
+        "namespace": "monitoring",
+        "labels": {"app": "prometheus"},
+        "selecting_policies": ["default-deny", "allow-kube-dns", "allow-monitoring-scrape"],
+        "exposed": False,
+    },
+    {
+        "pod_name": "nginx-frontend-7d8",
+        "namespace": "production",
+        "labels": {"app": "frontend"},
+        "selecting_policies": ["default-deny", "allow-kube-dns", "allow-frontend-ingress"],
+        "exposed": False,
+    },
+    {
+        "pod_name": "unpatched-sidecar",
+        "namespace": "production",
+        "labels": {"app": "legacy", "tier": "cache"},
+        "selecting_policies": [],
+        "exposed": True,
+    },
+    {
+        "pod_name": "experimental-worker",
+        "namespace": "default",
+        "labels": {"app": "sandbox", "owner": "dev"},
+        "selecting_policies": [],
+        "exposed": True,
+    },
+]
+
 def build_mock_topology():
     """Build mock topology dict from shared mock data."""
     nodes = []
