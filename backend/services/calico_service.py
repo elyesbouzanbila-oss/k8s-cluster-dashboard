@@ -430,11 +430,4 @@ async def get_cni_topology(api_client) -> Dict[str, Any]:
     }
 
 
-def _label_selector_matches(pod_labels: Dict[str, str], selector: Dict[str, str]) -> bool:
-    """Check if pod labels match a service's label selector."""
-    if not selector:
-        return False
-    for key, value in selector.items():
-        if pod_labels.get(key) != value:
-            return False
-    return True
+from services.utils import label_selector_matches as _label_selector_matches

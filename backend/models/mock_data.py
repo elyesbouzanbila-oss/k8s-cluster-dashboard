@@ -474,18 +474,12 @@ def build_mock_topology():
             "node_name": pod["node_name"]
         })
 
-    def _label_selector_matches(pod_labels, selector):
-        if not selector:
-            return False
-        for key, value in selector.items():
-            if pod_labels.get(key) != value:
-                return False
-        return True
+    from services.utils import label_selector_matches
 
     edges = []
     for svc in services_data:
         for pod in pods_data:
-            if pod["namespace"] == svc["namespace"] and _label_selector_matches(pod["labels"], svc["selector"]):
+            if pod["namespace"] == svc["namespace"] and label_selector_matches(pod["labels"], svc["selector"]):
                 edges.append({
                     "id": f"{pod['id']}-to-{svc['id']}",
                     "source": pod["id"],

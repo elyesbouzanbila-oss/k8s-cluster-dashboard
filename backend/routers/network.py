@@ -44,14 +44,7 @@ async def list_pods(
 		print(f"K8s connection failed: {e}, using mock data")
 		return {"status": "mock", "items": MOCK_PODS}
 
-def label_selector_matches(pod_labels: Dict[str, str], selector: Dict[str, str]) -> bool:
-	"""Check if pod labels match service selector."""
-	if not selector:
-		return False
-	for key, value in selector.items():
-		if pod_labels.get(key) != value:
-			return False
-	return True
+from services.utils import label_selector_matches
 
 
 @router.get("/topology")

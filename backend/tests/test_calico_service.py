@@ -8,8 +8,8 @@ from typing import Dict, Any
 from services.calico_service import (
     _count_policy_rules,
     _extract_rule_actions,
-    _label_selector_matches,
 )
+from services.utils import label_selector_matches as _label_selector_matches
 
 
 # ───── _count_policy_rules ─────────────────────────────────────────

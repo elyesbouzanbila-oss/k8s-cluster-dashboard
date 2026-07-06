@@ -56,12 +56,19 @@ class TestBuildMockTopology:
 
     def test_pod_to_service_edges_exist(self):
         topology = build_mock_topology()
-        # Each service that has matching pods should create edges
+        edges = topology["edges"]
+        assert len(edges) > 0
+
+        # Verify specific expected edges exist by ID pattern
+        edge_ids = {e["id"] for e in edges}
         # api-service matches api-server-prod-1 (same ns "production", app=api-server)
+        assert "pod:production/api-server-prod-1-to-svc:production/api-service" in edge_ids
         # database-service matches database-backup (same ns "production", app=database)
+        assert "pod:production/database-backup-to-svc:production/database-service" in edge_ids
         # prometheus matches prometheus-0 (same ns "monitoring", app=prometheus)
+        assert "pod:monitoring/prometheus-0-to-svc:monitoring/prometheus" in edge_ids
         # kube-dns matches coredns (same ns "kube-system", k8s-app=kube-dns)
-        assert len(topology["edges"]) == 4
+        assert "pod:kube-system/coredns-7d5c8f5d6f-abc12-to-svc:kube-system/kube-dns" in edge_ids
 
     def test_node_ids_format(self):
         topology = build_mock_topology()

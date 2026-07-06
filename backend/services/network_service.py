@@ -1,14 +1,7 @@
 from kubernetes_asyncio import client as k8s_client
 from models.network import PodNetwork, TopologyNode, TopologyEdge, TopologyResponse
 
-def label_selector_matches(pod_labels: dict, selector: dict) -> bool:
-    """Check if pod labels match service selector."""
-    if not selector:
-        return False
-    for key, value in selector.items():
-        if pod_labels.get(key) != value:
-            return False
-    return True
+from services.utils import label_selector_matches
 
 async def get_pods(api_client) -> list[PodNetwork]:
     v1 = k8s_client.CoreV1Api(api_client)
