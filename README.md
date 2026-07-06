@@ -19,9 +19,6 @@ inspection, topology, and connectivity diagnostics.
 
 ## Grafana Handoff
 
-General cluster/resource monitoring is handled by Grafana (via `kube-prometheus-stack`).
-The CNI Command Center focuses exclusively on Calico diagnostics.
-
 ### Grafana Access
 
 **Service:** `monitor-grafana.monitoring.svc.cluster.local` (typically `ClusterIP` by default)
