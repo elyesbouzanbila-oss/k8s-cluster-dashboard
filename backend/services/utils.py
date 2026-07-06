@@ -35,7 +35,7 @@ def calico_selector_matches(pod_labels: Dict[str, str], selector: str) -> bool:
     Returns True if the pod labels satisfy the selector, False otherwise.
     An empty or ``all()`` selector returns True (matches everything).
     """
-    if not selector or selector.strip() == "all()":
+    if not selector or not selector.strip() or selector.strip() == "all()":
         return True
 
     selector = selector.strip()
@@ -96,24 +96,12 @@ def calico_selector_matches(pod_labels: Dict[str, str], selector: str) -> bool:
 
 
 def _split_logical_or(selector: str):
-    """Split a selector on ||, respecting quoted strings.
+    """Split a selector on ``||``, respecting single-quoted strings.
 
-    Calico selectors like ``app == 'a' || app == 'b'`` need to split on ``||``
-    but not on ``||`` inside quotes. This simple split handles it.
+    Calico selectors like ``app == 'a' || app == 'b'`` need to split on
+    ``||`` but not on ``||`` that appears inside quoted values (rare but
+    possible in ``in {'a||b'}``).
     """
-    parts = []
-    depth = 0
-    current = []
-    for ch in selector:
-        if ch == "'":
-            depth ^= 1
-        if ch == "|" and depth == 0:
-            continue
-        if ch == "|":
-            current.append(ch)
-            continue
-        current.append(ch)
-    # Rebuild from the remaining string
     result = []
     buf = []
     in_str = False
@@ -121,7 +109,8 @@ def _split_logical_or(selector: str):
         if ch == "'":
             in_str = not in_str
         if ch == "|" and not in_str and buf and buf[-1] == "|":
-            buf.pop()
+            # Second ``|`` — finalise the split
+            buf.pop()  # remove the first ``|`` from buffer
             result.append("".join(buf).strip())
             buf = []
             continue
@@ -148,14 +137,19 @@ def compute_policy_coverage(pods: list, policies: list) -> list:
     coverage = []
     for pod in pods:
         pod_labels = pod.get("labels", {}) or {}
+        pod_ns = pod.get("namespace", "")
         selecting = []
         for policy in policies:
             policy_selector = policy.get("selector", "")
-            if policy_selector and calico_selector_matches(pod_labels, policy_selector):
-                selecting.append(policy["name"])
+            if not policy_selector or not calico_selector_matches(pod_labels, policy_selector):
+                continue
+            # Namespace-scoping: NetworkPolicy only applies to pods in the same namespace
+            if policy.get("type") == "NetworkPolicy" and policy.get("namespace") != pod_ns:
+                continue
+            selecting.append(policy["name"])
         coverage.append({
             "pod_name": pod["name"],
-            "namespace": pod["namespace"],
+            "namespace": pod_ns,
             "labels": pod_labels,
             "selecting_policies": selecting,
             "exposed": len(selecting) == 0,

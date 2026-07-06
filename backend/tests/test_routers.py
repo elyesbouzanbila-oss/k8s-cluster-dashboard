@@ -211,6 +211,49 @@ class TestCniFelixMetrics:
         assert body["data"] == MOCK_FELIX_METRICS
 
 
+class TestCniPolicyCoverage:
+    # get_pods is imported *inside* the function body via
+    # ``from services.network_service import get_pods``,
+    # so we patch the source module, not the local name.
+    PATCH_TARGET = "services.network_service.get_pods"
+    PATCH_POLICIES = "routers.cni.calico_service.get_cni_policies"
+
+    @patch(PATCH_TARGET, new_callable=AsyncMock)
+    @patch(PATCH_POLICIES, new_callable=AsyncMock)
+    def test_success(self, mock_policies, mock_pods):
+        """Success path returns coverage data with exposed/covered pods."""
+        # Use SimpleNamespace to avoid MagicMock's special handling of ``name``
+        from types import SimpleNamespace
+        mock_pods.return_value = [
+            SimpleNamespace(**{"name": "pod-a", "namespace": "default", "labels": {"app": "nginx"}}),
+            SimpleNamespace(**{"name": "pod-b", "namespace": "default", "labels": {"app": "redis"}}),
+        ]
+        mock_policies.return_value = [
+            {"name": "allow-nginx", "namespace": "default", "type": "NetworkPolicy",
+             "selector": "app == 'nginx'"},
+        ]
+        body = assert_ok(client.get("/api/cni/policies/coverage", headers=HEADERS))
+        assert len(body["data"]) == 2
+        covered = next(d for d in body["data"] if d["pod_name"] == "pod-a")
+        exposed = next(d for d in body["data"] if d["pod_name"] == "pod-b")
+        assert covered["exposed"] is False
+        assert covered["selecting_policies"] == ["allow-nginx"]
+        assert exposed["exposed"] is True
+        assert exposed["selecting_policies"] == []
+
+    @patch(PATCH_TARGET, new_callable=AsyncMock)
+    @patch(PATCH_POLICIES, new_callable=AsyncMock)
+    def test_mock_fallback(self, mock_policies, mock_pods):
+        """When K8s services fail, fall back to MOCK_COVERAGE."""
+        mock_pods.side_effect = RuntimeError("no cluster")
+        body = assert_ok(client.get("/api/cni/policies/coverage", headers=HEADERS), "mock")
+        assert len(body["data"]) > 0
+        assert all("pod_name" in d for d in body["data"])
+        assert all("exposed" in d for d in body["data"])
+        # Verify mock has at least one exposed pod
+        assert any(d["exposed"] for d in body["data"])
+
+
 class TestCniConnectivityDiagnostics:
     def test_requires_target(self):
         """POST without target_pod or target_service returns 400."""
@@ -319,9 +362,9 @@ class TestAuth:
         ("GET", "/api/cni/bgp-peers"),
         ("GET", "/api/cni/ippools"),
         ("GET", "/api/cni/ipam/utilization"),
-        ("GET", "/api/cni/policies"),
-        ("GET", "/api/cni/topology"),
-        ("GET", "/api/cni/metrics/felix"),
+        ("GET", "/api/cni/policies"),            ("GET", "/api/cni/topology"),
+            ("GET", "/api/cni/policies/coverage"),
+            ("GET", "/api/cni/metrics/felix"),
         ("GET", "/api/network/pods"),
         ("GET", "/api/network/topology"),
         ("GET", "/mock/pods"),
