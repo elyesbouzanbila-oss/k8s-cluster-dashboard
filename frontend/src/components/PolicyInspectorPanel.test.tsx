@@ -1,7 +1,7 @@
 import { render, screen, fireEvent } from '@testing-library/react'
 import { describe, it, expect } from 'vitest'
 import { PolicyInspectorPanel } from './PolicyInspectorPanel'
-import type { CniPolicy, DataSourceStatus } from '../types'
+import type { CniPolicy } from '../types'
 
 const makePolicy = (overrides: Partial<CniPolicy>): CniPolicy => ({
   name: 'test-policy',

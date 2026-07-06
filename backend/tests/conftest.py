@@ -5,10 +5,17 @@ Provides reusable fixtures to avoid duplicating mock setup across
 async service tests, router tests, and unit tests.
 """
 
+import os
 from unittest.mock import AsyncMock, MagicMock, patch
 from typing import AsyncGenerator, Tuple
 
 import pytest
+
+# Set test environment variables BEFORE any test imports happen.
+# main.py calls get_settings() at import time, which requires API_KEY.
+# This default is only used in tests; production uses real env vars.
+os.environ.setdefault("API_KEY", "test-key-not-real")
+os.environ.setdefault("FRONTEND_URL", "http://localhost:5173")
 
 from config import Settings
 
