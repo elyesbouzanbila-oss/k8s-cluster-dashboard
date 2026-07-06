@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useCallback } from 'react'
+import { useEffect, useRef, useState, useCallback, useMemo } from 'react'
 import cytoscape from 'cytoscape'
 import './Topology.css'
 import { getNsColor } from './utils'
@@ -40,6 +40,9 @@ const COLORS = {
   service: '#8B5CF6',
   serviceBg: 'rgba(139, 92, 246, 0.12)',
 }
+
+// ─── Style helper types ──────────────────────────────────────────
+type EleStyle = Record<string, string | number | boolean | ((ele: cytoscape.NodeSingular) => string | number)>
 
 const getNamespaceColor = (ns?: string): string =>
   getNsColor(ns || '')
@@ -281,7 +284,7 @@ export function Topology({ nodes, edges }: TopologyProps) {
             'border-width': 2,
             'border-style': 'dashed',
             'border-opacity': 0.8,
-            'label': (ele: any) => {
+            'label': (ele: cytoscape.NodeSingular) => {
               const name = ele.data('label') || ''
               const ip = ele.data('ip') || ''
               return ip ? `${name}\n${ip}` : name
@@ -299,7 +302,7 @@ export function Topology({ nodes, edges }: TopologyProps) {
             'height': 'data(height)',
             'z-index': 1,
             'z-compound-depth': 'bottom',
-          } as any,
+          } as EleStyle,
         },
         {
           selector: 'node[type="clusternode"][role="master"][ready="false"]',
@@ -309,7 +312,7 @@ export function Topology({ nodes, edges }: TopologyProps) {
             'border-width': 2,
             'border-style': 'solid',
             'border-opacity': 0.6,
-            'label': (ele: any) => {
+            'label': (ele: cytoscape.NodeSingular) => {
               const name = ele.data('label') || ''
               return `${name}\n(OFFLINE)`
             },
@@ -327,7 +330,7 @@ export function Topology({ nodes, edges }: TopologyProps) {
             'z-index': 1,
             'z-compound-depth': 'bottom',
             'opacity': 0.45,
-          } as any,
+          } as EleStyle,
         },
         {
           selector: 'node[type="clusternode"][role="worker"][ready="true"]',
@@ -337,7 +340,7 @@ export function Topology({ nodes, edges }: TopologyProps) {
             'border-width': 2,
             'border-style': 'dashed',
             'border-opacity': 0.7,
-            'label': (ele: any) => {
+            'label': (ele: cytoscape.NodeSingular) => {
               const name = ele.data('label') || ''
               const ip = ele.data('ip') || ''
               return ip ? `${name}\n${ip}` : name
@@ -355,7 +358,7 @@ export function Topology({ nodes, edges }: TopologyProps) {
             'height': 'data(height)',
             'z-index': 1,
             'z-compound-depth': 'bottom',
-          } as any,
+          } as EleStyle,
         },
         {
           selector: 'node[type="clusternode"][role="worker"][ready="false"]',
@@ -365,7 +368,7 @@ export function Topology({ nodes, edges }: TopologyProps) {
             'border-width': 2,
             'border-style': 'solid',
             'border-opacity': 0.6,
-            'label': (ele: any) => {
+            'label': (ele: cytoscape.NodeSingular) => {
               const name = ele.data('label') || ''
               return `${name}\n(OFFLINE)`
             },
@@ -383,7 +386,7 @@ export function Topology({ nodes, edges }: TopologyProps) {
             'z-index': 1,
             'z-compound-depth': 'bottom',
             'opacity': 0.45,
-          } as any,
+          } as EleStyle,
         },
         {
           selector: 'node[type="cluster-anchor"]',
@@ -394,12 +397,12 @@ export function Topology({ nodes, edges }: TopologyProps) {
             'events': 'no',
             'label': '',
             'z-index': 0,
-          } as any,
+          } as EleStyle,
         },
         {
           selector: 'node[type="pod"]',
           style: {
-            'content': (ele: any) => {
+            'content': (ele: cytoscape.NodeSingular) => {
               const label = ele.data('label') || ''
               const ip = ele.data('ip') || ''
               const shortName = label.length > 18 ? label.slice(0, 16) + '…' : label
@@ -412,7 +415,7 @@ export function Topology({ nodes, edges }: TopologyProps) {
             'color': '#ffffff',
             'text-wrap': 'wrap',
             'text-max-width': '80px',
-            'background-color': (ele: any) => getNamespaceColor(ele.data('namespace')),
+            'background-color': (ele: cytoscape.NodeSingular) => getNamespaceColor(ele.data('namespace')),
             'border-width': 1.5,
             'border-color': 'rgba(255, 255, 255, 0.3)',
             'border-opacity': 0.5,
@@ -421,12 +424,12 @@ export function Topology({ nodes, edges }: TopologyProps) {
             'height': '50px',
             'min-zoomed-font-size': 6,
             'z-index': 20,
-          } as any,
+          } as EleStyle,
         },
         {
           selector: 'node[type="service"]',
           style: {
-            'content': (ele: any) => {
+            'content': (ele: cytoscape.NodeSingular) => {
               const label = ele.data('label') || ''
               const ip = ele.data('ip') || ''
               const shortName = label.length > 14 ? label.slice(0, 12) + '…' : label
@@ -447,7 +450,7 @@ export function Topology({ nodes, edges }: TopologyProps) {
             'height': '66px',
             'min-zoomed-font-size': 7,
             'z-index': 15,
-          } as any,
+          } as EleStyle,
         },
         {
           selector: 'node[type="pod"]:selected, node[type="pod"]:active',
@@ -506,7 +509,7 @@ export function Topology({ nodes, edges }: TopologyProps) {
       layout: {
         name: 'preset',
         fit: false,
-      } as any,
+      } as cytoscape.PresetLayoutOptions,
     })
 
     cyRef.current = cy
@@ -533,7 +536,7 @@ export function Topology({ nodes, edges }: TopologyProps) {
         }, {} as Record<string, { x: number; y: number }>)
 
         // Apply new positions to all nodes
-        cyi.nodes().forEach((n: any) => {
+        cyi.nodes().forEach((n: cytoscape.NodeSingular) => {
           const id = n.id()
           if (newPos[id]) n.position(newPos[id])
           if (newChildPos[id]) n.position(newChildPos[id])
@@ -546,26 +549,26 @@ export function Topology({ nodes, edges }: TopologyProps) {
     observer.observe(containerRef.current)
 
     // ── Interactivity ──
-    cy.on('mouseover', 'node[type="pod"], node[type="service"]', (event: any) => {
+    cy.on('mouseover', 'node[type="pod"], node[type="service"]', (event: cytoscape.EventObject) => {
       event.target.addClass('selected')
     })
-    cy.on('mouseout', 'node[type="pod"], node[type="service"]', (event: any) => {
+    cy.on('mouseout', 'node[type="pod"], node[type="service"]', (event: cytoscape.EventObject) => {
       event.target.removeClass('selected')
     })
-    cy.on('mouseover', 'node[type="clusternode"]', (event: any) => {
+    cy.on('mouseover', 'node[type="clusternode"]', (event: cytoscape.EventObject) => {
       event.target.addClass('selected')
     })
-    cy.on('mouseout', 'node[type="clusternode"]', (event: any) => {
+    cy.on('mouseout', 'node[type="clusternode"]', (event: cytoscape.EventObject) => {
       event.target.removeClass('selected')
     })
-    cy.on('mouseover', 'edge', (event: any) => {
+    cy.on('mouseover', 'edge', (event: cytoscape.EventObject) => {
       event.target.addClass('selected')
     })
-    cy.on('mouseout', 'edge', (event: any) => {
+    cy.on('mouseout', 'edge', (event: cytoscape.EventObject) => {
       event.target.removeClass('selected')
     })
 
-    cy.on('tap', 'node', (event: any) => {
+    cy.on('tap', 'node', (event: cytoscape.EventObject) => {
       const node = event.target
       const d = node.data()
       const info: string[] = []
@@ -591,7 +594,7 @@ export function Topology({ nodes, edges }: TopologyProps) {
         if (d.namespace) info.push(`📁 Namespace: ${d.namespace}`)
         if (d.ip) info.push(`🌐 Cluster IP: ${d.ip}`)
         const connectedPods = cy.edges(`[source = "${d.id}"], [target = "${d.id}"]`).connectedNodes()
-        const podCount = connectedPods.filter((n: any) => n.data('type') === 'pod').length
+        const podCount = connectedPods.filter((n: cytoscape.NodeSingular) => n.data('type') === 'pod').length
         info.push(`🔌 Connected Pods: ${podCount}`)
       }
 
@@ -599,10 +602,13 @@ export function Topology({ nodes, edges }: TopologyProps) {
       if (infoBar) {
         infoBar.textContent = info.join('  •  ')
         infoBar.classList.add('visible')
-        if ((infoBar as any)._hideTimer) clearTimeout((infoBar as any)._hideTimer)
-        ;(infoBar as any)._hideTimer = setTimeout(() => {
+        // Store timer on element via data-attr to avoid `as any` cast
+        const timerId = infoBar.getAttribute('data-hide-timer')
+        if (timerId) clearTimeout(Number(timerId))
+        const newTimerId = window.setTimeout(() => {
           infoBar.classList.remove('visible')
         }, 6000)
+        infoBar.setAttribute('data-hide-timer', String(newTimerId))
       }
     })
 
@@ -632,7 +638,8 @@ export function Topology({ nodes, edges }: TopologyProps) {
   }, {} as Record<string, number>)
 
   // ── Keyboard navigation ──
-  const nodeList = [...podNodes, ...serviceNodes]
+  // eslint-disable-next-line react-hooks/preserve-manual-memoization -- array deps change each render
+  const nodeList = useMemo(() => [...podNodes, ...serviceNodes], [podNodes, serviceNodes])
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
     if (!cyRef.current || nodeList.length === 0) return
@@ -654,7 +661,7 @@ export function Topology({ nodes, edges }: TopologyProps) {
             cy.zoom(cy.zoom())
             cy.center(node)
             // Trigger the info toast via tap event
-            cy.emit('tap', { target: node } as any)
+            cy.emit('tap', { target: node } as never)
           }
           return next
         })
@@ -671,7 +678,7 @@ export function Topology({ nodes, edges }: TopologyProps) {
           if (node.length) {
             node.select()
             cy.center(node)
-            cy.emit('tap', { target: node } as any)
+            cy.emit('tap', { target: node } as never)
           }
           return next
         })
@@ -688,7 +695,7 @@ export function Topology({ nodes, edges }: TopologyProps) {
           if (node.length) {
             node.select()
             cy.center(node)
-            cy.emit('tap', { target: node } as any)
+            cy.emit('tap', { target: node } as never)
           }
           return next
         })
@@ -703,7 +710,7 @@ export function Topology({ nodes, edges }: TopologyProps) {
           const node = cy.getElementById(targetId)
           if (node.length) {
             node.select()
-            cy.emit('tap', { target: node } as any)
+            cy.emit('tap', { target: node } as never)
           }
         }
         break
