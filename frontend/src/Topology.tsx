@@ -458,11 +458,9 @@ export function Topology({ nodes, edges }: TopologyProps) {
             'border-color': '#FCD34D',
             'border-width': 3,
             'border-opacity': 1,
-            'shadow-blur': 12,
-            'shadow-color': '#FCD34D',
-            'shadow-opacity': 0.5,
-            'shadow-offset-x': 0,
-            'shadow-offset-y': 0,
+            'outline-width': 4,
+            'outline-color': '#FCD34D',
+            'outline-opacity': 0.35,
           },
         },
         {
@@ -470,9 +468,9 @@ export function Topology({ nodes, edges }: TopologyProps) {
           style: {
             'border-color': '#FCD34D',
             'border-width': 3,
-            'shadow-blur': 12,
-            'shadow-color': '#FCD34D',
-            'shadow-opacity': 0.5,
+            'outline-width': 4,
+            'outline-color': '#FCD34D',
+            'outline-opacity': 0.35,
           },
         },
         {
@@ -480,9 +478,9 @@ export function Topology({ nodes, edges }: TopologyProps) {
           style: {
             'border-color': '#FCD34D',
             'border-width': 3,
-            'shadow-blur': 16,
-            'shadow-color': '#FCD34D',
-            'shadow-opacity': 0.3,
+            'outline-width': 4,
+            'outline-color': '#FCD34D',
+            'outline-opacity': 0.2,
           },
         },
         {

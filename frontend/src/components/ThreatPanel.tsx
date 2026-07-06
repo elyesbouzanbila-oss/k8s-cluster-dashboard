@@ -67,9 +67,9 @@ export function ThreatPanel({ threats, wsConnected, onClear, loading }: ThreatPa
       if (severityFilter !== 'all' && t.priority !== severityFilter) return false
       if (!q) return true
       return (
-        t.rule.toLowerCase().includes(q) ||
-        t.output.toLowerCase().includes(q) ||
-        t.priority.toLowerCase().includes(q)
+        (t.rule || '').toLowerCase().includes(q) ||
+        (t.output || '').toLowerCase().includes(q) ||
+        (t.priority || '').toLowerCase().includes(q)
       )
     })
   }, [displayThreats, searchQuery, severityFilter])
@@ -190,7 +190,7 @@ export function ThreatPanel({ threats, wsConnected, onClear, loading }: ThreatPa
       ) : (
         <div className="threat-list">
           {filteredThreats.map((threat) => (
-            <div key={threat.id} className={`threat-card ${threat.priority.toLowerCase()}`}>
+            <div key={threat.id} className={`threat-card ${(threat.priority || '').toLowerCase()}`}>
               <div className="threat-header">
                 <span className="priority-dot" style={{ backgroundColor: getPriorityColor(threat.priority) }} role="img" aria-label={threat.priority}></span>
                 <span className="priority">{threat.priority}</span>

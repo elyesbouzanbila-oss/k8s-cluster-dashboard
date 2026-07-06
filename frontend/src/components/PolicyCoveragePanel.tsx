@@ -46,9 +46,9 @@ export function PolicyCoveragePanel({ coverage, status }: PolicyCoveragePanelPro
       if (filter === 'covered' && item.exposed) return false
       if (!q) return true
       return (
-        item.pod_name.toLowerCase().includes(q) ||
-        item.namespace.toLowerCase().includes(q) ||
-        Object.entries(item.labels).some(([k, v]) =>
+        (item.pod_name || '').toLowerCase().includes(q) ||
+        (item.namespace || '').toLowerCase().includes(q) ||
+        Object.entries(item.labels || {}).some(([k, v]) =>
           `${k}:${v}`.toLowerCase().includes(q)
         )
       )
@@ -237,26 +237,26 @@ export function PolicyCoveragePanel({ coverage, status }: PolicyCoveragePanelPro
                     )}
                   </td>
                   <td>
-                    {item.selecting_policies.length === 0 ? (
+                    {(item.selecting_policies || []).length === 0 ? (
                       <span className="coverage-no-policies">(none)</span>
                     ) : (
                       <div className="coverage-policy-list">
-                        {item.selecting_policies.slice(0, 3).map(p => (
+                        {(item.selecting_policies || []).slice(0, 3).map(p => (
                           <span key={p} className="coverage-policy-tag">{p}</span>
                         ))}
-                        {item.selecting_policies.length > 3 && (
-                          <span className="coverage-policy-more">+{item.selecting_policies.length - 3}</span>
+                        {(item.selecting_policies || []).length > 3 && (
+                          <span className="coverage-policy-more">+{(item.selecting_policies || []).length - 3}</span>
                         )}
                       </div>
                     )}
                   </td>
                   <td>
                     <div className="coverage-label-list">
-                      {Object.entries(item.labels).slice(0, 3).map(([k, v]) => (
+                      {Object.entries(item.labels || {}).slice(0, 3).map(([k, v]) => (
                         <span key={k} className="label">{k}={v}</span>
                       ))}
-                      {Object.keys(item.labels).length > 3 && (
-                        <span className="coverage-policy-more">+{Object.keys(item.labels).length - 3}</span>
+                      {Object.keys(item.labels || {}).length > 3 && (
+                        <span className="coverage-policy-more">+{Object.keys(item.labels || {}).length - 3}</span>
                       )}
                     </div>
                   </td>

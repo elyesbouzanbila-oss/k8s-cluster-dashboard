@@ -132,20 +132,20 @@ export function CniTopologyPanel({ pods, cniTopology, topologyStatus }: CniTopol
   const filteredPods = useMemo(() => {
     if (!filterLower) return pods
     return pods.filter(p =>
-      p.name.toLowerCase().includes(filterLower) ||
-      p.namespace.toLowerCase().includes(filterLower) ||
-      p.node_name.toLowerCase().includes(filterLower) ||
-      p.pod_ip.toLowerCase().includes(filterLower) ||
-      p.phase.toLowerCase().includes(filterLower)
+      (p.name || '').toLowerCase().includes(filterLower) ||
+      (p.namespace || '').toLowerCase().includes(filterLower) ||
+      (p.node_name || '').toLowerCase().includes(filterLower) ||
+      (p.pod_ip || '').toLowerCase().includes(filterLower) ||
+      (p.phase || '').toLowerCase().includes(filterLower)
     )
   }, [pods, filterLower])
 
   const filteredServices = useMemo(() => {
     if (!filterLower) return services
     return services.filter(s =>
-      s.name.toLowerCase().includes(filterLower) ||
-      s.namespace.toLowerCase().includes(filterLower) ||
-      s.clusterIp.toLowerCase().includes(filterLower)
+      (s.name || '').toLowerCase().includes(filterLower) ||
+      (s.namespace || '').toLowerCase().includes(filterLower) ||
+      (s.clusterIp || '').toLowerCase().includes(filterLower)
     )
   }, [services, filterLower])
 

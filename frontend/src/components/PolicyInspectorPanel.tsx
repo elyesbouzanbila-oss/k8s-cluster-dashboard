@@ -62,7 +62,7 @@ export function PolicyInspectorPanel({ policies, status }: PolicyInspectorPanelP
       if (typeFilter !== 'all' && p.type !== typeFilter) return false
       if (!q) return true
       return (
-        p.name.toLowerCase().includes(q) ||
+        (p.name || '').toLowerCase().includes(q) ||
         (p.namespace || '').toLowerCase().includes(q) ||
         (p.selector || '').toLowerCase().includes(q)
       )
