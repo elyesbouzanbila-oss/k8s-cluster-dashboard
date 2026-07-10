@@ -60,20 +60,27 @@ async def falco_webhook(
 async def ws_threats(ws: WebSocket, settings: Settings = Depends(get_settings_dep)):
     """WebSocket endpoint for real-time threat events.
 
-    The WebSocket connection goes through nginx (same-origin), so no
-    additional API key is required. Browsers automatically send cookies
-    on WebSocket upgrades to same-origin. Origin header verification
-    provides defense-in-depth against direct connections to the backend
-    service (bypassing nginx).
+    Security model:
+      1. NetworkPolicy (k8s/networkpolicy-backend.yaml) blocks direct
+         access to the backend — only dashboard-frontend pods can reach
+         port 8000. External clients must go through nginx.
+      2. Origin check below verifies the WS upgrade came from the same
+         host nginx served the SPA on, derived dynamically from the Host
+         header. Works for any access URL (node IP, DNS, port-forward,
+         Ingress) without needing FRONTEND_URL to enumerate them all.
+      3. Endpoint is read-only — it streams Redis pubsub to clients and
+         takes no actions on incoming messages, so cross-origin WS
+         attacks have no impact even if (1) and (2) somehow fail.
     """
-    # Defense-in-depth: verify Origin header to reject direct connections
-    # to the backend service that bypass nginx's same-origin isolation.
     origin = ws.headers.get("origin", "")
-    allowed = {settings.FRONTEND_URL.rstrip("/")}
-    if origin and origin not in allowed:
-        logger.warning(f"WebSocket rejected: origin {origin!r} not in allowed set")
-        await ws.close(code=status.WS_1008_POLICY_VIOLATION, reason="Origin not allowed")
-        return
+    host = ws.headers.get("host", "")
+    if origin and host:
+        # Allow http://host or https://host (with or without trailing slash)
+        allowed_origins = {f"{scheme}://{host.rstrip('/')}" for scheme in ("http", "https")}
+        if origin not in allowed_origins:
+            logger.warning(f"WebSocket rejected: origin {origin!r} doesn't match host {host!r}")
+            await ws.close(code=status.WS_1008_POLICY_VIOLATION, reason="Origin not allowed")
+            return
 
     await ws.accept()
     logger.info("WebSocket client connected")
