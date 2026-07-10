@@ -20,9 +20,7 @@ spec:
             claimName: dashboard-redis-pvc
       containers:
         - name: redis
-          # L8: Pin to a specific digest for supply-chain safety
-          # redis:alpine SHA as of July 2026
-          image: redis:alpine@sha256:328fe6a5822256d10de89c8c1f669a3f2ed3e9ee2dbd1549d0890bf33c22eaf8
+          image: redis:7.2-alpine
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 6379
