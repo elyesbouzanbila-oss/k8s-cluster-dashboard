@@ -18,3 +18,4 @@ resources:
   - pvc-redis.yaml
   - secret-redis.yaml
   - networkpolicy-redis.yaml
+  - networkpolicy-backend.yaml

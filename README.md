@@ -1,5 +1,7 @@
 # CNI Command Center
 
+![CI](https://github.com/elyesbouzanbila-oss/k8s-cluster-dashboard/actions/workflows/ci.yml/badge.svg)
+
 A dedicated Calico CNI diagnostics and command center for Kubernetes clusters.
 General cluster/resource monitoring (node CPU/mem, pod resources, storage) is handled by Grafana
 (via kube-prometheus-stack). This app focuses exclusively on Calico CNI health, IPAM, network policy
@@ -356,5 +358,3 @@ kubectl apply -k k8s/     # or: kubectl apply -f k8s/
 ## License
 
 Internal project.
-
-![CI](https://github.com/elyesbouzanbila-oss/k8s-cluster-dashboard/actions/workflows/ci.yml/badge.svg)

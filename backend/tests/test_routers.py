@@ -31,7 +31,6 @@ from models.mock_data import (
 
 # ─── Test configuration ──────────────────────────────────────────
 TEST_SETTINGS = Settings(API_KEY="test-key")
-HEADERS = {"X-API-Key": "test-key"}
 
 # ─── Override FastAPI dependencies ───────────────────────────────
 

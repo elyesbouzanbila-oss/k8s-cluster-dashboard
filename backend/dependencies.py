@@ -1,5 +1,5 @@
-from fastapi import Depends, HTTPException, Header, status
-from typing import AsyncGenerator, Optional
+from fastapi import Depends, HTTPException
+from typing import AsyncGenerator
 
 from connection.models import ConnectionConfig
 from connection.factory import create_api_client
@@ -8,25 +8,6 @@ from config import get_settings, Settings
 
 async def get_settings_dep() -> Settings:
 	return get_settings()
-
-
-async def verify_api_key(
-	x_api_key: Optional[str] = Header(None),
-	settings: Settings = Depends(get_settings_dep)
-) -> Settings:
-	"""Verify API key from X-API-Key header."""
-	if not x_api_key:
-		raise HTTPException(
-			status_code=status.HTTP_401_UNAUTHORIZED,
-			detail="Missing X-API-Key header",
-			headers={"WWW-Authenticate": "Bearer"},
-		)
-	if x_api_key != settings.API_KEY:
-		raise HTTPException(
-			status_code=status.HTTP_403_FORBIDDEN,
-			detail="Invalid API key",
-		)
-	return settings
 
 
 async def get_connection_config() -> ConnectionConfig:

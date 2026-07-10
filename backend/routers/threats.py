@@ -62,8 +62,19 @@ async def ws_threats(ws: WebSocket, settings: Settings = Depends(get_settings_de
 
     The WebSocket connection goes through nginx (same-origin), so no
     additional API key is required. Browsers automatically send cookies
-    on WebSocket upgrades to same-origin.
+    on WebSocket upgrades to same-origin. Origin header verification
+    provides defense-in-depth against direct connections to the backend
+    service (bypassing nginx).
     """
+    # Defense-in-depth: verify Origin header to reject direct connections
+    # to the backend service that bypass nginx's same-origin isolation.
+    origin = ws.headers.get("origin", "")
+    allowed = {settings.FRONTEND_URL.rstrip("/")}
+    if origin and origin not in allowed:
+        logger.warning(f"WebSocket rejected: origin {origin!r} not in allowed set")
+        await ws.close(code=status.WS_1008_POLICY_VIOLATION, reason="Origin not allowed")
+        return
+
     await ws.accept()
     logger.info("WebSocket client connected")
     service = ThreatService(settings)

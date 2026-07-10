@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 from typing import Literal, Optional
 import os
 from dotenv import load_dotenv
@@ -43,8 +43,7 @@ class ConnectionConfig(BaseModel):
 	)
 	namespace: Optional[str] = Field("default", description="Cluster namespace")
 
-	class Config:
-		extra = "ignore"  # Allow extra fields from environment but ignore them
+	model_config = ConfigDict(extra="ignore")  # Allow extra fields from environment but ignore them
 
 	@classmethod
 	def from_env(cls) -> "ConnectionConfig":

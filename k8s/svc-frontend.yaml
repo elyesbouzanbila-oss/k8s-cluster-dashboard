@@ -10,4 +10,7 @@ spec:
       targetPort: 5173
       protocol: TCP
       name: http
+  # ClusterIP: for dev only. In production, use an Ingress with TLS + OIDC
+  # authentication in front of this service. Do NOT switch to NodePort or
+  # LoadBalancer without adding auth (the API key was removed from the SPA).
   type: ClusterIP
