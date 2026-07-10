@@ -4,6 +4,7 @@ metadata:
   name: dashboard-redis
   labels:
     app: dashboard-redis
+namespace: k8s-dashboard
 spec:
   replicas: 1
   selector:
@@ -26,15 +27,14 @@ spec:
             - containerPort: 6379
               protocol: TCP
           command:
-            - redis-server
+            - /bin/sh
+            - -c
           args:
-            - --requirepass
-            - "$(REDIS_PASSWORD)"
-            - --save
-            - "60"
-            - "1"
-            - --appendonly
-            - "yes"
+            - |
+              exec redis-server \
+                --requirepass "$REDIS_PASSWORD" \
+                --save 60 1 \
+                --appendonly yes
           env:
             - name: REDIS_PASSWORD
               valueFrom:
