@@ -15,11 +15,12 @@ spec:
         app: dashboard-backend
     spec:
       serviceAccountName: dashboard-sa
-      nodeSelector:
-        kubernetes.io/hostname: masternode
       containers:
         - name: backend
           image: dashboard-backend:latest
+          # imagePullPolicy: Never — local/kind cluster only! In production,
+          # remove this line or change to Always / IfNotPresent so the pod
+          # pulls from a real container registry.
           imagePullPolicy: Never
           ports:
             - containerPort: 8000

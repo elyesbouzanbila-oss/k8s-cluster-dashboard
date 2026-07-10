@@ -17,7 +17,6 @@ import type {
 } from './types'
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || ''
-const API_KEY = import.meta.env.VITE_API_KEY || 'your-secret-api-key-change-this'
 
 const REFRESH_MS = 30_000  // 30s background refresh
 
@@ -43,7 +42,6 @@ function App() {
   const [error, setError] = useState<string | null>(null)
   const refreshIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const wsRef = useRef<WebSocket | null>(null)
-  const fetchAbortRef = useRef<AbortController | null>(null)
   const threatIdRef = useRef(1)
 
   // Shared state
@@ -58,6 +56,8 @@ function App() {
   const [cniTopology, setCniTopology] = useState<{ nodes: CniTopologyNode[]; edges: CniTopologyEdge[] } | null>(null)
   const [felixMetrics, setFelixMetrics] = useState<FelixMetrics | null>(null)
   const [policyCoverage, setPolicyCoverage] = useState<PodCoverageItem[]>([])
+  // L5: policies tab sub-view toggle (not reset on tab switch — intentional;
+  // user preference persists across tab switches)
   const [policyCoverageView, setPolicyCoverageView] = useState<'definitions' | 'coverage'>('definitions')
 
   // Threats state
@@ -84,12 +84,12 @@ function App() {
     try {
       // Always fetch pods and CNI data
       const [podsRes, nodesRes, poolsRes, ipamRes, policiesRes, bgpRes] = await Promise.all([
-        fetch(`${API_BASE_URL}/api/network/pods`, { headers: { 'X-API-Key': API_KEY } }),
-        fetch(`${API_BASE_URL}/api/cni/nodes`, { headers: { 'X-API-Key': API_KEY } }),
-        fetch(`${API_BASE_URL}/api/cni/ippools`, { headers: { 'X-API-Key': API_KEY } }),
-        fetch(`${API_BASE_URL}/api/cni/ipam/utilization`, { headers: { 'X-API-Key': API_KEY } }),
-        fetch(`${API_BASE_URL}/api/cni/policies`, { headers: { 'X-API-Key': API_KEY } }),
-        fetch(`${API_BASE_URL}/api/cni/bgp-peers`, { headers: { 'X-API-Key': API_KEY } }),
+        fetch(`${API_BASE_URL}/api/network/pods`),
+        fetch(`${API_BASE_URL}/api/cni/nodes`),
+        fetch(`${API_BASE_URL}/api/cni/ippools`),
+        fetch(`${API_BASE_URL}/api/cni/ipam/utilization`),
+        fetch(`${API_BASE_URL}/api/cni/policies`),
+        fetch(`${API_BASE_URL}/api/cni/bgp-peers`),
       ])
 
       if (podsRes.ok) {
@@ -121,7 +121,7 @@ function App() {
       }
 
       // Fetch topology
-      const topoRes = await fetch(`${API_BASE_URL}/api/cni/topology`, { headers: { 'X-API-Key': API_KEY } })
+      const topoRes = await fetch(`${API_BASE_URL}/api/cni/topology`)
       if (topoRes.ok) {
         const d: ApiResponse<{ nodes: CniTopologyNode[]; edges: CniTopologyEdge[] }> = await topoRes.json()
         setCniTopology(d.data || null)
@@ -129,7 +129,7 @@ function App() {
       }
 
       // Fetch Felix metrics
-      const felixRes = await fetch(`${API_BASE_URL}/api/cni/metrics/felix`, { headers: { 'X-API-Key': API_KEY } })
+      const felixRes = await fetch(`${API_BASE_URL}/api/cni/metrics/felix`)
       if (felixRes.ok) {
         const d: ApiResponse<FelixMetrics> = await felixRes.json()
         setFelixMetrics(d.data || null)
@@ -137,13 +137,21 @@ function App() {
       }
 
       // Fetch policy coverage
-      const coverageRes = await fetch(`${API_BASE_URL}/api/cni/policies/coverage`, { headers: { 'X-API-Key': API_KEY } })
+      const coverageRes = await fetch(`${API_BASE_URL}/api/cni/policies/coverage`)
       if (coverageRes.ok) {
         const d: ApiResponse<PodCoverageItem[]> = await coverageRes.json()
         setPolicyCoverage(d.data || [])
       }
 
-    } catch { /* silent */ }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Connection lost'
+      setError(`Data fetch failed: ${msg}`)
+      setCniNodesStatus('error')
+      setIpamStatus('error')
+      setPoliciesStatus('error')
+      setFelixStatus('error')
+      setTopologyStatus('error')
+    }
   }, [])
 
   // ── Explicit fetches with loading state ──
@@ -160,7 +168,11 @@ function App() {
   }, [silentRefresh])
 
   // ── WebSocket for threats ──
+  const reconnectRef = useRef(0)
+  const MAX_RECONNECT_ATTEMPTS = 10
+
   const connectWebSocket = useCallback(() => {
+    reconnectRef.current = 0
     if (wsRef.current) {
       wsRef.current.onclose = null
       wsRef.current.close()
@@ -169,10 +181,10 @@ function App() {
 
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
     const wsUrl = `${protocol}//${window.location.host}/api/threats/ws/threats`
-    const ws = new WebSocket(wsUrl, [API_KEY])
+    const ws = new WebSocket(wsUrl)
     wsRef.current = ws
 
-    ws.onopen = () => { setWsConnected(true); setError(null) }
+    ws.onopen = () => { reconnectRef.current = 0; setWsConnected(true); setError(null) }
     ws.onmessage = (event) => {
       try {
         const threat = JSON.parse(event.data)
@@ -185,7 +197,13 @@ function App() {
       if (wsRef.current === ws) {
         wsRef.current = null
         setWsConnected(false)
-        setTimeout(connectWebSocket, 3000)
+        const attempt = reconnectRef.current
+        if (attempt < MAX_RECONNECT_ATTEMPTS) {
+          reconnectRef.current = attempt + 1
+          // Exponential backoff with jitter: 1s, 2s, 4s, 8s, ... up to ~30s
+          const delay = Math.min(30000, 1000 * 2 ** attempt) + Math.random() * 500
+          setTimeout(connectWebSocket, delay)
+        }
       }
     }
   }, [])
@@ -208,16 +226,6 @@ function App() {
       if (refreshIntervalRef.current) clearInterval(refreshIntervalRef.current)
     }
   }, [silentRefresh])
-
-  // Cleanup abort controller on unmount
-  useEffect(() => {
-    return () => {
-      if (fetchAbortRef.current) {
-        fetchAbortRef.current.abort()
-        fetchAbortRef.current = null
-      }
-    }
-  }, [])
 
   // Load data on tab change
   useEffect(() => {

@@ -7,12 +7,9 @@ rules:
   - apiGroups: [""]
     resources: [pods, services, nodes, endpoints, namespaces]
     verbs: [get, list, watch]
-  # Security / RBAC — cluster and namespace role binding audit
+  # RBAC — cluster and namespace role binding audit
   - apiGroups: [rbac.authorization.k8s.io]
     resources: [clusterrolebindings, rolebindings, clusterroles, roles]
-    verbs: [get, list]
-  - apiGroups: [""]
-    resources: [serviceaccounts, secrets]
     verbs: [get, list]
   # Metrics — node/pod resource usage (only needed if metrics-server is installed)
   - apiGroups: ["metrics.k8s.io"]

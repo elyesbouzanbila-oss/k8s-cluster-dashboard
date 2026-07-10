@@ -15,3 +15,6 @@ resources:
   - svc-frontend.yaml
   - deploy-redis.yaml
   - svc-redis.yaml
+  - pvc-redis.yaml
+  - secret-redis.yaml
+  - networkpolicy-redis.yaml

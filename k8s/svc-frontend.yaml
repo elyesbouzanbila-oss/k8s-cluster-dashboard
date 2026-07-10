@@ -10,5 +10,4 @@ spec:
       targetPort: 5173
       protocol: TCP
       name: http
-      nodePort: 30080
-  type: NodePort
+  type: ClusterIP

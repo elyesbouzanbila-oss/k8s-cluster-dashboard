@@ -4,6 +4,9 @@ from typing import List, Dict, Any
 from connection.models import ConnectionConfig
 from dependencies import get_k8s_client, get_connection_config
 from models.mock_data import MOCK_PODS as _MOCK_PODS, build_mock_topology
+from services.logging_service import get_logger
+
+logger = get_logger(__name__)
 
 router = APIRouter()
 
@@ -41,7 +44,7 @@ async def list_pods(
 		return {"status": "success", "items": items}
 	except Exception as e:
 		# Fall back to mock data if K8s not available
-		print(f"K8s connection failed: {e}, using mock data")
+		logger.warning(f"K8s connection failed: {e}, using mock data")
 		return {"status": "mock", "items": MOCK_PODS}
 
 from services.utils import label_selector_matches
@@ -156,6 +159,6 @@ async def get_topology(
 		return {"status": "success", "nodes": nodes, "edges": edges}
 	except Exception as e:
 		# Fall back to rich mock data if K8s not available
-		print(f"K8s connection failed: {e}, using mock topology")
+		logger.warning(f"K8s connection failed: {e}, using mock topology")
 		mock = build_mock_topology()
 		return {"status": "mock", "nodes": mock["nodes"], "edges": mock["edges"]}

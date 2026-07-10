@@ -14,8 +14,6 @@ spec:
       labels:
         app: dashboard-frontend
     spec:
-      nodeSelector:
-        kubernetes.io/hostname: masternode
       containers:
         - name: frontend
           image: dashboard-frontend:latest
@@ -23,13 +21,8 @@ spec:
           ports:
             - containerPort: 5173
               protocol: TCP
-          env:
-            # API key for backend auth (injected into JS at build time)
-            - name: VITE_API_KEY
-              valueFrom:
-                secretKeyRef:
-                  name: dashboard-api-key
-                  key: api-key
+          # API key removed from frontend — authentication is handled
+          # by the nginx reverse proxy or an external authenticating proxy.
           resources:
             requests:
               memory: "64Mi"

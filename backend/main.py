@@ -1,16 +1,31 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+from slowapi.middleware import SlowAPIMiddleware
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 
 from config import get_settings
 from routers import network as network_router
 from routers import threats as threats_router
 from routers import mock
 from routers import cni as cni_router
+from services.logging_service import get_logger
 
+logger = get_logger(__name__)
 
 settings = get_settings()
 
+# Rate limiter: uses X-Forwarded-For header when behind nginx
+limiter = Limiter(key_func=get_remote_address)
+
 app = FastAPI(title="K8s Dashboard API")
+
+# Register rate-limit exception handler
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+app.add_middleware(SlowAPIMiddleware)
 
 # CORS configuration: restrict to frontend domain only
 app.add_middleware(
@@ -18,12 +33,13 @@ app.add_middleware(
     allow_origins=[settings.FRONTEND_URL],
     allow_credentials=True,
     allow_methods=["GET", "POST", "OPTIONS"],
-    allow_headers=["Content-Type", "X-API-Key"],
+    allow_headers=["Content-Type"],
 )
 
 
 @app.get("/")
 def read_root():
+    logger.info("Health check")
     return {"status": "ok", "message": "K8s Dashboard API is running"}
 
 

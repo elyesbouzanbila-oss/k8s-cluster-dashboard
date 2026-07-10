@@ -23,15 +23,17 @@ async def get_calico_nodes(api_client) -> List[Dict[str, Any]]:
     for p in pods.items:
         node_name = getattr(p.spec, "node_name", None)
         pod_ip = getattr(p.status, "pod_ip", None)
-        felix_ready = False
-        bird_ready = False
+        # calico-node is a single container running both Felix and BIRD.
+        # The container has a single readiness probe, so readiness cannot
+        # be split into separate felix/bird signals without querying the
+        # Felix readiness endpoint or Calico NodeStatus CRDs.
+        # Consolidated into a single "calico_ready" indicator.
+        calico_ready = False
 
-        # Check container statuses for readiness
         for c in (p.status.container_statuses or []):
-            if c.ready:
-                if c.name == "calico-node":
-                    felix_ready = c.ready
-                    bird_ready = c.ready
+            if c.ready and c.name == "calico-node":
+                calico_ready = True
+                break
 
         # Compute uptime from the earliest running container
         uptime_seconds = None
@@ -45,8 +47,9 @@ async def get_calico_nodes(api_client) -> List[Dict[str, Any]]:
 
         nodes.append({
             "node": node_name,
-            "felix_ready": felix_ready,
-            "bird_ready": bird_ready,
+            "calico_ready": calico_ready,
+            "felix_ready": calico_ready,
+            "bird_ready": calico_ready,
             "ip": pod_ip,
             "uptime_seconds": uptime_seconds,
             "last_reported": None,
@@ -399,11 +402,15 @@ async def get_cni_topology(api_client) -> Dict[str, Any]:
     # ── Build edges ──────────────────────────────────────────────
     edges: List[Dict[str, Any]] = list(bgp_edges)
 
+    # Group pods by namespace to avoid O(S × P) scanning for large clusters
+    pods_by_ns: Dict[str, List[Dict[str, Any]]] = defaultdict(list)
+    for pod in pods_data:
+        pods_by_ns[pod["namespace"]].append(pod)
+
     # Pod-to-service edges via label-selector matching
     for svc in services_data:
-        for pod in pods_data:
-            if pod["namespace"] != svc["namespace"]:
-                continue
+        svc_ns = svc["namespace"]
+        for pod in pods_by_ns.get(svc_ns, []):
             if _label_selector_matches(pod["labels"], svc["selector"]):
                 edges.append({
                     "id": f"{pod['id']}-to-{svc['id']}",

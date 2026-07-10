@@ -1,10 +1,13 @@
 """Felix metrics service — queries Prometheus for calico-node Felix metrics."""
 
 from typing import Any, Dict, List, Optional
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from config import Settings
 from services.prometheus_service import query_prometheus
+from services.logging_service import get_logger
+
+logger = get_logger(__name__)
 
 
 FELIX_METRICS_QUERIES = {
@@ -38,10 +41,10 @@ async def get_felix_metrics(settings: Settings) -> Dict[str, Any]:
                     # For single-value aggregations, sum across all calico-node instances
                     result[key] = sum(values)
             else:
-                result[key] = 0
+                result[key] = None
         except Exception as e:
-            print(f"Felix metric '{key}' query failed: {e}")
-            result[key] = 0
+            logger.warning(f"Felix metric '{key}' query failed: {e}")
+            result[key] = None
 
     return result
 
@@ -56,9 +59,9 @@ async def get_felix_metrics_time_series(
     """
     from services.prometheus_service import query_range_prometheus
 
-    end = datetime.utcnow()
-    step = "30s"
+    end = datetime.now(timezone.utc)
     start = end - timedelta(minutes=duration_minutes)
+    step = "30s"
 
     series: Dict[str, List[Dict[str, Any]]] = {}
     for key, promql in FELIX_METRICS_QUERIES.items():
@@ -75,14 +78,14 @@ async def get_felix_metrics_time_series(
                 for r in data["result"]:
                     for ts_str, val_str in r.get("values", []):
                         points.append({
-                            "timestamp": datetime.utcfromtimestamp(float(ts_str)).isoformat() + "Z",
+                            "timestamp": datetime.fromtimestamp(float(ts_str), tz=timezone.utc).isoformat().replace("+00:00", "Z"),
                             "value": float(val_str),
                         })
                 series[key] = points
             else:
                 series[key] = []
         except Exception as e:
-            print(f"Felix time-series '{key}' query failed: {e}")
+            logger.warning(f"Felix time-series '{key}' query failed: {e}")
             series[key] = []
 
     return series

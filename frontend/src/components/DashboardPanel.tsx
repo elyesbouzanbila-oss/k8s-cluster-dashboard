@@ -164,11 +164,10 @@ export function DashboardPanel({
                   <div className="rbac-summary-item">
                     <span className="rbac-summary-label">BGP Sessions Active</span>
                     <span className="rbac-summary-value">{felixMetrics.bgp_sessions_active ?? '-'}</span>
-                  </div>
-                  <div className="rbac-summary-item">
+                  </div>                  <div className="rbac-summary-item">
                     <span className="rbac-summary-label">Dataplane Failures</span>
-                    <span className="rbac-summary-value" style={{ color: (felixMetrics.int_dataplane_failures ?? 0) > 0 ? 'var(--danger)' : 'var(--success)' }}>
-                      {felixMetrics.int_dataplane_failures ?? 0}
+                    <span className="rbac-summary-value" style={{ color: (felixMetrics.int_dataplane_failures ?? 0) === 0 ? 'var(--success)' : (felixMetrics.int_dataplane_failures ?? 0) > 0 ? 'var(--danger)' : 'var(--text-tertiary)' }}>
+                      {felixMetrics.int_dataplane_failures != null ? felixMetrics.int_dataplane_failures : '-'}
                     </span>
                   </div>
                 </div>

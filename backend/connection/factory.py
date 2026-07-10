@@ -9,6 +9,15 @@ import urllib3
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 
+def _write_temp_ca(ca_cert_pem: str) -> str:
+	"""Write a CA certificate PEM to a temp file and return its path."""
+	tf = tempfile.NamedTemporaryFile(delete=False, suffix=".ca.crt")
+	tf.write(ca_cert_pem.encode())
+	tf.flush()
+	tf.close()
+	return tf.name
+
+
 def _ensure_kubernetes_available():
 	try:
 		import kubernetes_asyncio as k8s
@@ -66,15 +75,25 @@ async def create_api_client(conn: ConnectionConfig):
 
 		configuration = k8s_client.Configuration()
 		configuration.host = conn.server
-		# Skip SSL verification if no CA cert provided (for internal clusters)
-		configuration.verify_ssl = False
-		
+		configuration.verify_ssl = True
+		if conn.ca_cert:
+			configuration.ssl_ca_cert = _write_temp_ca(conn.ca_cert)
+		elif conn.server and conn.server.startswith("https://"):
+			# Internal cluster with self-signed cert — opt-in via env, not default
+			if os.getenv("K8S_INSECURE_SKIP_TLS_VERIFY") == "true":
+				configuration.verify_ssl = False
+			else:
+				raise ValueError(
+					"K8S_CA_CERT required for https:// servers "
+					"(set K8S_INSECURE_SKIP_TLS_VERIFY=true to override)"
+				)
+
 		api_client = k8s_client.ApiClient(configuration=configuration)
-		
+
 		# Add the bearer token to the default headers after creating the client
 		# This ensures it gets sent with every request
 		api_client.default_headers["Authorization"] = f"Bearer {conn.token}"
-		
+
 		return api_client
 
 	raise ValueError(f"unsupported connection mode: {conn.mode}")

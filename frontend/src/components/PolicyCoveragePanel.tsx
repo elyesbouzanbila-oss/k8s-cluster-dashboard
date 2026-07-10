@@ -64,6 +64,15 @@ export function PolicyCoveragePanel({ coverage, status }: PolicyCoveragePanelPro
         <DataSourceBadge status={status} label="Coverage data" />
       </div>
 
+      {/* M10: Warning about selector parser limitations */}
+      <div className="info-banner" style={{ marginBottom: '16px', padding: '10px 14px', backgroundColor: 'rgba(245, 158, 11, 0.1)', border: '1px solid rgba(245, 158, 11, 0.3)', borderRadius: '8px', display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
+        <Icon name="alert-triangle" size={16} style={{ color: 'var(--warning)', flexShrink: 0, marginTop: '2px' }} />
+        <span style={{ fontSize: '13px', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+          Coverage analysis supports basic Calico selectors only (<code>has</code>, <code>==</code>, <code>!=</code>, <code>in</code>, <code>&&</code>, <code>||</code>).
+          Advanced selectors like <code>contains</code>, <code>matches</code>, <code>startsWith</code>, <code>endsWith</code>, or nested parentheses may be misclassified.
+        </span>
+      </div>
+
       {/* Summary cards */}
       <div className="coverage-summary-cards">
         <div className="coverage-summary-card">

@@ -111,8 +111,7 @@ The dashboard requires the following ClusterRole permissions to operate. These a
 | API Group | Resources | Verbs | Purpose |
 |-----------|-----------|-------|---------|
 | `(core)` | `pods`, `services`, `nodes`, `endpoints`, `namespaces` | `get, list, watch` | Pod discovery, topology, diagnostics |
-| `rbac.authorization.k8s.io` | `clusterrolebindings`, `rolebindings`, `clusterroles`, `roles` | `get, list` | RBAC audit (Security tab) |
-| `(core)` | `serviceaccounts`, `secrets` | `get, list` | Security context enrichment |
+| `rbac.authorization.k8s.io` | `clusterrolebindings`, `rolebindings`, `clusterroles`, `roles` | `get, list` | RBAC audit |
 | `metrics.k8s.io` | `pods`, `nodes` | `get, list, watch` | Resource usage panels (if metrics-server installed) |
 | `storage.k8s.io` | `storageclasses` | `get, list` | Storage class discovery |
 | `(core)` | `persistentvolumes`, `persistentvolumeclaims` | `get, list, watch` | PVC/PV overview |
@@ -187,7 +186,14 @@ K8S_MODE=incluster
 
 #### Backend (`.env`)
 ```env
-API_KEY=your-secret-api-key-change-this
+# ❗ API_KEY is required — no default value is provided.
+# Generate a strong key: openssl rand -base64 32
+API_KEY=
+
+# Separate secret for Falco webhook HMAC signature (optional)
+# Configure Falcosidekick with webhook.CustomHeaders: X-Falco-Signature=<hmac>
+FALCO_WEBHOOK_SECRET=
+
 FRONTEND_URL=http://localhost:5173
 REDIS_URL=redis://redis:6379/0
 
@@ -202,13 +208,19 @@ PROMETHEUS_URL=http://prometheus-k8s.monitoring.svc:9090
 
 #### Frontend (`.env.local`)
 ```env
+# API key has been removed from the frontend for security.
+# The frontend communicates with the backend through the nginx reverse proxy
+# (same-origin). No API key is needed in the browser.
 VITE_API_URL=http://localhost:8000
-VITE_API_KEY=your-secret-api-key-change-this
 ```
 
 ## API Endpoints
 
-All endpoints require the `X-API-Key` header.
+> **Security note:** The API key has been removed from the frontend. In production,
+> the backend should be deployed behind an authenticating reverse proxy (nginx + OIDC/mTLS,
+> Istio authz policy, or a sidecar like oauth2-proxy). For local development, the nginx
+> reverse proxy provides same-origin isolation. The Falco webhook (`/api/threats/falco`)
+> can be authenticated via HMAC-SHA256 signature using `FALCO_WEBHOOK_SECRET`.
 
 | Endpoint                         | Method     | Description                              |
 |----------------------------------|------------|------------------------------------------|
@@ -230,10 +242,13 @@ All endpoints require the `X-API-Key` header.
 ## Architecture
 
 ```
-┌────────────────────┐     HTTP + X-API-Key      ┌──────────────────┐
-│  CNI Command Center │ ──────────────────────────▶│   Backend        │
-│  (React+Vite)      │◀──────────────────────────│ (FastAPI)        │
-└────────────────────┘     JSON responses         └────────┬─────────┘
+┌────────────────────┐         HTTP (same-origin)      ┌──────────────────┐
+│  CNI Command Center │ ───────────────────────────────▶│   Backend        │
+│  (React+Vite)      │◀───────────────────────────────│ (FastAPI)        │
+│    served by        │                                 │    behind        │
+│  nginx reverse      │                                 │  authenticating  │
+│      proxy          │                                 │   reverse proxy  │
+└────────────────────┘                                 └────────┬─────────┘
                                                           │
                          ┌───────────────────────────────┼──────────────┐
                          ▼                               ▼              ▼
@@ -342,11 +357,4 @@ kubectl apply -k k8s/     # or: kubectl apply -f k8s/
 
 Internal project.
 
-# CNI Command Center
-
-![CI](https://github.com/elyesbouzanbila-oss/k8s-cluster-dash-boad/actions/workflows/ci.yml/badge.svg)
-
-A dedicated Calico CNI diagnostics and command center for Kubernetes clusters.
-General cluster/resource monitoring (node CPU/mem, pod resources, storage) is handled by Grafana
-(via kube-prometheus-stack). This app focuses exclusively on Calico CNI health, IPAM, network policy
-inspection, topology, and connectivity diagnostics.
+![CI](https://github.com/elyesbouzanbila-oss/k8s-cluster-dashboard/actions/workflows/ci.yml/badge.svg)

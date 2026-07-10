@@ -1,23 +1,38 @@
 """CNI (Calico) diagnostic endpoints."""
 
 import asyncio
-import uuid
 import re
-from fastapi import APIRouter, Depends, Query, HTTPException
+import uuid
 from typing import Any, Dict, Optional
 
+from fastapi import APIRouter, Depends, HTTPException, Query
+
 from config import Settings
-from dependencies import get_k8s_client, get_settings_dep, verify_api_key
+from dependencies import get_k8s_client, get_settings_dep
 from models.mock_data import (
-    MOCK_CALICO_NODES,
     MOCK_BGP_PEERS,
-    MOCK_IP_POOLS,
-    MOCK_IPAM_BLOCKS,
+    MOCK_CALICO_NODES,
     MOCK_CNI_POLICIES,
     MOCK_FELIX_METRICS,
+    MOCK_IPAM_BLOCKS,
+    MOCK_IP_POOLS,
 )
 from services import calico_service
 from services.felix_metrics_service import get_felix_metrics, get_felix_metrics_time_series
+from services.logging_service import get_logger
+
+logger = get_logger(__name__)
+
+# RFC 1123 subdomain: lowercase alphanumeric, hyphens, max 253 chars, start/end with alphanumeric
+_NAME_RE = re.compile(r"^[a-z0-9]([-a-z0-9]*[a-z0-9])?$")
+
+
+def _validate_k8s_name(value: str, field: str) -> str:
+    """Validate that a Kubernetes resource name conforms to RFC 1123 subdomain."""
+    if not value or len(value) > 253 or not _NAME_RE.match(value):
+        raise HTTPException(status_code=400, detail=f"Invalid {field}: {value!r}")
+    return value
+
 
 router = APIRouter(prefix="/api/cni", tags=["CNI / Calico"])
 
@@ -25,77 +40,71 @@ router = APIRouter(prefix="/api/cni", tags=["CNI / Calico"])
 @router.get("/nodes")
 async def list_cni_nodes(
     api_client=Depends(get_k8s_client),
-    _: Settings = Depends(verify_api_key),
 ) -> Dict[str, Any]:
     """Per-node Calico agent status (Felix ready, BIRD/BGP ready, IP, uptime)."""
     try:
         data = await calico_service.get_calico_nodes(api_client)
         return {"status": "success", "data": data}
     except Exception as e:
-        print(f"CNI nodes failed: {e}, using mock data")
+        logger.warning(f"CNI nodes failed: {e}, using mock data")
         return {"status": "mock", "data": MOCK_CALICO_NODES}
 
 
 @router.get("/bgp-peers")
 async def list_bgp_peers(
     api_client=Depends(get_k8s_client),
-    _: Settings = Depends(verify_api_key),
 ) -> Dict[str, Any]:
     """BGP peer list with session state per node."""
     try:
         data = await calico_service.get_bgp_peers(api_client)
         return {"status": "success", "data": data}
     except Exception as e:
-        print(f"CNI BGP peers failed: {e}, using mock data")
+        logger.warning(f"CNI BGP peers failed: {e}, using mock data")
         return {"status": "mock", "data": MOCK_BGP_PEERS}
 
 
 @router.get("/ippools")
 async def list_ip_pools(
     api_client=Depends(get_k8s_client),
-    _: Settings = Depends(verify_api_key),
 ) -> Dict[str, Any]:
     """IP pool definitions (CIDR, mode, disabled, NAT outgoing)."""
     try:
         data = await calico_service.get_ip_pools(api_client)
         return {"status": "success", "data": data}
     except Exception as e:
-        print(f"CNI IP pools failed: {e}, using mock data")
+        logger.warning(f"CNI IP pools failed: {e}, using mock data")
         return {"status": "mock", "data": MOCK_IP_POOLS}
 
 
 @router.get("/ipam/utilization")
 async def ipam_utilization(
     api_client=Depends(get_k8s_client),
-    _: Settings = Depends(verify_api_key),
 ) -> Dict[str, Any]:
     """Allocated vs. free IPs per pool / per node block."""
     try:
         data = await calico_service.get_ipam_utilization(api_client)
         return {"status": "success", "data": data}
     except Exception as e:
-        print(f"CNI IPAM utilization failed: {e}, using mock data")
+        logger.warning(f"CNI IPAM utilization failed: {e}, using mock data")
         return {"status": "mock", "data": MOCK_IPAM_BLOCKS}
 
 
 @router.get("/policies")
 async def list_cni_policies(
     api_client=Depends(get_k8s_client),
-    _: Settings = Depends(verify_api_key),
 ) -> Dict[str, Any]:
     """All NetworkPolicy + GlobalNetworkPolicy, which pods/namespaces they select."""
     try:
         data = await calico_service.get_cni_policies(api_client)
         return {"status": "success", "data": data}
     except Exception as e:
-        print(f"CNI policies failed: {e}, using mock data")
+        logger.warning(f"CNI policies failed: {e}, using mock data")
         return {"status": "mock", "data": MOCK_CNI_POLICIES}
 
 
 @router.get("/policies/coverage")
 async def policy_coverage(
     api_client=Depends(get_k8s_client),
-    _: Settings = Depends(verify_api_key),
 ) -> Dict[str, Any]:
     """Per-pod policy coverage: which policies select each pod.
 
@@ -126,7 +135,7 @@ async def policy_coverage(
         data = compute_policy_coverage(pod_dicts, policies_raw)
         return {"status": "success", "data": data}
     except Exception as e:
-        print(f"Policy coverage failed: {e}, using mock data")
+        logger.warning(f"Policy coverage failed: {e}, using mock data")
         from models.mock_data import MOCK_COVERAGE
         return {"status": "mock", "data": MOCK_COVERAGE}
 
@@ -134,14 +143,13 @@ async def policy_coverage(
 @router.get("/topology")
 async def cni_topology(
     api_client=Depends(get_k8s_client),
-    _: Settings = Depends(verify_api_key),
 ) -> Dict[str, Any]:
     """Node-to-node BGP mesh + pod overlay topology."""
     try:
         data = await calico_service.get_cni_topology(api_client)
         return {"status": "success", "data": data}
     except Exception as e:
-        print(f"CNI topology failed: {e}, using mock data")
+        logger.warning(f"CNI topology failed: {e}, using mock data")
         from models.mock_data import build_mock_topology
         mock = build_mock_topology()
         return {"status": "mock", "data": mock}
@@ -151,7 +159,6 @@ async def cni_topology(
 async def felix_metrics(
     include_series: bool = Query(False, description="Include time-series data for the past hour"),
     settings: Settings = Depends(get_settings_dep),
-    _: Settings = Depends(verify_api_key),
 ) -> Dict[str, Any]:
     """Felix performance counters: policy evaluations, dropped packets, denied connections, BGP sessions."""
     try:
@@ -164,7 +171,7 @@ async def felix_metrics(
 
         return response
     except Exception as e:
-        print(f"Felix metrics query failed: {e}, using mock data")
+        logger.warning(f"Felix metrics query failed: {e}, using mock data")
         response: Dict[str, Any] = {"status": "mock", "data": MOCK_FELIX_METRICS}
         if include_series:
             response["time_series"] = {}
@@ -181,7 +188,6 @@ async def connectivity_diagnostics(
     target_port: int = Query(80, description="Target port to test"),
     timeout_seconds: int = Query(30, description="Max time to wait for diagnostic pod (5-60)"),
     api_client=Depends(get_k8s_client),
-    _: Settings = Depends(verify_api_key),
 ) -> Dict[str, Any]:
     """On-demand connectivity test between pods / services.
 
@@ -197,7 +203,10 @@ async def connectivity_diagnostics(
         target_host: Optional[str] = None
         target_display: str = ""
 
+        _validate_k8s_name(target_namespace, "target_namespace")
+
         if target_pod:
+            _validate_k8s_name(target_pod, "target_pod")
             target_display = f"{target_namespace}/{target_pod}:{target_port}"
             try:
                 pod_obj = await v1.read_namespaced_pod(name=target_pod, namespace=target_namespace)
@@ -209,6 +218,7 @@ async def connectivity_diagnostics(
             except Exception as e:
                 raise HTTPException(status_code=400, detail=f"Cannot resolve target pod: {e}")
         elif target_service:
+            _validate_k8s_name(target_service, "target_service")
             target_display = f"{target_namespace}/{target_service}:{target_port}"
             # Use DNS name for service (works across namespaces)
             target_host = f"{target_service}.{target_namespace}.svc.cluster.local"
@@ -221,20 +231,18 @@ async def connectivity_diagnostics(
         nc_timeout = max(1, clamped_timeout - 5)
 
         # Build command: test TCP connectivity, measure latency, capture DNS
-        # NOTE: double quotes for echo LATENCY_MS so $((...)) arithmetic expands
+        # Use env vars instead of string interpolation to prevent shell injection.
         cmd = (
-            f"echo '=== DIAGNOSTIC START ===' && "
-            f"echo 'Target: {target_host}:{target_port}' && "
-            # DNS resolution test
-            f"echo '--- DNS ---' && "
-            f"nslookup {target_host} 2>&1 | head -20 && "
-            f"echo '--- TCP CHECK ---' && "
-            f"START=$(awk '{{print int($$1*1000)}}' /proc/uptime) && "
-            f"rc=0; nc -zv -w {nc_timeout} {target_host} {target_port} 2>&1 || rc=$? && "
-            f"if [ $rc -eq 0 ]; then echo 'RESULT=OK'; else echo 'RESULT=FAIL'; fi && "
-            f"END=$(awk '{{print int($$1*1000)}}' /proc/uptime) && "
-            f"echo \"LATENCY_MS=$((END - START))\" && "
-            f"echo '=== DIAGNOSTIC END ==='"
+            "echo '=== DIAGNOSTIC START ===' && "
+            "echo '--- DNS ---' && "
+            'nslookup "$TARGET_HOST" 2>&1 | head -20 && '
+            "echo '--- TCP CHECK ---' && "
+            "START=$(awk '{print int($1*1000)}' /proc/uptime) && "
+            'rc=0; nc -zv -w "$NC_TIMEOUT" "$TARGET_HOST" "$TARGET_PORT" 2>&1 || rc=$? && '
+            "if [ $rc -eq 0 ]; then echo 'RESULT=OK'; else echo 'RESULT=FAIL'; fi && "
+            "END=$(awk '{print int($1*1000)}' /proc/uptime) && "
+            'echo "LATENCY_MS=$((END - START))" && '
+            "echo '=== DIAGNOSTIC END ==='"
         )
 
         pod_manifest = {
@@ -250,11 +258,20 @@ async def connectivity_diagnostics(
                 }
             },
             "spec": {
+                "activeDeadlineSeconds": clamped_timeout + 10,
+                "ttlSecondsAfterFinished": 60,
                 "restartPolicy": "Never",
                 "containers": [{
                     "name": "connectivity-check",
-                    "image": "busybox:1.36",
+                    # L9: Pin to a specific digest for supply-chain safety
+                    # busybox:1.36 SHA as of July 2026
+                    "image": "busybox:1.36@sha256:9758c73607ba2efc7998b32c24b9fc3c68f3bea86b3c5c4467ae3d5af1283ba6",
                     "command": ["sh", "-c", cmd],
+                    "env": [
+                        {"name": "TARGET_HOST", "value": target_host},
+                        {"name": "TARGET_PORT", "value": str(target_port)},
+                        {"name": "NC_TIMEOUT", "value": str(nc_timeout)},
+                    ],
                     "resources": {
                         "requests": {"cpu": "10m", "memory": "16Mi"},
                         "limits": {"cpu": "50m", "memory": "32Mi"},
@@ -317,7 +334,7 @@ async def connectivity_diagnostics(
     except HTTPException:
         raise
     except Exception as e:
-        print(f"Connectivity diagnostics failed: {e}, using mock result")
+        logger.warning(f"Connectivity diagnostics failed: {e}, using mock result")
         return {
             "status": "mock",
             "data": {

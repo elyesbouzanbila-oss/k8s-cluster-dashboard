@@ -1,9 +1,12 @@
 """Prometheus query service — executes PromQL against Prometheus HTTP API."""
 
-import datetime
+from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
 import httpx
 from config import Settings
+from services.logging_service import get_logger
+
+logger = get_logger(__name__)
 
 
 async def query_prometheus(
@@ -29,16 +32,16 @@ async def query_prometheus(
             body = resp.json()
             if body.get("status") == "success":
                 return body["data"]
-            print(f"Prometheus query returned non-success status: {body.get('status')}")
+            logger.warning(f"Prometheus query returned non-success status: {body.get('status')}")
             return None
     except httpx.TimeoutException:
-        print(f"Prometheus query timed out: {query[:80]}...")
+        logger.warning(f"Prometheus query timed out: {query[:80]}...")
         return None
     except httpx.HTTPError as e:
-        print(f"Prometheus HTTP error: {e}")
+        logger.error(f"Prometheus HTTP error: {e}")
         return None
     except Exception as e:
-        print(f"Prometheus query error: {e}")
+        logger.error(f"Prometheus query error: {e}")
         return None
 
 
@@ -70,16 +73,16 @@ async def query_range_prometheus(
             body = resp.json()
             if body.get("status") == "success":
                 return body["data"]
-            print(f"Prometheus range query returned non-success: {body.get('status')}")
+            logger.warning(f"Prometheus range query returned non-success: {body.get('status')}")
             return None
     except httpx.TimeoutException:
-        print(f"Prometheus range query timed out: {query[:80]}...")
+        logger.warning(f"Prometheus range query timed out: {query[:80]}...")
         return None
     except httpx.HTTPError as e:
-        print(f"Prometheus range HTTP error: {e}")
+        logger.error(f"Prometheus range HTTP error: {e}")
         return None
     except Exception as e:
-        print(f"Prometheus range query error: {e}")
+        logger.error(f"Prometheus range query error: {e}")
         return None
 
 
@@ -91,8 +94,8 @@ async def get_pod_cpu_range(
 ) -> Optional[Dict[str, Any]]:
     """Get CPU usage over time for a specific pod (as a rate)."""
     step_val = "15s"
-    end = datetime.datetime.utcnow()
-    start = end - datetime.timedelta(minutes=duration_minutes)
+    end = datetime.now(timezone.utc)
+    start = end - timedelta(minutes=duration_minutes)
 
     query = (
         f'sum(rate(container_cpu_usage_seconds_total{{namespace="{namespace}",'
@@ -115,8 +118,8 @@ async def get_pod_memory_range(
 ) -> Optional[Dict[str, Any]]:
     """Get memory usage over time for a specific pod."""
     step_val = "15s"
-    end = datetime.datetime.utcnow()
-    start = end - datetime.timedelta(minutes=duration_minutes)
+    end = datetime.now(timezone.utc)
+    start = end - timedelta(minutes=duration_minutes)
 
     query = (
         f'sum(container_memory_usage_bytes{{namespace="{namespace}",'
@@ -138,8 +141,8 @@ async def get_namespace_cpu_range(
 ) -> Optional[Dict[str, Any]]:
     """Aggregate CPU usage for all pods in a namespace over time."""
     step_val = "30s"
-    end = datetime.datetime.utcnow()
-    start = end - datetime.timedelta(minutes=duration_minutes)
+    end = datetime.now(timezone.utc)
+    start = end - timedelta(minutes=duration_minutes)
 
     query = (
         f'sum(rate(container_cpu_usage_seconds_total{{namespace="{namespace}",'
@@ -161,8 +164,8 @@ async def get_namespace_memory_range(
 ) -> Optional[Dict[str, Any]]:
     """Aggregate memory usage for all pods in a namespace over time."""
     step_val = "30s"
-    end = datetime.datetime.utcnow()
-    start = end - datetime.timedelta(minutes=duration_minutes)
+    end = datetime.now(timezone.utc)
+    start = end - timedelta(minutes=duration_minutes)
 
     query = (
         f'sum(container_memory_usage_bytes{{namespace="{namespace}",'
@@ -179,54 +182,57 @@ async def get_namespace_memory_range(
 
 # ─── Mock data for when Prometheus is not reachable ──────────────
 
+def _utc_now_ts() -> int:
+    return int(datetime.now(timezone.utc).timestamp())
+
 MOCK_POD_CPU_SERIES = [
     {"metric": {"container": "main"}, "values": [
         [t, str(0.08 + 0.04 * (t % 20) / 20 + 0.02 * (t % 7) / 7)]
-        for t in range(int(datetime.datetime.utcnow().timestamp()) - 3600,
-                       int(datetime.datetime.utcnow().timestamp()), 30)
+        for t in range(_utc_now_ts() - 3600,
+                       _utc_now_ts(), 30)
     ]},
     {"metric": {"container": "sidecar"}, "values": [
         [t, str(0.02 + 0.01 * (t % 15) / 15)]
-        for t in range(int(datetime.datetime.utcnow().timestamp()) - 3600,
-                       int(datetime.datetime.utcnow().timestamp()), 30)
+        for t in range(_utc_now_ts() - 3600,
+                       _utc_now_ts(), 30)
     ]},
 ]
 
 MOCK_POD_MEM_SERIES = [
     {"metric": {"container": "main"}, "values": [
         [t, str(250 + 10 * (t % 30) / 30)]
-        for t in range(int(datetime.datetime.utcnow().timestamp()) - 3600,
-                       int(datetime.datetime.utcnow().timestamp()), 30)
+        for t in range(_utc_now_ts() - 3600,
+                       _utc_now_ts(), 30)
     ]},
     {"metric": {"container": "sidecar"}, "values": [
         [t, str(45 + 5 * (t % 20) / 20)]
-        for t in range(int(datetime.datetime.utcnow().timestamp()) - 3600,
-                       int(datetime.datetime.utcnow().timestamp()), 30)
+        for t in range(_utc_now_ts() - 3600,
+                       _utc_now_ts(), 30)
     ]},
 ]
 
 MOCK_NS_CPU_SERIES = [
     {"metric": {"pod": "api-server-prod-1"}, "values": [
         [t, str(0.15 + 0.05 * (t % 25) / 25)]
-        for t in range(int(datetime.datetime.utcnow().timestamp()) - 3600,
-                       int(datetime.datetime.utcnow().timestamp()), 30)
+        for t in range(_utc_now_ts() - 3600,
+                       _utc_now_ts(), 30)
     ]},
     {"metric": {"pod": "redis-cache"}, "values": [
         [t, str(0.01 + 0.005 * (t % 10) / 10)]
-        for t in range(int(datetime.datetime.utcnow().timestamp()) - 3600,
-                       int(datetime.datetime.utcnow().timestamp()), 30)
+        for t in range(_utc_now_ts() - 3600,
+                       _utc_now_ts(), 30)
     ]},
 ]
 
 MOCK_NS_MEM_SERIES = [
     {"metric": {"pod": "api-server-prod-1"}, "values": [
         [t, str(300 + 20 * (t % 35) / 35)]
-        for t in range(int(datetime.datetime.utcnow().timestamp()) - 3600,
-                       int(datetime.datetime.utcnow().timestamp()), 30)
+        for t in range(_utc_now_ts() - 3600,
+                       _utc_now_ts(), 30)
     ]},
     {"metric": {"pod": "redis-cache"}, "values": [
         [t, str(8 + 2 * (t % 15) / 15)]
-        for t in range(int(datetime.datetime.utcnow().timestamp()) - 3600,
-                       int(datetime.datetime.utcnow().timestamp()), 30)
+        for t in range(_utc_now_ts() - 3600,
+                       _utc_now_ts(), 30)
     ]},
 ]

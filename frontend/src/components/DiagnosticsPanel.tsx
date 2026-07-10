@@ -14,7 +14,6 @@ interface LogEntry {
 }
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || ''
-const API_KEY = import.meta.env.VITE_API_KEY || 'your-secret-api-key-change-this'
 
 export function DiagnosticsPanel({ pods }: DiagnosticsPanelProps) {
   const [sourceNs, setSourceNs] = useState('default')
@@ -78,7 +77,6 @@ export function DiagnosticsPanel({ pods }: DiagnosticsPanelProps) {
 
       const response = await fetch(`${API_BASE_URL}/api/cni/diagnostics/connectivity?${params.toString()}`, {
         method: 'POST',
-        headers: { 'X-API-Key': API_KEY },
       })
 
       if (response.ok) {

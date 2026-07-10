@@ -215,8 +215,8 @@ class TestGetFelixMetrics:
 
     @patch("services.felix_metrics_service.query_prometheus")
     @pytest.mark.asyncio
-    async def test_returns_zero_on_query_failure(self, mock_query: AsyncMock):
-        """When Prometheus query raises, each metric defaults to 0."""
+    async def test_returns_none_on_query_failure(self, mock_query: AsyncMock):
+        """When Prometheus query raises, each metric defaults to None."""
         mock_query.side_effect = RuntimeError("Prometheus unreachable")
 
         from config import Settings
@@ -228,12 +228,12 @@ class TestGetFelixMetrics:
         for key in ("active_local_endpoints", "cluster_network_policies",
                      "iptables_restore_errors", "bgp_sessions_active",
                      "int_dataplane_failures"):
-            assert result[key] == 0
+            assert result[key] is None
 
     @patch("services.felix_metrics_service.query_prometheus")
     @pytest.mark.asyncio
-    async def test_returns_zero_on_empty_result(self, mock_query: AsyncMock):
-        """Empty Prometheus result should yield 0."""
+    async def test_returns_none_on_empty_result(self, mock_query: AsyncMock):
+        """Empty Prometheus result should yield None."""
         mock_query.return_value = {"result": []}
 
         from config import Settings
@@ -243,7 +243,7 @@ class TestGetFelixMetrics:
         result = await get_felix_metrics(settings)
 
         for key, val in result.items():
-            assert val == 0, f"{key} should be 0, got {val}"
+            assert val is None, f"{key} should be None, got {val}"
 
 
 # ─── Network Service: get_pods ────────────────────────────────────

@@ -95,6 +95,21 @@ def calico_selector_matches(pod_labels: Dict[str, str], selector: str) -> bool:
     return selector in pod_labels
 
 
+# NOTE (M10): The calico_selector_matches parser above is intentionally limited.
+# It handles basic selectors (has, !has, ==, !=, in, not in, &&, ||) but does
+# NOT support:
+#   - contains(label, 'value')
+#   - label matches /regex/
+#   - label startsWith 'prefix'
+#   - label endsWith 'suffix'
+#   - Nested parentheses in compound expressions
+#
+# For production use, consider using Calico's actual selector parser via
+# pycalico. For now, the PolicyCoveragePanel UI displays a warning that
+# "Coverage analysis supports basic selectors only — advanced Calico
+# selectors may be misclassified."
+
+
 def _split_logical_or(selector: str):
     """Split a selector on ``||``, respecting single-quoted strings.
 

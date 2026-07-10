@@ -12,8 +12,6 @@ RUN npm install @rolldown/binding-linux-x64-musl --no-save --no-audit --no-fund 
 
 COPY . .
 
-# API key is still used for authentication headers
-ARG VITE_API_KEY=__VITE_API_KEY__
 RUN npm run build
 
 # ---- Production Stage ----

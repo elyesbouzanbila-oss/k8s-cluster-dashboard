@@ -35,18 +35,11 @@ HEADERS = {"X-API-Key": "test-key"}
 
 # ─── Override FastAPI dependencies ───────────────────────────────
 
-async def _override_get_k8s_client(
-    x_api_key: Optional[str] = Header(None),
-) -> AsyncMock:
-    """Override that checks auth and returns a mock K8s ApiClient.
-
-    This is simpler than patching the internal create_api_client function:
-    the override checks the X-API-Key header directly (same logic as the
-    original verify_api_key), so auth is correctly enforced for all endpoints
-    including /api/network/* which only have auth through get_k8s_client.
+async def _override_get_k8s_client() -> AsyncMock:
+    """Override that returns a mock K8s ApiClient.
+    
+    No API key check needed — the frontend no longer ships the API key.
     """
-    if not x_api_key or x_api_key != TEST_SETTINGS.API_KEY:
-        raise HTTPException(status_code=401, detail="Missing or invalid API key")
     return AsyncMock()
 
 def _override_settings() -> Settings:
@@ -79,13 +72,13 @@ class TestCniNodes:
     @patch(PATCH_TARGET, new_callable=AsyncMock)
     def test_success(self, mock_fn):
         mock_fn.return_value = [{"node": "n1", "felix_ready": True}]
-        body = assert_ok(client.get("/api/cni/nodes", headers=HEADERS))
+        body = assert_ok(client.get("/api/cni/nodes"))
         assert body["data"] == [{"node": "n1", "felix_ready": True}]
 
     @patch(PATCH_TARGET, new_callable=AsyncMock)
     def test_mock_fallback(self, mock_fn):
         mock_fn.side_effect = RuntimeError("no cluster")
-        body = assert_ok(client.get("/api/cni/nodes", headers=HEADERS), "mock")
+        body = assert_ok(client.get("/api/cni/nodes"), "mock")
         for expected, actual in zip(MOCK_CALICO_NODES, body["data"]):
             assert expected["node"] == actual["node"]
             assert expected["felix_ready"] == actual["felix_ready"]
@@ -97,14 +90,14 @@ class TestCniBgpPeers:
     @patch(PATCH_TARGET, new_callable=AsyncMock)
     def test_success(self, mock_fn):
         mock_fn.return_value = [{"name": "peer-1", "session_state": "up"}]
-        body = assert_ok(client.get("/api/cni/bgp-peers", headers=HEADERS))
+        body = assert_ok(client.get("/api/cni/bgp-peers"))
         assert body["data"][0]["name"] == "peer-1"
         assert body["data"][0]["session_state"] == "up"
 
     @patch(PATCH_TARGET, new_callable=AsyncMock)
     def test_mock_fallback(self, mock_fn):
         mock_fn.side_effect = RuntimeError("no cluster")
-        body = assert_ok(client.get("/api/cni/bgp-peers", headers=HEADERS), "mock")
+        body = assert_ok(client.get("/api/cni/bgp-peers"), "mock")
         assert body["data"] == MOCK_BGP_PEERS
 
 
@@ -114,13 +107,13 @@ class TestCniIpPools:
     @patch(PATCH_TARGET, new_callable=AsyncMock)
     def test_success(self, mock_fn):
         mock_fn.return_value = [{"name": "pool-1", "cidr": "10.0.0.0/16"}]
-        body = assert_ok(client.get("/api/cni/ippools", headers=HEADERS))
+        body = assert_ok(client.get("/api/cni/ippools"))
         assert body["data"] == [{"name": "pool-1", "cidr": "10.0.0.0/16"}]
 
     @patch(PATCH_TARGET, new_callable=AsyncMock)
     def test_mock_fallback(self, mock_fn):
         mock_fn.side_effect = RuntimeError("no cluster")
-        body = assert_ok(client.get("/api/cni/ippools", headers=HEADERS), "mock")
+        body = assert_ok(client.get("/api/cni/ippools"), "mock")
         assert body["data"] == MOCK_IP_POOLS
 
 
@@ -130,13 +123,13 @@ class TestCniIpamUtilization:
     @patch(PATCH_TARGET, new_callable=AsyncMock)
     def test_success(self, mock_fn):
         mock_fn.return_value = [{"pool": "default-ipv4-ippool", "utilization_pct": 9.4}]
-        body = assert_ok(client.get("/api/cni/ipam/utilization", headers=HEADERS))
+        body = assert_ok(client.get("/api/cni/ipam/utilization"))
         assert body["data"][0]["utilization_pct"] == 9.4
 
     @patch(PATCH_TARGET, new_callable=AsyncMock)
     def test_mock_fallback(self, mock_fn):
         mock_fn.side_effect = RuntimeError("no cluster")
-        body = assert_ok(client.get("/api/cni/ipam/utilization", headers=HEADERS), "mock")
+        body = assert_ok(client.get("/api/cni/ipam/utilization"), "mock")
         assert body["data"] == MOCK_IPAM_BLOCKS
 
 
@@ -146,13 +139,13 @@ class TestCniPolicies:
     @patch(PATCH_TARGET, new_callable=AsyncMock)
     def test_success(self, mock_fn):
         mock_fn.return_value = [{"name": "default-deny", "rules_count": 2}]
-        body = assert_ok(client.get("/api/cni/policies", headers=HEADERS))
+        body = assert_ok(client.get("/api/cni/policies"))
         assert body["data"][0]["rules_count"] == 2
 
     @patch(PATCH_TARGET, new_callable=AsyncMock)
     def test_mock_fallback(self, mock_fn):
         mock_fn.side_effect = RuntimeError("no cluster")
-        body = assert_ok(client.get("/api/cni/policies", headers=HEADERS), "mock")
+        body = assert_ok(client.get("/api/cni/policies"), "mock")
         assert body["data"] == MOCK_CNI_POLICIES
 
 
@@ -165,41 +158,37 @@ class TestCniTopology:
             "nodes": [{"id": "node:m1", "type": "node", "name": "m1"}],
             "edges": [],
         }
-        body = assert_ok(client.get("/api/cni/topology", headers=HEADERS))
+        body = assert_ok(client.get("/api/cni/topology"))
         assert len(body["data"]["nodes"]) == 1
 
     @patch(PATCH_TARGET, new_callable=AsyncMock)
     def test_mock_fallback(self, mock_fn):
         mock_fn.side_effect = RuntimeError("no cluster")
-        body = assert_ok(client.get("/api/cni/topology", headers=HEADERS), "mock")
+        body = assert_ok(client.get("/api/cni/topology"), "mock")
         assert len(body["data"]["nodes"]) > 0
         assert "edges" in body["data"]
 
 
 class TestCniFelixMetrics:
-    # NOTE: imported directly in cni.py:
-    #   from services.felix_metrics_service import get_felix_metrics
-    # Patch the local reference in the router module.
     PATCH_GAUGES = "routers.cni.get_felix_metrics"
-    PATCH_SERIES = "routers.cni.get_felix_metrics_time_series"
 
     @patch(PATCH_GAUGES, new_callable=AsyncMock)
     def test_success(self, mock_gauges):
         mock_gauges.return_value = {"active_local_endpoints": 14, "bgp_sessions_active": 2}
-        body = assert_ok(client.get("/api/cni/metrics/felix", headers=HEADERS))
+        body = assert_ok(client.get("/api/cni/metrics/felix"))
         assert body["data"]["active_local_endpoints"] == 14
 
     @patch(PATCH_GAUGES, new_callable=AsyncMock)
     def test_success_with_time_series(self, mock_gauges):
         mock_gauges.return_value = {"active_local_endpoints": 14}
-        with patch(self.PATCH_SERIES, new_callable=AsyncMock) as mock_series:
+        with patch("routers.cni.get_felix_metrics_time_series", new_callable=AsyncMock) as mock_series:
             mock_series.return_value = {
                 "active_local_endpoints": [
                     {"timestamp": "2025-07-03T12:00:00Z", "value": 14.0}
                 ]
             }
             body = assert_ok(
-                client.get("/api/cni/metrics/felix?include_series=true", headers=HEADERS)
+                client.get("/api/cni/metrics/felix?include_series=true")
             )
             assert "time_series" in body
             assert len(body["time_series"]["active_local_endpoints"]) == 1
@@ -207,14 +196,11 @@ class TestCniFelixMetrics:
     @patch(PATCH_GAUGES, new_callable=AsyncMock)
     def test_mock_fallback(self, mock_gauges):
         mock_gauges.side_effect = RuntimeError("Prometheus unreachable")
-        body = assert_ok(client.get("/api/cni/metrics/felix", headers=HEADERS), "mock")
+        body = assert_ok(client.get("/api/cni/metrics/felix"), "mock")
         assert body["data"] == MOCK_FELIX_METRICS
 
 
 class TestCniPolicyCoverage:
-    # get_pods is imported *inside* the function body via
-    # ``from services.network_service import get_pods``,
-    # so we patch the source module, not the local name.
     PATCH_TARGET = "services.network_service.get_pods"
     PATCH_POLICIES = "routers.cni.calico_service.get_cni_policies"
 
@@ -222,7 +208,6 @@ class TestCniPolicyCoverage:
     @patch(PATCH_POLICIES, new_callable=AsyncMock)
     def test_success(self, mock_policies, mock_pods):
         """Success path returns coverage data with exposed/covered pods."""
-        # Use SimpleNamespace to avoid MagicMock's special handling of ``name``
         from types import SimpleNamespace
         mock_pods.return_value = [
             SimpleNamespace(**{"name": "pod-a", "namespace": "default", "labels": {"app": "nginx"}}),
@@ -232,7 +217,7 @@ class TestCniPolicyCoverage:
             {"name": "allow-nginx", "namespace": "default", "type": "NetworkPolicy",
              "selector": "app == 'nginx'"},
         ]
-        body = assert_ok(client.get("/api/cni/policies/coverage", headers=HEADERS))
+        body = assert_ok(client.get("/api/cni/policies/coverage"))
         assert len(body["data"]) == 2
         covered = next(d for d in body["data"] if d["pod_name"] == "pod-a")
         exposed = next(d for d in body["data"] if d["pod_name"] == "pod-b")
@@ -246,11 +231,10 @@ class TestCniPolicyCoverage:
     def test_mock_fallback(self, mock_policies, mock_pods):
         """When K8s services fail, fall back to MOCK_COVERAGE."""
         mock_pods.side_effect = RuntimeError("no cluster")
-        body = assert_ok(client.get("/api/cni/policies/coverage", headers=HEADERS), "mock")
+        body = assert_ok(client.get("/api/cni/policies/coverage"), "mock")
         assert len(body["data"]) > 0
         assert all("pod_name" in d for d in body["data"])
         assert all("exposed" in d for d in body["data"])
-        # Verify mock has at least one exposed pod
         assert any(d["exposed"] for d in body["data"])
 
 
@@ -260,7 +244,6 @@ class TestCniConnectivityDiagnostics:
         resp = client.post(
             "/api/cni/diagnostics/connectivity",
             params={"source_pod": "my-pod"},
-            headers=HEADERS,
         )
         assert resp.status_code == 400
 
@@ -278,7 +261,6 @@ class TestCniConnectivityDiagnostics:
                     "target_namespace": "default",
                     "target_port": 80,
                 },
-                headers=HEADERS,
             ),
             "mock",
         )
@@ -293,21 +275,17 @@ class TestNetworkPods:
     def test_mock_fallback(self, mock_core_v1):
         """When K8s is unavailable, the endpoint falls back to mock data."""
         mock_core_v1.side_effect = RuntimeError("no cluster")
-        body = assert_ok(client.get("/api/network/pods", headers=HEADERS), "mock")
+        body = assert_ok(client.get("/api/network/pods"), "mock")
         assert "items" in body
         assert len(body["items"]) > 0
         assert body["items"][0] == MOCK_PODS[0]
-
-    def test_requires_auth(self):
-        resp = client.get("/api/network/pods")  # no API key
-        assert resp.status_code == 401
 
 
 class TestNetworkTopology:
     @patch("kubernetes_asyncio.client.CoreV1Api")
     def test_mock_fallback(self, mock_core_v1):
         mock_core_v1.side_effect = RuntimeError("no cluster")
-        body = assert_ok(client.get("/api/network/topology", headers=HEADERS), "mock")
+        body = assert_ok(client.get("/api/network/topology"), "mock")
         assert "nodes" in body
         assert "edges" in body
         assert len(body["nodes"]) > 0
@@ -317,70 +295,109 @@ class TestNetworkTopology:
 
 class TestMockEndpoints:
     def test_mock_pods(self):
-        body = client.get("/mock/pods", headers=HEADERS).json()
+        """Mock pods endpoint now returns consistent status envelope."""
+        body = client.get("/mock/pods").json()
+        assert body["status"] == "mock"
         assert body["items"] == MOCK_PODS
 
     def test_mock_topology(self):
-        body = client.get("/mock/topology", headers=HEADERS).json()
+        body = client.get("/mock/topology").json()
         assert "nodes" in body
         assert "edges" in body
 
     def test_mock_rbac(self):
-        body = client.get("/mock/rbac", headers=HEADERS).json()
+        body = client.get("/mock/rbac").json()
         assert body == MOCK_RBAC
 
     def test_mock_privileged(self):
-        body = client.get("/mock/privileged", headers=HEADERS).json()
+        body = client.get("/mock/privileged").json()
         assert body == MOCK_PRIVILEGED
 
 
 # ─── Threat Router — /api/threats/ ───────────────────────────────
 
+import json
+import hashlib
+import hmac
+
+
 class TestFalcoWebhook:
+    PAYLOAD_DICT = {
+        "output": "File opened for writing",
+        "priority": "Warning",
+        "rule": "Write below binary dir",
+        "time": "2025-07-03T12:00:00Z",
+    }
+
     @patch("routers.threats.ThreatService")
-    def test_publish_falco_event(self, mock_service_cls):
+    def test_publish_falco_event_without_secret(self, mock_service_cls):
+        """Falco webhook works without a signature when FALCO_WEBHOOK_SECRET is not set."""
         mock_instance = MagicMock()
         mock_service_cls.return_value = mock_instance
         mock_instance.publish_falco_event = AsyncMock()
 
-        payload = {
-            "output": "File opened for writing",
-            "priority": "Warning",
-            "rule": "Write below binary dir",
-            "time": "2025-07-03T12:00:00Z",
-        }
-        body = client.post("/api/threats/falco", json=payload, headers=HEADERS).json()
+        body = client.post("/api/threats/falco", json=self.PAYLOAD_DICT).json()
         assert body["status"] == "ok"
         mock_instance.publish_falco_event.assert_awaited_once()
 
+    @patch("routers.threats.ThreatService")
+    def test_publish_falco_event_with_valid_signature(self, mock_service_cls):
+        """Falco webhook accepts valid HMAC signature when secret is set."""
+        mock_instance = MagicMock()
+        mock_service_cls.return_value = mock_instance
+        mock_instance.publish_falco_event = AsyncMock()
 
-# ─── Auth Failure (global) ────────────────────────────────────────
+        secret = "test-falco-secret"
+        raw_body = json.dumps(self.PAYLOAD_DICT, separators=(",", ":")).encode()
+        expected_sig = hmac.new(secret.encode(), raw_body, hashlib.sha256).hexdigest()
 
-class TestAuth:
-    auth_endpoints: List[Tuple[str, str]] = [
-        ("GET", "/api/cni/nodes"),
-        ("GET", "/api/cni/bgp-peers"),
-        ("GET", "/api/cni/ippools"),
-        ("GET", "/api/cni/ipam/utilization"),
-        ("GET", "/api/cni/policies"),            ("GET", "/api/cni/topology"),
-            ("GET", "/api/cni/policies/coverage"),
-            ("GET", "/api/cni/metrics/felix"),
-        ("GET", "/api/network/pods"),
-        ("GET", "/api/network/topology"),
-        ("GET", "/mock/pods"),
-        ("GET", "/mock/topology"),
-        ("GET", "/mock/rbac"),
-        ("GET", "/mock/privileged"),
-        ("POST", "/api/threats/falco"),
-    ]
+        orig_override = app.dependency_overrides[get_settings_dep]
 
-    @pytest.mark.parametrize("method,path", auth_endpoints)
-    def test_missing_api_key_returns_401(self, method: str, path: str) -> None:
-        """All protected endpoints should return 401 without an API key."""
-        if method == "GET":
-            resp = client.get(path)
-        else:
-            resp = client.post(path, json={})
-        assert resp.status_code == 401, (
-            f"Expected 401 for {method} {path}, got {resp.status_code}"
-        )
+        def _override_with_secret():
+            return Settings(API_KEY="test-key", FALCO_WEBHOOK_SECRET=secret)
+
+        app.dependency_overrides[get_settings_dep] = _override_with_secret
+        try:
+            resp = client.post(
+                "/api/threats/falco",
+                content=raw_body,
+                headers={
+                    "Content-Type": "application/json",
+                    "X-Falco-Signature": expected_sig,
+                },
+            )
+            body = resp.json()
+            assert body["status"] == "ok", f"Expected ok, got {resp.status_code}: {resp.text[:200]}"
+            mock_instance.publish_falco_event.assert_awaited_once()
+        finally:
+            app.dependency_overrides[get_settings_dep] = orig_override
+
+    @patch("routers.threats.ThreatService")
+    def test_publish_falco_event_with_invalid_signature(self, mock_service_cls):
+        """Falco webhook rejects invalid HMAC signature when secret is set."""
+        mock_instance = MagicMock()
+        mock_service_cls.return_value = mock_instance
+        mock_instance.publish_falco_event = AsyncMock()
+
+        secret = "test-falco-secret"
+        raw_body = json.dumps(self.PAYLOAD_DICT).encode()
+
+        orig_override = app.dependency_overrides[get_settings_dep]
+
+        def _override_with_secret():
+            return Settings(API_KEY="test-key", FALCO_WEBHOOK_SECRET=secret)
+
+        app.dependency_overrides[get_settings_dep] = _override_with_secret
+        try:
+            resp = client.post(
+                "/api/threats/falco",
+                content=raw_body,
+                headers={
+                    "Content-Type": "application/json",
+                    "X-Falco-Signature": "invalid-signature",
+                },
+            )
+            assert resp.status_code == 401, f"Expected 401, got {resp.status_code}: {resp.text[:200]}"
+            mock_instance.publish_falco_event.assert_not_called()
+        finally:
+            app.dependency_overrides[get_settings_dep] = orig_override

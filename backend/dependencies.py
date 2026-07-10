@@ -36,11 +36,12 @@ async def get_connection_config() -> ConnectionConfig:
 
 async def get_k8s_client(
 	connection: ConnectionConfig = Depends(get_connection_config),
-	_: Settings = Depends(verify_api_key)
 ) -> AsyncGenerator:
 	"""FastAPI dependency that yields a configured Kubernetes ApiClient.
-	
-	Requires valid X-API-Key header.
+
+	No longer requires X-API-Key header — the frontend no longer ships
+	the API key to the browser. In production, put the backend behind an
+	authenticating reverse proxy (nginx + OIDC/mTLS, Istio, or similar).
 
 	Usage in a router:
 		async def handler(api_client = Depends(get_k8s_client)):
