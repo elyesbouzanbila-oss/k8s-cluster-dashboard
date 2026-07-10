@@ -4,7 +4,6 @@ metadata:
   name: dashboard-redis
   labels:
     app: dashboard-redis
-namespace: k8s-dashboard
 spec:
   replicas: 1
   selector:
