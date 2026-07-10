@@ -1,7 +1,7 @@
 from functools import lru_cache
 from typing import Optional
 
-from pydantic import field_validator
+from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 _PLACEHOLDER = "your-secret-api-key-change-this"
@@ -37,6 +37,17 @@ class Settings(BaseSettings):
                 "via the API_KEY environment variable or .env file"
             )
         return v
+
+    @model_validator(mode="after")
+    def _embed_redis_password(self) -> "Settings":
+        """Embed REDIS_PASSWORD into REDIS_URL so the redis client doesn't need
+        separate password handling. No-op if REDIS_PASSWORD is not set or if
+        the URL already contains credentials (has '@' before the host)."""
+        if self.REDIS_PASSWORD and "@" not in self.REDIS_URL:
+            self.REDIS_URL = self.REDIS_URL.replace(
+                "redis://", f"redis://:{self.REDIS_PASSWORD}@"
+            )
+        return self
 
     model_config = SettingsConfigDict(env_file=".env")
 

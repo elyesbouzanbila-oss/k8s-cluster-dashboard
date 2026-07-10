@@ -22,6 +22,31 @@ limiter = Limiter(key_func=get_remote_address)
 
 app = FastAPI(title="K8s Dashboard API")
 
+
+@app.on_event("startup")
+async def _check_redis():
+    """Verify Redis connectivity on startup."""
+    from services.threat_service import ThreatService
+    try:
+        svc = ThreatService(get_settings())
+        await svc.redis.ping()
+        logger.info("Redis connection OK")
+    except Exception as e:
+        logger.error(f"Redis connection failed: {e} — threat streaming will not work")
+
+
+@app.on_event("startup")
+async def _check_kubernetes():
+    """Verify K8s API connectivity on startup."""
+    try:
+        from connection.factory import create_api_client
+        from connection.models import ConnectionConfig
+        client = await create_api_client(ConnectionConfig.from_env())
+        await client.close()
+        logger.info("Kubernetes API connection OK")
+    except Exception as e:
+        logger.warning(f"Kubernetes API connection failed: {e} — endpoints will use mock data")
+
 # Register rate-limit exception handler
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)

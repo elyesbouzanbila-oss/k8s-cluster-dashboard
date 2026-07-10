@@ -33,7 +33,9 @@ export function DashboardPanel({
     isStatusLoading(ipamStatus) ||
     isStatusLoading(policiesStatus)
 
-  const healthyNodes = cniNodes.filter(n => n.felix_ready && n.bird_ready)
+  const isReady = (n: CalicoNodeStatus) => n.calico_ready ?? n.felix_ready ?? false
+  const healthyNodes = cniNodes.filter(isReady)
+  const downNodes = cniNodes.filter(n => !isReady(n))
   const totalIPs = ipamBlocks.reduce((acc, b) => acc + b.total, 0)
   const allocatedIPs = ipamBlocks.reduce((acc, b) => acc + b.allocated, 0)
   const ipamPct = totalIPs > 0 ? (allocatedIPs / totalIPs) * 100 : 0
@@ -75,8 +77,8 @@ export function DashboardPanel({
                 <span className="dashboard-card-value" style={{ color: 'var(--success)' }}>{healthyNodes.length}/{cniNodes.length}</span>
                 <span className="dashboard-card-label">Healthy Nodes</span>
                 <span className="dashboard-card-sub">
-                  {cniNodes.filter(n => !n.felix_ready || !n.bird_ready).length > 0
-                    ? <span className="threat-badge high">{cniNodes.filter(n => !n.felix_ready || !n.bird_ready).length} degraded</span>
+                  {downNodes.length > 0
+                    ? <span className="threat-badge high">{downNodes.length} down</span>
                     : <span style={{ color: 'var(--success)' }}>All healthy</span>
                   }
                 </span>

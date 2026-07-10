@@ -133,8 +133,9 @@ export interface MetricsResponse<T> {
 
 export interface CalicoNodeStatus {
   node: string
-  felix_ready: boolean
-  bird_ready: boolean
+  calico_ready?: boolean      // consolidated indicator (felix + bird share one readiness probe)
+  felix_ready: boolean         // legacy, kept for backward compat
+  bird_ready: boolean          // legacy, kept for backward compat
   ip?: string | null
   uptime_seconds?: number | null
   last_reported?: string | null
