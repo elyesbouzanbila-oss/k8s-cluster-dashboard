@@ -1,6 +1,7 @@
 import hashlib
 import hmac
 import asyncio
+from urllib.parse import urlparse
 
 from fastapi import APIRouter, Request, WebSocket, WebSocketDisconnect, Depends, HTTPException, status
 from slowapi import Limiter
@@ -75,10 +76,15 @@ async def ws_threats(ws: WebSocket, settings: Settings = Depends(get_settings_de
     origin = ws.headers.get("origin", "")
     host = ws.headers.get("host", "")
     if origin and host:
-        # Allow http://host or https://host (with or without trailing slash)
-        allowed_origins = {f"{scheme}://{host.rstrip('/')}" for scheme in ("http", "https")}
-        if origin not in allowed_origins:
-            logger.warning(f"WebSocket rejected: origin {origin!r} doesn't match host {host!r}")
+        # Parse Origin URL and Host header as URLs to extract hostnames.
+        # This handles ports, IPv6 brackets, and all edge cases consistently.
+        parsed_origin = urlparse(origin)
+        parsed_host = urlparse(f"//{host}")
+        origin_hostname = parsed_origin.hostname or ""
+        host_hostname = parsed_host.hostname or ""
+        if origin_hostname != host_hostname:
+            logger.warning(f"WebSocket rejected: origin {origin!r} (hostname={origin_hostname!r}) "
+                           f"doesn't match host {host!r} (hostname={host_hostname!r})")
             await ws.close(code=status.WS_1008_POLICY_VIOLATION, reason="Origin not allowed")
             return
 
