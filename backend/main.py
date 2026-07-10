@@ -1,3 +1,4 @@
+from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from slowapi import _rate_limit_exceeded_handler
@@ -20,12 +21,11 @@ settings = get_settings()
 # Rate limiter: uses X-Forwarded-For header when behind nginx
 limiter = Limiter(key_func=get_remote_address)
 
-app = FastAPI(title="K8s Dashboard API")
 
-
-@app.on_event("startup")
-async def _check_redis():
-    """Verify Redis connectivity on startup."""
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Application lifespan — replaces deprecated @app.on_event("startup")."""
+    # ── Startup checks ──────────────────────────────────────────
     from services.threat_service import ThreatService
     try:
         svc = ThreatService(get_settings())
@@ -34,10 +34,6 @@ async def _check_redis():
     except Exception as e:
         logger.error(f"Redis connection failed: {e} — threat streaming will not work")
 
-
-@app.on_event("startup")
-async def _check_kubernetes():
-    """Verify K8s API connectivity on startup."""
     try:
         from connection.factory import create_api_client
         from connection.models import ConnectionConfig
@@ -46,6 +42,12 @@ async def _check_kubernetes():
         logger.info("Kubernetes API connection OK")
     except Exception as e:
         logger.warning(f"Kubernetes API connection failed: {e} — endpoints will use mock data")
+
+    yield
+    # ── Shutdown (nothing to clean up yet) ──────────────────────
+
+
+app = FastAPI(title="K8s Dashboard API", lifespan=lifespan)
 
 # Register rate-limit exception handler
 app.state.limiter = limiter
