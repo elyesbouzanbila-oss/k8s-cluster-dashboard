@@ -352,7 +352,7 @@ function App() {
               className="tab-content"
               hidden={activeTab !== tab.id}
             >
-              {activeTab === 'dashboard' && (
+              {tab.id === 'dashboard' && (
                 <DashboardPanel
                   cniNodes={cniNodes}
                   bgpPeers={bgpPeers.length}
@@ -369,10 +369,10 @@ function App() {
                   loading={loading}
                 />
               )}
-              {activeTab === 'cni-health' && (
+              {tab.id === 'cni-health' && (
                 <CniHealthPanel nodes={cniNodes} status={cniNodesStatus} />
               )}
-              {activeTab === 'ipam' && (
+              {tab.id === 'ipam' && (
                 <IpamPanel
                   pools={ipPools}
                   blocks={ipamBlocks}
@@ -380,7 +380,7 @@ function App() {
                   ipamStatus={ipamStatus}
                 />
               )}
-              {activeTab === 'policies' && (
+              {tab.id === 'policies' && (
                 <>
                   {/* Sub-view toggle */}
                   <div className="coverage-view-toggle" style={{ marginBottom: '20px' }}>
@@ -405,17 +405,17 @@ function App() {
                   )}
                 </>
               )}
-              {activeTab === 'topology' && (
+              {tab.id === 'topology' && (
                 <CniTopologyPanel
                   pods={pods}
                   cniTopology={cniTopology}
                   topologyStatus={topologyStatus}
                 />
               )}
-              {activeTab === 'diagnostics' && (
+              {tab.id === 'diagnostics' && (
                 <DiagnosticsPanel pods={pods} cniTopology={cniTopology} />
               )}
-              {activeTab === 'threats' && (
+              {tab.id === 'threats' && (
                 <ThreatPanel threats={threats} wsConnected={wsConnected} onClear={() => setThreats([])} loading={loading} />
               )}
             </div>
