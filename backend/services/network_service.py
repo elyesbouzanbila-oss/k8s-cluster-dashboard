@@ -61,12 +61,33 @@ async def get_topology(api_client) -> TopologyResponse:
             continue
 
         svc_ip = s.spec.cluster_ip if s.spec.cluster_ip and s.spec.cluster_ip != "None" else None
+
+        # Format service ports
+        svc_ports_str = None
+        if s.spec.ports:
+            port_strs = []
+            for p in s.spec.ports:
+                proto = p.protocol or "TCP"
+                if p.target_port and p.target_port != p.port:
+                    if p.name:
+                        port_strs.append(f"{p.name}:{p.port}:{p.target_port}/{proto}")
+                    else:
+                        port_strs.append(f"{p.port}:{p.target_port}/{proto}")
+                else:
+                    if p.name:
+                        port_strs.append(f"{p.name}:{p.port}/{proto}")
+                    else:
+                        port_strs.append(f"{p.port}/{proto}")
+            if port_strs:
+                svc_ports_str = ", ".join(port_strs)
+
         nodes.append(TopologyNode(
             id=f"svc:{s.metadata.namespace}/{s.metadata.name}",
             type="service",
             namespace=s.metadata.namespace,
             name=s.metadata.name,
-            ip=svc_ip
+            ip=svc_ip,
+            ports=svc_ports_str,
         ))
         services_data.append({
             "id": f"svc:{s.metadata.namespace}/{s.metadata.name}",
@@ -78,6 +99,21 @@ async def get_topology(api_client) -> TopologyResponse:
     pods_data = []
     for p in pod_list.items:
         node_name = getattr(p.spec, "node_name", None)
+
+        # Collect container ports
+        pod_ports_str = None
+        ports_list = []
+        for c in (p.spec.containers or []):
+            if c.ports:
+                for cp in c.ports:
+                    proto = cp.protocol or "TCP"
+                    if cp.name:
+                        ports_list.append(f"{cp.name}:{cp.container_port}/{proto}")
+                    else:
+                        ports_list.append(f"{cp.container_port}/{proto}")
+        if ports_list:
+            pod_ports_str = ", ".join(ports_list)
+
         nodes.append(TopologyNode(
             id=f"pod:{p.metadata.namespace}/{p.metadata.name}",
             type="pod",
@@ -85,7 +121,8 @@ async def get_topology(api_client) -> TopologyResponse:
             name=p.metadata.name,
             ip=getattr(p.status, "pod_ip", None),
             labels=p.metadata.labels or {},
-            node_name=node_name
+            node_name=node_name,
+            ports=pod_ports_str,
         ))
         pods_data.append({
             "id": f"pod:{p.metadata.namespace}/{p.metadata.name}",

@@ -38,7 +38,13 @@ MOCK_PODS = [
         "node_name": "master-1",
         "phase": "Running",
         "labels": {"app": "kube-apiserver", "component": "control-plane"},
-        "containers": [{"name": "kube-apiserver", "image": "registry.k8s.io/kube-apiserver:v1.28.2"}]
+        "containers": [
+            {
+                "name": "kube-apiserver",
+                "image": "registry.k8s.io/kube-apiserver:v1.28.2",
+                "ports": [{"containerPort": 6443, "protocol": "TCP", "name": "https"}]
+            }
+        ]
     },
     {
         "name": "kube-scheduler",
@@ -47,7 +53,13 @@ MOCK_PODS = [
         "node_name": "master-1",
         "phase": "Running",
         "labels": {"app": "kube-scheduler", "component": "control-plane"},
-        "containers": [{"name": "kube-scheduler", "image": "registry.k8s.io/kube-scheduler:v1.28.2"}]
+        "containers": [
+            {
+                "name": "kube-scheduler",
+                "image": "registry.k8s.io/kube-scheduler:v1.28.2",
+                "ports": [{"containerPort": 10259, "protocol": "TCP", "name": "https"}]
+            }
+        ]
     },
     {
         "name": "etcd-operator",
@@ -56,7 +68,16 @@ MOCK_PODS = [
         "node_name": "master-1",
         "phase": "Running",
         "labels": {"app": "etcd", "component": "control-plane"},
-        "containers": [{"name": "etcd", "image": "registry.k8s.io/etcd:3.5.9"}]
+        "containers": [
+            {
+                "name": "etcd",
+                "image": "registry.k8s.io/etcd:3.5.9",
+                "ports": [
+                    {"containerPort": 2379, "protocol": "TCP", "name": "client"},
+                    {"containerPort": 2380, "protocol": "TCP", "name": "peer"}
+                ]
+            }
+        ]
     },
     {
         "name": "coredns-7d5c8f5d6f-abc12",
@@ -65,7 +86,17 @@ MOCK_PODS = [
         "node_name": "master-1",
         "phase": "Running",
         "labels": {"app": "coredns", "k8s-app": "kube-dns"},
-        "containers": [{"name": "coredns", "image": "registry.k8s.io/coredns:v1.10.1"}]
+        "containers": [
+            {
+                "name": "coredns",
+                "image": "registry.k8s.io/coredns:v1.10.1",
+                "ports": [
+                    {"containerPort": 53, "protocol": "UDP", "name": "dns-udp"},
+                    {"containerPort": 53, "protocol": "TCP", "name": "dns-tcp"},
+                    {"containerPort": 9153, "protocol": "TCP", "name": "metrics"}
+                ]
+            }
+        ]
     },
     {
         "name": "api-server-prod-1",
@@ -75,8 +106,16 @@ MOCK_PODS = [
         "phase": "Running",
         "labels": {"app": "api-server", "version": "v2.1.0"},
         "containers": [
-            {"name": "main", "image": "myapp:v2.1.0"},
-            {"name": "sidecar", "image": "envoyproxy:latest"}
+            {
+                "name": "main",
+                "image": "myapp:v2.1.0",
+                "ports": [{"containerPort": 8080, "protocol": "TCP", "name": "http"}]
+            },
+            {
+                "name": "sidecar",
+                "image": "envoyproxy:latest",
+                "ports": [{"containerPort": 9901, "protocol": "TCP", "name": "admin"}]
+            }
         ]
     },
     {
@@ -86,7 +125,13 @@ MOCK_PODS = [
         "node_name": "worker-1",
         "phase": "Running",
         "labels": {"app": "redis"},
-        "containers": [{"name": "redis", "image": "redis:7-alpine"}]
+        "containers": [
+            {
+                "name": "redis",
+                "image": "redis:7-alpine",
+                "ports": [{"containerPort": 6379, "protocol": "TCP", "name": "redis"}]
+            }
+        ]
     },
     {
         "name": "database-backup",
@@ -95,7 +140,13 @@ MOCK_PODS = [
         "node_name": "worker-2",
         "phase": "Running",
         "labels": {"app": "database", "job": "backup"},
-        "containers": [{"name": "postgres-backup", "image": "postgres:15"}]
+        "containers": [
+            {
+                "name": "postgres-backup",
+                "image": "postgres:15",
+                "ports": [{"containerPort": 5432, "protocol": "TCP", "name": "postgresql"}]
+            }
+        ]
     },
     {
         "name": "prometheus-0",
@@ -104,15 +155,47 @@ MOCK_PODS = [
         "node_name": "worker-2",
         "phase": "Running",
         "labels": {"app": "prometheus"},
-        "containers": [{"name": "prometheus", "image": "prom/prometheus:latest"}]
+        "containers": [
+            {
+                "name": "prometheus",
+                "image": "prom/prometheus:latest",
+                "ports": [{"containerPort": 9090, "protocol": "TCP", "name": "http"}]
+            }
+        ]
     }
 ]
 
 MOCK_SERVICES = [
-    {"namespace": "kube-system", "name": "kube-dns", "cluster_ip": "10.100.0.10", "selector": {"k8s-app": "kube-dns"}},
-    {"namespace": "production", "name": "api-service", "cluster_ip": "10.100.1.1", "selector": {"app": "api-server"}},
-    {"namespace": "production", "name": "database-service", "cluster_ip": "10.100.1.2", "selector": {"app": "database"}},
-    {"namespace": "monitoring", "name": "prometheus", "cluster_ip": "10.100.2.1", "selector": {"app": "prometheus"}}
+    {
+        "namespace": "kube-system", "name": "kube-dns", "cluster_ip": "10.100.0.10",
+        "selector": {"k8s-app": "kube-dns"},
+        "ports": [
+            {"port": 53, "protocol": "UDP", "name": "dns-udp", "targetPort": 53},
+            {"port": 53, "protocol": "TCP", "name": "dns-tcp", "targetPort": 53},
+            {"port": 9153, "protocol": "TCP", "name": "metrics", "targetPort": 9153}
+        ]
+    },
+    {
+        "namespace": "production", "name": "api-service", "cluster_ip": "10.100.1.1",
+        "selector": {"app": "api-server"},
+        "ports": [
+            {"port": 80, "protocol": "TCP", "name": "http", "targetPort": 8080}
+        ]
+    },
+    {
+        "namespace": "production", "name": "database-service", "cluster_ip": "10.100.1.2",
+        "selector": {"app": "database"},
+        "ports": [
+            {"port": 5432, "protocol": "TCP", "name": "postgresql", "targetPort": 5432}
+        ]
+    },
+    {
+        "namespace": "monitoring", "name": "prometheus", "cluster_ip": "10.100.2.1",
+        "selector": {"app": "prometheus"},
+        "ports": [
+            {"port": 9090, "protocol": "TCP", "name": "http", "targetPort": 9090}
+        ]
+    }
 ]
 
 MOCK_RBAC = [
@@ -527,12 +610,22 @@ def build_mock_topology():
     services_data = []
     for svc in MOCK_SERVICES:
         svc_id = f"svc:{svc['namespace']}/{svc['name']}"
+        # Format service ports for display
+        svc_ports = []
+        for p in svc.get("ports", []):
+            port_str = f"{p['port']}/{p.get('protocol', 'TCP')}"
+            if p.get('targetPort') and p['targetPort'] != p['port']:
+                port_str = f"{p['port']}:{p['targetPort']}/{p.get('protocol', 'TCP')}"
+            if p.get('name'):
+                port_str = f"{p['name']}:{port_str}"
+            svc_ports.append(port_str)
         nodes.append({
             "id": svc_id,
             "type": "service",
             "namespace": svc["namespace"],
             "name": svc["name"],
-            "ip": svc.get("cluster_ip")
+            "ip": svc.get("cluster_ip"),
+            "ports": ", ".join(svc_ports) if svc_ports else None
         })
         services_data.append({
             "id": svc_id,
@@ -543,13 +636,22 @@ def build_mock_topology():
     pods_data = []
     for pod in MOCK_PODS:
         pod_id = f"pod:{pod['namespace']}/{pod['name']}"
+        # Collect all container ports for this pod
+        pod_ports = []
+        for c in pod.get("containers", []):
+            for p in c.get("ports", []):
+                port_str = f"{p['containerPort']}/{p.get('protocol', 'TCP')}"
+                if p.get('name'):
+                    port_str = f"{p['name']}:{port_str}"
+                pod_ports.append(port_str)
         nodes.append({
             "id": pod_id,
             "type": "pod",
             "namespace": pod["namespace"],
             "name": pod["name"],
             "ip": pod["pod_ip"],
-            "node_name": pod["node_name"]
+            "node_name": pod["node_name"],
+            "ports": ", ".join(pod_ports) if pod_ports else None
         })
         pods_data.append({
             "id": pod_id,

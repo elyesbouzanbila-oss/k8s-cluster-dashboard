@@ -20,6 +20,7 @@ class TopologyNode(BaseModel):
     node_name: Optional[str] = None
     role: Optional[Literal["master", "worker"]] = None
     capacity: Optional[Dict[str, str]] = None
+    ports: Optional[str] = None
 
 class TopologyEdge(BaseModel):
     id: str

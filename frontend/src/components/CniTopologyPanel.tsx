@@ -12,8 +12,20 @@ interface CniTopologyPanelProps {
   topologyStatus?: DataSourceStatus
 }
 
+const COMMON_PORT_CHIPS = [
+  { port: 53, tooltip: 'DNS' },
+  { port: 80, tooltip: 'HTTP' },
+  { port: 443, tooltip: 'HTTPS' },
+  { port: 5432, tooltip: 'PostgreSQL' },
+  { port: 6379, tooltip: 'Redis' },
+  { port: 6443, tooltip: 'K8s API' },
+  { port: 8080, tooltip: 'HTTP-alt' },
+  { port: 9090, tooltip: 'Prometheus' },
+] as const
+
 export function CniTopologyPanel({ pods, cniTopology, topologyStatus }: CniTopologyPanelProps) {
   const [inventoryFilter, setInventoryFilter] = useState('')
+  const [filterFocused, setFilterFocused] = useState(false)
   const [showPods, setShowPods] = useState(true)
   const [showServices, setShowServices] = useState(true)
 
@@ -44,6 +56,7 @@ export function CniTopologyPanel({ pods, cniTopology, topologyStatus }: CniTopol
             ip: n.ip || undefined,
             labels: n.labels || undefined,
             node_name: n.node_name || undefined,
+            ports: n.ports || undefined,
           })
         } else if (nodeType === 'service') {
           nodes.push({
@@ -52,6 +65,7 @@ export function CniTopologyPanel({ pods, cniTopology, topologyStatus }: CniTopol
             namespace: n.namespace || undefined,
             name: n.name,
             ip: n.ip || undefined,
+            ports: n.ports || undefined,
           })
         }
       }
@@ -110,6 +124,7 @@ export function CniTopologyPanel({ pods, cniTopology, topologyStatus }: CniTopol
       namespace: s.namespace || 'unknown',
       name: s.name,
       clusterIp: s.ip || '-',
+      ports: s.ports || null,
     }))
   }, [cniTopology])
 
@@ -126,6 +141,19 @@ export function CniTopologyPanel({ pods, cniTopology, topologyStatus }: CniTopol
     return counts
   }, [cniTopology])
 
+  // ── Helper: collect all port search strings from pod containers ─
+  const getPodPortStrings = (p: Pod): string[] => {
+    const parts: string[] = []
+    for (const c of p.containers || []) {
+      for (const port of c.ports || []) {
+        if (port.name) parts.push(port.name.toLowerCase())
+        parts.push(String(port.containerPort))
+        if (port.protocol) parts.push(port.protocol.toLowerCase())
+      }
+    }
+    return parts
+  }
+
   // ── Filtered inventories ──────────────────────────────────────
   const filterLower = inventoryFilter.toLowerCase()
 
@@ -136,7 +164,8 @@ export function CniTopologyPanel({ pods, cniTopology, topologyStatus }: CniTopol
       (p.namespace || '').toLowerCase().includes(filterLower) ||
       (p.node_name || '').toLowerCase().includes(filterLower) ||
       (p.pod_ip || '').toLowerCase().includes(filterLower) ||
-      (p.phase || '').toLowerCase().includes(filterLower)
+      (p.phase || '').toLowerCase().includes(filterLower) ||
+      getPodPortStrings(p).some(s => s.includes(filterLower))
     )
   }, [pods, filterLower])
 
@@ -145,9 +174,50 @@ export function CniTopologyPanel({ pods, cniTopology, topologyStatus }: CniTopol
     return services.filter(s =>
       (s.name || '').toLowerCase().includes(filterLower) ||
       (s.namespace || '').toLowerCase().includes(filterLower) ||
-      (s.clusterIp || '').toLowerCase().includes(filterLower)
+      (s.clusterIp || '').toLowerCase().includes(filterLower) ||
+      (s.ports || '').toLowerCase().includes(filterLower)
     )
   }, [services, filterLower])
+
+  // ── Port chip match counts ────────────────────────────────────
+  const portChipCounts = useMemo(() => {
+    const counts: Record<number, { pods: number; services: number }> = {}
+    for (const chip of COMMON_PORT_CHIPS) {
+      const portStr = String(chip.port)
+      let podCount = 0
+      let svcCount = 0
+
+      for (const p of pods) {
+        let podFound = false
+        for (const c of p.containers || []) {
+          for (const port of c.ports || []) {
+            if (port.containerPort === chip.port) {
+              podCount++
+              podFound = true
+              break
+            }
+          }
+          if (podFound) break
+        }
+      }
+
+      for (const s of services) {
+        if (s.ports) {
+          // Split by comma and check each port entry for exact number match
+          const entries = s.ports.split(', ')
+          if (entries.some(e => {
+            const num = e.match(/\d+/)?.[0]
+            return num === portStr
+          })) {
+            svcCount++
+          }
+        }
+      }
+
+      counts[chip.port] = { pods: podCount, services: svcCount }
+    }
+    return counts
+  }, [pods, services])
 
   // ── Namespace grouping ────────────────────────────────────────
   const nsCounts = useMemo(() => {
@@ -222,22 +292,96 @@ export function CniTopologyPanel({ pods, cniTopology, topologyStatus }: CniTopol
 
         {/* Search filter */}
         <div className="inventory-search">
-          <input
-            type="text"
-            placeholder="Filter pods and services by name, namespace, IP, or node…"
-            value={inventoryFilter}
-            onChange={e => setInventoryFilter(e.target.value)}
-            className="inventory-filter-input"
-            aria-label="Filter pods and services"
-          />
-          {inventoryFilter && (
-            <button
-              className="inventory-filter-clear"
-              onClick={() => setInventoryFilter('')}
-              aria-label="Clear filter"
-            >
-              <Icon name="x" size={14} />
-            </button>
+          <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+            <input
+              type="text"
+              placeholder="Filter by name, namespace, IP, port, or node…"
+              value={inventoryFilter}
+              onChange={e => setInventoryFilter(e.target.value)}
+              onFocus={() => setFilterFocused(true)}
+              onBlur={() => setTimeout(() => setFilterFocused(false), 220)}
+              className="inventory-filter-input"
+              aria-label="Filter pods and services"
+            />
+            {inventoryFilter && (
+              <button
+                className="inventory-filter-clear"
+                onClick={() => setInventoryFilter('')}
+                aria-label="Clear filter"
+              >
+                <Icon name="x" size={14} />
+              </button>
+            )}
+            {!inventoryFilter && !filterFocused && (
+              <span style={{
+                position: 'absolute',
+                right: '10px',
+                color: 'var(--text-tertiary)',
+                fontSize: '11px',
+                pointerEvents: 'none',
+                opacity: 0.4,
+              }}>
+                <Icon name="search" size={14} />
+              </span>
+            )}
+          </div>
+
+          {/* Port quick-filter chips */}
+          {filterFocused && !inventoryFilter && (
+            <div style={{
+              display: 'flex',
+              gap: '6px',
+              flexWrap: 'wrap',
+              padding: '8px 0 4px',
+            }}>
+              <span style={{
+                fontSize: '11px',
+                color: 'var(--text-tertiary)',
+                fontWeight: 600,
+                textTransform: 'uppercase',
+                letterSpacing: '0.5px',
+                alignSelf: 'center',
+                marginRight: '4px',
+              }}>Ports</span>
+              {COMMON_PORT_CHIPS.map(chip => {
+                const counts = portChipCounts[chip.port]
+                const hasMatches = (counts?.pods ?? 0) + (counts?.services ?? 0) > 0
+                return (
+                  <button
+                    key={chip.port}
+                    onClick={() => setInventoryFilter(String(chip.port))}
+                    title={`${chip.tooltip} — ${counts?.pods ?? 0} pods, ${counts?.services ?? 0} services`}
+                    style={{
+                      cursor: 'pointer',
+                      background: hasMatches ? 'rgba(59, 130, 246, 0.12)' : 'rgba(148, 163, 184, 0.06)',
+                      color: hasMatches ? '#60A5FA' : 'var(--text-tertiary)',
+                      border: `1px solid ${hasMatches ? 'rgba(59, 130, 246, 0.25)' : 'rgba(148, 163, 184, 0.12)'}`,
+                      borderRadius: '14px',
+                      padding: '3px 10px',
+                      fontSize: '11px',
+                      fontWeight: hasMatches ? 600 : 400,
+                      fontFamily: 'monospace',
+                      transition: 'all 0.15s ease',
+                      opacity: hasMatches ? 1 : 0.4,
+                    }}
+                    onMouseEnter={e => {
+                      if (hasMatches) {
+                        e.currentTarget.style.background = 'rgba(59, 130, 246, 0.2)'
+                        e.currentTarget.style.borderColor = 'rgba(59, 130, 246, 0.4)'
+                      }
+                    }}
+                    onMouseLeave={e => {
+                      if (hasMatches) {
+                        e.currentTarget.style.background = 'rgba(59, 130, 246, 0.12)'
+                        e.currentTarget.style.borderColor = 'rgba(59, 130, 246, 0.25)'
+                      }
+                    }}
+                  >
+                    {String(chip.port)}
+                  </button>
+                )
+              })}
+            </div>
           )}
         </div>
 
@@ -298,6 +442,7 @@ export function CniTopologyPanel({ pods, cniTopology, topologyStatus }: CniTopol
                     <th style={{ textAlign: 'left', padding: '6px 8px', borderBottom: '1px solid var(--border)', fontWeight: 600, whiteSpace: 'nowrap' }}>Name</th>
                     <th style={{ textAlign: 'left', padding: '6px 8px', borderBottom: '1px solid var(--border)', fontWeight: 600, whiteSpace: 'nowrap' }}>Namespace</th>
                     <th style={{ textAlign: 'left', padding: '6px 8px', borderBottom: '1px solid var(--border)', fontWeight: 600, whiteSpace: 'nowrap' }}>IP</th>
+                    <th style={{ textAlign: 'left', padding: '6px 8px', borderBottom: '1px solid var(--border)', fontWeight: 600, whiteSpace: 'nowrap' }}>Ports</th>
                     <th style={{ textAlign: 'left', padding: '6px 8px', borderBottom: '1px solid var(--border)', fontWeight: 600, whiteSpace: 'nowrap' }}>Node</th>
                     <th style={{ textAlign: 'left', padding: '6px 8px', borderBottom: '1px solid var(--border)', fontWeight: 600, whiteSpace: 'nowrap' }}>Phase</th>
                   </tr>
@@ -317,6 +462,9 @@ export function CniTopologyPanel({ pods, cniTopology, topologyStatus }: CniTopol
                         }}>{p.namespace}</span>
                       </td>
                       <td style={{ padding: '4px 8px', borderBottom: '1px solid var(--border-subtle)', fontFamily: 'monospace', fontSize: '12px', color: 'var(--text-secondary)' }}>{p.pod_ip}</td>
+                      <td style={{ padding: '4px 8px', borderBottom: '1px solid var(--border-subtle)', fontFamily: 'monospace', fontSize: '11px', color: 'var(--text-secondary)' }}>
+                        <PodPortsBadge containers={p.containers} />
+                      </td>
                       <td style={{ padding: '4px 8px', borderBottom: '1px solid var(--border-subtle)', fontFamily: 'monospace', fontSize: '12px', color: 'var(--text-secondary)' }}>{p.node_name}</td>
                       <td style={{ padding: '4px 8px', borderBottom: '1px solid var(--border-subtle)' }}>
                         <PhaseBadge phase={p.phase} />
@@ -370,6 +518,7 @@ export function CniTopologyPanel({ pods, cniTopology, topologyStatus }: CniTopol
                     <th style={{ textAlign: 'left', padding: '6px 8px', borderBottom: '1px solid var(--border)', fontWeight: 600, whiteSpace: 'nowrap' }}>Name</th>
                     <th style={{ textAlign: 'left', padding: '6px 8px', borderBottom: '1px solid var(--border)', fontWeight: 600, whiteSpace: 'nowrap' }}>Namespace</th>
                     <th style={{ textAlign: 'left', padding: '6px 8px', borderBottom: '1px solid var(--border)', fontWeight: 600, whiteSpace: 'nowrap' }}>Cluster IP</th>
+                    <th style={{ textAlign: 'left', padding: '6px 8px', borderBottom: '1px solid var(--border)', fontWeight: 600, whiteSpace: 'nowrap' }}>Ports</th>
                     <th style={{ textAlign: 'left', padding: '6px 8px', borderBottom: '1px solid var(--border)', fontWeight: 600, whiteSpace: 'nowrap' }}>Endpoints</th>
                   </tr>
                 </thead>
@@ -388,6 +537,15 @@ export function CniTopologyPanel({ pods, cniTopology, topologyStatus }: CniTopol
                         }}>{s.namespace}</span>
                       </td>
                       <td style={{ padding: '4px 8px', borderBottom: '1px solid var(--border-subtle)', fontFamily: 'monospace', fontSize: '12px', color: 'var(--text-secondary)' }}>{s.clusterIp}</td>
+                      <td style={{ padding: '4px 8px', borderBottom: '1px solid var(--border-subtle)', fontFamily: 'monospace', fontSize: '11px', color: 'var(--text-secondary)' }}>
+                        {s.ports ? (
+                          <span title={s.ports} style={{ cursor: 'help' }}>
+                            {s.ports.length > 30 ? s.ports.slice(0, 28) + '…' : s.ports}
+                          </span>
+                        ) : (
+                          <span style={{ color: 'var(--text-tertiary)', fontStyle: 'italic' }}>—</span>
+                        )}
+                      </td>
                       <td style={{ padding: '4px 8px', borderBottom: '1px solid var(--border-subtle)' }}>
                         <span style={{
                           backgroundColor: servicePodCounts[s.id] ? 'var(--accent-bg, rgba(59,130,246,0.12))' : 'transparent',
@@ -415,6 +573,33 @@ export function CniTopologyPanel({ pods, cniTopology, topologyStatus }: CniTopol
         </div>
       </div>
     </div>
+  )
+}
+
+function PodPortsBadge({ containers }: { containers: Array<{ name: string; image: string; ports?: Array<{ containerPort: number; protocol?: string; name?: string }> | null }> }) {
+  // Collect all unique ports from all containers
+  const ports = containers.reduce<string[]>((acc, c) => {
+    for (const p of c.ports || []) {
+      const label = p.name
+        ? `${p.name}:${p.containerPort}/${p.protocol || 'TCP'}`
+        : `${p.containerPort}/${p.protocol || 'TCP'}`
+      if (!acc.includes(label)) acc.push(label)
+    }
+    return acc
+  }, [])
+
+  if (ports.length === 0) {
+    return <span style={{ color: 'var(--text-tertiary)', fontStyle: 'italic', fontSize: '11px' }}>—</span>
+  }
+
+  const displayText = ports.join(', ')
+  return (
+    <span
+      title={ports.map(p => p.replace(':', ' → ')).join('\n')}
+      style={{ cursor: 'help', fontSize: '11px' }}
+    >
+      {displayText.length > 36 ? displayText.slice(0, 34) + '…' : displayText}
+    </span>
   )
 }
 

@@ -15,6 +15,7 @@ interface TopologyNode {
   node_ip?: string
   capacity?: Record<string, string>
   ready?: boolean
+  ports?: string | null
 }
 
 interface TopologyEdge {
@@ -239,28 +240,28 @@ export function Topology({ nodes, edges }: TopologyProps) {
         },
         position: { x: anchor.x, y: anchor.y },
       })),
-      ...podEntries.map(pod => ({
-        data: {
-          id: pod.id,
-          label: pod.name,
-          type: 'pod',
-          namespace: pod.namespace,
-          ip: pod.ip,
-          node_name: pod.node_name,
-          labels: pod.labels,
-          parent: pod.node_name ? `node:${pod.node_name}` : undefined,
-        },
-        position: childPositions[pod.id],
+      ...podEntries.map(pod => ({          data: {
+              id: pod.id,
+              label: pod.name,
+              type: 'pod',
+              namespace: pod.namespace,
+              ip: pod.ip,
+              node_name: pod.node_name,
+              labels: pod.labels,
+              ports: pod.ports,
+              parent: pod.node_name ? `node:${pod.node_name}` : undefined,
+            },
+            position: childPositions[pod.id],
       })),
-      ...serviceEntries.map(svc => ({
-        data: {
-          id: svc.id,
-          label: svc.name,
-          type: 'service',
-          namespace: svc.namespace,
-          ip: svc.ip,
-        },
-        position: positions[svc.id] || { x: 0, y: 0 },
+      ...serviceEntries.map(svc => ({            data: {
+              id: svc.id,
+              label: svc.name,
+              type: 'service',
+              namespace: svc.namespace,
+              ip: svc.ip,
+              ports: svc.ports,
+            },
+            position: positions[svc.id] || { x: 0, y: 0 },
       })),
       ...edges.map(edge => ({
         data: {
@@ -405,7 +406,11 @@ export function Topology({ nodes, edges }: TopologyProps) {
             'content': (ele: cytoscape.NodeSingular) => {
               const label = ele.data('label') || ''
               const ip = ele.data('ip') || ''
+              const ports = ele.data('ports') || ''
               const shortName = label.length > 18 ? label.slice(0, 16) + '…' : label
+              if (ip && ports) {
+                return `${shortName}\n${ip}`
+              }
               return ip ? `${shortName}\n${ip}` : shortName
             },
             'text-valign': 'center',
@@ -432,6 +437,7 @@ export function Topology({ nodes, edges }: TopologyProps) {
             'content': (ele: cytoscape.NodeSingular) => {
               const label = ele.data('label') || ''
               const ip = ele.data('ip') || ''
+              const ports = ele.data('ports') || ''
               const shortName = label.length > 14 ? label.slice(0, 12) + '…' : label
               return ip ? `${shortName}\n${ip}` : shortName
             },
@@ -586,11 +592,13 @@ export function Topology({ nodes, edges }: TopologyProps) {
         info.push(`📦 Pod: ${d.label}`)
         if (d.namespace) info.push(`📁 Namespace: ${d.namespace}`)
         if (d.ip) info.push(`🌐 IP: ${d.ip}`)
+        if (d.ports) info.push(`🔌 Ports: ${d.ports}`)
         if (d.node_name) info.push(`🖥️  Node: ${d.node_name}`)
       } else if (d.type === 'service') {
         info.push(`🔗 Service: ${d.label}`)
         if (d.namespace) info.push(`📁 Namespace: ${d.namespace}`)
         if (d.ip) info.push(`🌐 Cluster IP: ${d.ip}`)
+        if (d.ports) info.push(`🔌 Ports: ${d.ports}`)
         const connectedPods = cy.edges(`[source = "${d.id}"], [target = "${d.id}"]`).connectedNodes()
         const podCount = connectedPods.filter((n: cytoscape.NodeSingular) => n.data('type') === 'pod').length
         info.push(`🔌 Connected Pods: ${podCount}`)

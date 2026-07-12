@@ -1,3 +1,17 @@
+export interface ContainerPort {
+  containerPort: number
+  protocol?: string
+  name?: string
+}
+
+export interface ServicePort {
+  port: number
+  targetPort?: number
+  protocol?: string
+  name?: string
+  nodePort?: number
+}
+
 export interface Pod {
   name: string
   namespace: string
@@ -5,7 +19,7 @@ export interface Pod {
   node_name: string
   phase: string
   labels: Record<string, string>
-  containers: Array<{ name: string; image: string }>
+  containers: Array<{ name: string; image: string; ports?: ContainerPort[] | null }>
 }
 
 export interface TopologyNode {
@@ -19,6 +33,7 @@ export interface TopologyNode {
   role?: 'master' | 'worker'
   capacity?: Record<string, string>
   ready?: boolean
+  ports?: string | null
 }
 
 export interface TopologyEdge {
@@ -188,6 +203,7 @@ export interface CniTopologyNode {
   labels?: Record<string, string> | null
   node_name?: string | null
   ready?: boolean | null
+  ports?: string | null
 }
 
 export interface CniTopologyEdge {

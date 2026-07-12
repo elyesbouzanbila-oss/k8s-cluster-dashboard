@@ -413,7 +413,7 @@ function App() {
                 />
               )}
               {activeTab === 'diagnostics' && (
-                <DiagnosticsPanel pods={pods} />
+                <DiagnosticsPanel pods={pods} cniTopology={cniTopology} />
               )}
               {activeTab === 'threats' && (
                 <ThreatPanel threats={threats} wsConnected={wsConnected} onClear={() => setThreats([])} loading={loading} />

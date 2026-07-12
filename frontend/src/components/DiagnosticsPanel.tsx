@@ -1,9 +1,10 @@
 import { useState, useRef, useMemo, useCallback } from 'react'
-import type { Pod } from '../types'
+import type { Pod, CniTopologyNode, CniTopologyEdge } from '../types'
 import { Icon } from './Icon'
 
 interface DiagnosticsPanelProps {
   pods: Pod[]
+  cniTopology: { nodes: CniTopologyNode[]; edges: CniTopologyEdge[] } | null
 }
 
 interface LogEntry {
@@ -13,9 +14,14 @@ interface LogEntry {
   timestamp: Date
 }
 
+interface PortOption {
+  value: number
+  label: string
+}
+
 const API_BASE_URL = import.meta.env.VITE_API_URL || ''
 
-export function DiagnosticsPanel({ pods }: DiagnosticsPanelProps) {
+export function DiagnosticsPanel({ pods, cniTopology }: DiagnosticsPanelProps) {
   const [sourceNs, setSourceNs] = useState('default')
   const [sourcePod, setSourcePod] = useState('')
   const [targetType, setTargetType] = useState<'pod' | 'service'>('pod')
@@ -37,6 +43,95 @@ export function DiagnosticsPanel({ pods }: DiagnosticsPanelProps) {
 
   const podsInSourceNs = pods.filter(p => p.namespace === sourceNs)
   const podsInTargetNs = pods.filter(p => p.namespace === targetNs)
+
+  // ── Derive services from topology ─────────────────────────────
+  const servicesInTargetNs = useMemo(() => {
+    if (!cniTopology) return []
+    return cniTopology.nodes
+      .filter(n => n.type === 'service' && n.namespace === targetNs && !n.id.startsWith('bgp:'))
+      .map(n => ({
+        name: n.name,
+        ports: n.ports || '',
+      }))
+      .sort((a, b) => a.name.localeCompare(b.name))
+  }, [cniTopology, targetNs])
+
+  // ── Compute port options from target pod ───────────────────────
+  const targetPodPortOptions = useMemo((): PortOption[] => {
+    if (targetType !== 'pod' || !targetPod) return []
+    const pod = pods.find(p => p.namespace === targetNs && p.name === targetPod)
+    if (!pod) return []
+    const seen = new Set<number>()
+    const options: PortOption[] = []
+    for (const c of pod.containers || []) {
+      for (const port of c.ports || []) {
+        if (!seen.has(port.containerPort)) {
+          seen.add(port.containerPort)
+          const nameLabel = port.name ? ` (${port.name})` : ''
+          const protoLabel = port.protocol ? `/${port.protocol}` : '/TCP'
+          options.push({
+            value: port.containerPort,
+            label: `${port.containerPort}${protoLabel}${nameLabel}`,
+          })
+        }
+      }
+    }
+    return options.sort((a, b) => a.value - b.value)
+  }, [targetType, targetPod, targetNs, pods])
+
+  // ── Compute port options from target service ───────────────────
+  const targetServicePortOptions = useMemo((): PortOption[] => {
+    if (targetType !== 'service' || !targetService) return []
+    const svc = servicesInTargetNs.find(s => s.name === targetService)
+    if (!svc || !svc.ports) return []
+    const seen = new Set<number>()
+    const options: PortOption[] = []
+    // Parse port entries like "http:80/TCP" or "dns-udp:53/UDP"
+    for (const entry of svc.ports.split(', ')) {
+      // Try to extract port number: look for pattern like ":80/TCP" or "53/UDP"
+      const match = entry.match(/(\d+)\/(\w+)/)
+      if (match) {
+        const portNum = parseInt(match[1], 10)
+        if (!seen.has(portNum)) {
+          seen.add(portNum)
+          const proto = match[2]
+          const nameMatch = entry.match(/^([^:]+):/)
+          const nameLabel = nameMatch ? ` (${nameMatch[1]})` : ''
+          options.push({
+            value: portNum,
+            label: `${portNum}/${proto}${nameLabel}`,
+          })
+        }
+      }
+    }
+    return options.sort((a, b) => a.value - b.value)
+  }, [targetType, targetService, servicesInTargetNs])
+
+  // ── Active port options based on target type ───────────────────
+  const portOptions = useMemo(() => {
+    if (targetType === 'pod') {
+      return targetPodPortOptions.length > 0 ? targetPodPortOptions : null
+    }
+    return targetServicePortOptions.length > 0 ? targetServicePortOptions : null
+  }, [targetType, targetPodPortOptions, targetServicePortOptions])
+
+  // Auto-select first port when options change and current port isn't valid
+  const prevPodRef = useRef('')
+  const prevSvcRef = useRef('')
+  if (targetType === 'pod' && targetPod !== prevPodRef.current && targetPodPortOptions.length > 0) {
+    prevPodRef.current = targetPod
+    const currentValid = targetPodPortOptions.some(o => o.value === targetPort)
+    if (!currentValid) {
+      setTargetPort(targetPodPortOptions[0].value)
+    }
+  }
+  if (targetType === 'service' && targetService !== prevSvcRef.current && targetServicePortOptions.length > 0) {
+    prevSvcRef.current = targetService
+    const currentValid = targetServicePortOptions.some(o => o.value === targetPort)
+    if (!currentValid) {
+      setTargetPort(targetServicePortOptions[0].value)
+    }
+  }
 
   const handleRunTest = useCallback(async () => {
     if (!sourcePod) {
@@ -199,15 +294,27 @@ export function DiagnosticsPanel({ pods }: DiagnosticsPanelProps) {
                 </div>
                 <div className="diagnostics-form-field">
                   <label className="diagnostics-field-label">Port</label>
-                  <input
-                    type="number"
-                    className="diagnostics-input"
-                    min={1}
-                    max={65535}
-                    value={targetPort}
-                    onChange={e => setTargetPort(parseInt(e.target.value) || 80)}
-                    placeholder="e.g. 80"
-                  />
+                  {portOptions ? (
+                    <select
+                      className="diagnostics-select"
+                      value={targetPort}
+                      onChange={e => setTargetPort(parseInt(e.target.value))}
+                    >
+                      {portOptions.map(opt => (
+                        <option key={opt.value} value={opt.value}>{opt.label}</option>
+                      ))}
+                    </select>
+                  ) : (
+                    <input
+                      type="number"
+                      className="diagnostics-input"
+                      min={1}
+                      max={65535}
+                      value={targetPort}
+                      onChange={e => setTargetPort(parseInt(e.target.value) || 80)}
+                      placeholder={targetType === 'pod' ? 'Select a pod first' : 'e.g. 80'}
+                    />
+                  )}
                 </div>
               </div>
               <div className="diagnostics-form-row">
@@ -229,13 +336,26 @@ export function DiagnosticsPanel({ pods }: DiagnosticsPanelProps) {
                   ) : (
                     <>
                       <label className="diagnostics-field-label">Service Name</label>
-                      <input
-                        type="text"
-                        className="diagnostics-input"
-                        placeholder="e.g. my-service"
-                        value={targetService}
-                        onChange={e => setTargetService(e.target.value)}
-                      />
+                      {servicesInTargetNs.length > 0 ? (
+                        <select
+                          className="diagnostics-select"
+                          value={targetService}
+                          onChange={e => { setTargetService(e.target.value); setTargetPod('') }}
+                        >
+                          <option value="">— Select service —</option>
+                          {servicesInTargetNs.map(s => (
+                            <option key={s.name} value={s.name}>{s.name}</option>
+                          ))}
+                        </select>
+                      ) : (
+                        <input
+                          type="text"
+                          className="diagnostics-input"
+                          placeholder="e.g. my-service"
+                          value={targetService}
+                          onChange={e => setTargetService(e.target.value)}
+                        />
+                      )}
                     </>
                   )}
                 </div>
