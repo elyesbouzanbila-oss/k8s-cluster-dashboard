@@ -263,7 +263,8 @@ async def connectivity_diagnostics(
                 "restartPolicy": "Never",
                 "containers": [{
                     "name": "connectivity-check",
-                    "image": "nginx:alpine",
+                    "image": "dashboard-backend:latest",
+                    "imagePullPolicy": "Never",
                     "command": ["sh", "-c", cmd],
                     "env": [
                         {"name": "TARGET_HOST", "value": target_host},
