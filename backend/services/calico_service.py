@@ -1,5 +1,6 @@
 """Service layer for Calico CNI resources accessed via Kubernetes CustomObjectsApi."""
 
+import asyncio
 import ipaddress
 from typing import Any, Dict, List, Optional
 from collections import defaultdict
@@ -12,28 +13,49 @@ CALICO_VERSION = "v1"
 
 
 async def get_calico_nodes(api_client) -> List[Dict[str, Any]]:
-    """Return per-node Calico agent status from calico-node pods."""
+    """Return per-node Calico agent status from calico-node pods.
+
+    Cross-references against node Ready status: if a node is NotReady,
+    its calico-node pod is reported as Down regardless of the container
+    readiness (the pod status is stale when the kubelet stops reporting).
+    """
     v1 = k8s_client.CoreV1Api(api_client)
-    pods = await v1.list_pod_for_all_namespaces(
-        label_selector="k8s-app=calico-node",
-        watch=False,
+
+    # Fetch nodes and calico-node pods in parallel
+    node_list, pods = await asyncio.gather(
+        v1.list_node(),
+        v1.list_pod_for_all_namespaces(
+            label_selector="k8s-app=calico-node",
+            watch=False,
+        ),
     )
+
+    # Build a set of nodes that are NOT Ready
+    not_ready_nodes: set[str] = set()
+    for n in node_list.items:
+        node_ready = True
+        for condition in n.status.conditions or []:
+            if condition.type == "Ready":
+                node_ready = condition.status == "True"
+                break
+        if not node_ready:
+            not_ready_nodes.add(n.metadata.name)
 
     nodes = []
     for p in pods.items:
         node_name = getattr(p.spec, "node_name", None)
         pod_ip = getattr(p.status, "pod_ip", None)
-        # calico-node is a single container running both Felix and BIRD.
-        # The container has a single readiness probe, so readiness cannot
-        # be split into separate felix/bird signals without querying the
-        # Felix readiness endpoint or Calico NodeStatus CRDs.
-        # Consolidated into a single "calico_ready" indicator.
-        calico_ready = False
 
-        for c in (p.status.container_statuses or []):
-            if c.ready and c.name == "calico-node":
-                calico_ready = True
-                break
+        # If the node itself is NotReady, mark the calico agent as down
+        # regardless of what the stale container status says.
+        if node_name and node_name in not_ready_nodes:
+            calico_ready = False
+        else:
+            calico_ready = False
+            for c in (p.status.container_statuses or []):
+                if c.ready and c.name == "calico-node":
+                    calico_ready = True
+                    break
 
         # Compute uptime from the earliest running container
         uptime_seconds = None
