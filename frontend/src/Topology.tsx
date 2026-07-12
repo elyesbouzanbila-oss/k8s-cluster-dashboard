@@ -406,11 +406,7 @@ export function Topology({ nodes, edges }: TopologyProps) {
             'content': (ele: cytoscape.NodeSingular) => {
               const label = ele.data('label') || ''
               const ip = ele.data('ip') || ''
-              const ports = ele.data('ports') || ''
               const shortName = label.length > 18 ? label.slice(0, 16) + '…' : label
-              if (ip && ports) {
-                return `${shortName}\n${ip}`
-              }
               return ip ? `${shortName}\n${ip}` : shortName
             },
             'text-valign': 'center',
@@ -437,7 +433,6 @@ export function Topology({ nodes, edges }: TopologyProps) {
             'content': (ele: cytoscape.NodeSingular) => {
               const label = ele.data('label') || ''
               const ip = ele.data('ip') || ''
-              const ports = ele.data('ports') || ''
               const shortName = label.length > 14 ? label.slice(0, 12) + '…' : label
               return ip ? `${shortName}\n${ip}` : shortName
             },
