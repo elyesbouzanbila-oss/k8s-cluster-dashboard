@@ -263,9 +263,7 @@ async def connectivity_diagnostics(
                 "restartPolicy": "Never",
                 "containers": [{
                     "name": "connectivity-check",
-                    # L9: Pin to a specific digest for supply-chain safety
-                    # busybox:1.36 SHA as of July 2026
-                    "image": "busybox:1.36@sha256:9758c73607ba2efc7998b32c24b9fc3c68f3bea86b3c5c4467ae3d5af1283ba6",
+                    "image": "nginx:alpine",
                     "command": ["sh", "-c", cmd],
                     "env": [
                         {"name": "TARGET_HOST", "value": target_host},
