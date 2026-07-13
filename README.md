@@ -21,87 +21,13 @@ inspection, topology, and connectivity diagnostics.
 
 ## Grafana Handoff
 
-### Grafana Access
+General cluster monitoring (node CPU/memory, pod resources, storage) is handled by **Grafana**
+via `kube-prometheus-stack`. Grafana is deployed separately and is **not** part of this project.
 
-**Service:** `monitor-grafana.monitoring.svc.cluster.local` (typically `ClusterIP` by default)
-
-**Expose Grafana externally** via NodePort:
-
-```bash
-# Check current Grafana service type
-kubectl get svc -n monitoring monitor-grafana
-
-# Patch to NodePort (if currently ClusterIP)
-kubectl patch svc -n monitoring monitor-grafana -p '{"spec":{"type":"NodePort"}}'
-
-# Get the assigned NodePort
-kubectl get svc -n monitoring monitor-grafana -o jsonpath='{.spec.ports[0].nodePort}'
-```
-
-**Default credentials** (kube-prometheus-stack):
-- Username: `admin`
-- Password: `prom-operator`
-
-If the password has been changed, retrieve it from the secret:
-```bash
-kubectl get secret -n monitoring monitor-grafana -o jsonpath="{.data.admin-password}" | base64 --decode
-```
-
-**URL:** `http://<node-ip>:<node-port>`
-
-### Default Dashboards (kube-prometheus-stack)
-
-The following dashboards are included by default with `kube-prometheus-stack` and fully replace the old Monitoring/Storage tabs:
-
-| Dashboard | What it replaces |
-|-----------|-----------------|
-| **Kubernetes / Compute Resources / Node** | Node CPU/memory usage (was old Metrics tab) |
-| **Kubernetes / Compute Resources / Pod** | Per-pod resource consumption with container drill-down |
-| **Kubernetes / Compute Resources / Namespace** | Namespace-level CPU/memory aggregation |
-| **Kubernetes / Networking** | Network traffic, dropped packets |
-| **Kubernetes / Storage / PersistentVolumes** | PVC overview (was old Storage tab) |
-| **Kubernetes / Kubelet** | Kubelet metrics, pod startup latency |
-
-### Calico Felix Dashboard
-
-For deeper Felix metrics beyond what the CNI Command Center surfaces, import the official
-community dashboard:
-
-| Field | Value |
-|-------|-------|
-| **Dashboard ID** | `12175` |
-| **Title** | Calico Felix (Tigera) |
-| **Source** | [grafana.com/grafana/dashboards/12175-calico-felix](https://grafana.com/grafana/dashboards/12175-calico-felix/) |
-
-**Import steps:**
-1. Open Grafana in your browser
-2. Click **+** → **Import** (or go to Dashboards → New → Import)
-3. Enter dashboard ID `12175`
-4. Select the Prometheus data source (default: `Prometheus`)
-5. Click **Import**
-
-This dashboard provides:
-- Per-node Felix endpoint counts for workloads and host endpoints
-- iptables restore errors and dataplane failures over time
-- BGP session status and peer counts per node
-- Policy evaluation rates and latency
-- Felix memory usage and goroutine counts
-
-### Felix Metrics Scraping
-
-Ensure Prometheus is scraping Felix metrics from calico-node (port `9091`):
-
-```bash
-# Verify Felix metrics are being scraped
-kubectl get pod -n kube-system -l k8s-app=calico-node -o yaml | grep -i 9091
-
-# Test query in Prometheus
-# Open Prometheus: kubectl port-forward -n monitoring svc/monitor-kube-prometheus-st-prometheus 9090:9090
-# Then query: felix_active_local_endpoints
-```
-
-If Felix metrics are not being scraped, add a `PodMonitor` or `ServiceMonitor` targeting
-`calico-node` pods on port `9091` with label `k8s-app: calico-node`.
+- **Service:** `monitor-grafana.monitoring.svc.cluster.local` (ClusterIP by default; expose via NodePort or port-forward as needed)
+- **Default credentials:** `admin` / `prom-operator`
+- **Felix dashboard:** Import [ID `12175`](https://grafana.com/grafana/dashboards/12175-calico-felix/) for deeper Felix performance charts (per-node endpoint counts, BGP sessions, policy evaluation rates, etc.)
+- **Metrics scraping:** Ensure Prometheus scrapes `calico-node` pods on port `9091` (add a `PodMonitor` or `ServiceMonitor` if needed)
 
 ---
 
