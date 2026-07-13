@@ -17,19 +17,8 @@ inspection, topology, and connectivity diagnostics.
 - **Diagnostics** — On-demand pod-to-pod / pod-to-service connectivity test runner
 - **Threats** — Real-time network-scoped threat event streaming via WebSocket (Falco webhook ingestion)
 
-> **Note:** General cluster monitoring (node CPU/memory, pod resource consumption, storage) has been moved to **Grafana** (see [Grafana Handoff](#grafana-handoff)).
-
-## Grafana Handoff
-
-General cluster monitoring (node CPU/memory, pod resources, storage) is handled by **Grafana**
-via `kube-prometheus-stack`. Grafana is deployed separately and is **not** part of this project.
-
-- **Service:** `monitor-grafana.monitoring.svc.cluster.local` (ClusterIP by default; expose via NodePort or port-forward as needed)
-- **Default credentials:** `admin` / `prom-operator`
-- **Felix dashboard:** Import [ID `12175`](https://grafana.com/grafana/dashboards/12175-calico-felix/) for deeper Felix performance charts (per-node endpoint counts, BGP sessions, policy evaluation rates, etc.)
-- **Metrics scraping:** Ensure Prometheus scrapes `calico-node` pods on port `9091` (add a `PodMonitor` or `ServiceMonitor` if needed)
-
----
+> **Note:** General cluster monitoring (node CPU/memory, pod resource consumption, storage) is handled by **Grafana** via `kube-prometheus-stack` — deployed separately from this project.
+For deeper Felix performance charts, import Grafana dashboard [ID `12175`](https://grafana.com/grafana/dashboards/12175-calico-felix/).
 
 ## RBAC Permissions
 
@@ -84,6 +73,48 @@ Visit: http://localhost:5173
 | Frontend | http://localhost:5173       |
 | Backend  | http://localhost:8000       |
 | Redis    | localhost:6379              |
+
+### Deploying to a Kubernetes Cluster
+
+Deploy all components (frontend, backend, Redis) into your cluster:
+
+```bash
+kubectl apply -k k8s/
+```
+
+This creates a namespace `k8s-dashboard` and deploys everything under it.
+The frontend is exposed as a **NodePort** service — access the dashboard at:
+
+```
+http://<any-node-ip>:30080
+```
+
+> **Note:** The backend (`dashboard-backend`) uses `ClusterIP` and is only reachable
+> internally through the nginx reverse proxy on the frontend pod. External calls to
+> the backend API must go through the frontend's NodePort.
+
+### Building Container Images
+
+If deploying to a local cluster (kind, minikube, etc.), build the images first so they're
+available locally (the deployments use `imagePullPolicy: Never`):
+
+```bash
+docker compose build
+# Or build individually:
+docker build -t dashboard-backend:latest ./backend
+docker build -t dashboard-frontend:latest ./frontend
+```
+
+Then load them into your cluster:
+
+```bash
+# kind
+kind load docker-image dashboard-backend:latest dashboard-frontend:latest
+
+# minikube
+minikube image load dashboard-backend:latest
+minikube image load dashboard-frontend:latest
+```
 
 ## Configuration
 
@@ -279,11 +310,6 @@ python -m uvicorn main:app --reload
 cd frontend
 npm install
 npm run dev
-```
-
-### Deploying to a Cluster
-```bash
-kubectl apply -k k8s/     # or: kubectl apply -f k8s/
 ```
 
 ## Extending
