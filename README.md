@@ -12,7 +12,7 @@ inspection, topology, and connectivity diagnostics.
 - **Dashboard** — CNI Command Center overview: Calico agent health, BGP peers, IPAM utilization, policy counts, Felix performance
 - **CNI Health** — Per-node Felix and BIRD/BGP agent status cards with color-coded health indicators
 - **IPAM** — IP pool utilization bars, block allocation statistics, pool definition tables
-- **Policies** — Searchable/filterable Calico NetworkPolicy and GlobalNetworkPolicy table with Allow/Deny badges
+- **Policies** — Searchable/filterable Calico NetworkPolicy and GlobalNetworkPolicy table with Allow/Deny badges; sub-view toggle for **Policy Coverage** analysis (per-pod exposed/covered detection with namespace-level summaries)
 - **Topology** — Interactive node-to-node BGP mesh + pod overlay topology graph
 - **Diagnostics** — On-demand pod-to-pod / pod-to-service connectivity test runner
 - **Threats** — Real-time network-scoped threat event streaming via WebSocket (Falco webhook ingestion)
@@ -223,23 +223,29 @@ VITE_API_URL=http://localhost:8000
 > Istio authz policy, or a sidecar like oauth2-proxy). For local development, the nginx
 > reverse proxy provides same-origin isolation. The Falco webhook (`/api/threats/falco`)
 > can be authenticated via HMAC-SHA256 signature using `FALCO_WEBHOOK_SECRET`.
+>
+> **Rate limiting:** The backend uses `slowapi` to rate-limit the Falco webhook endpoint
+> (10 POST requests per minute per IP). All other endpoints are currently unthrottled.
 
-| Endpoint                         | Method     | Description                              |
-|----------------------------------|------------|------------------------------------------|
-| `/mock/pods`                     | GET        | Mock pod data                           |
-| `/mock/topology`                 | GET        | Mock topology                           |
-| `/api/network/pods`              | GET        | List all pods across namespaces         |
-| `/api/network/topology`          | GET        | Cluster topology graph (nodes + edges)  |
-| `/api/threats/falco`             | POST       | Falco webhook — ingest threat events   |
-| `/api/threats/ws/threats`        | WebSocket  | Real-time threat stream                |
-| `/api/cni/nodes`                 | GET        | Per-node Calico agent status           |
-| `/api/cni/bgp-peers`             | GET        | BGP peer list + session state          |
-| `/api/cni/ippools`               | GET        | IP pool definitions                    |
-| `/api/cni/ipam/utilization`      | GET        | Allocated vs. free IPs per pool        |
-| `/api/cni/policies`              | GET        | Calico NetworkPolicy + GlobalNetworkPolicy |
-| `/api/cni/topology`              | GET        | BGP mesh + overlay topology            |
-| `/api/cni/metrics/felix`         | GET        | Felix performance counters             |
-| `/api/cni/diagnostics/connectivity` | POST    | On-demand connectivity test (Phase 4)  |
+| Endpoint                         | Method     | Description                              | Rate-Limited? |
+|----------------------------------|------------|------------------------------------------|---------------|
+| `/mock/pods`                     | GET        | Mock pod data                           | No |
+| `/mock/topology`                 | GET        | Mock topology                           | No |
+| `/mock/rbac`                     | GET        | Mock RBAC bindings                      | No |
+| `/mock/privileged`               | GET        | Mock privileged pod data                | No |
+| `/api/network/pods`              | GET        | List all pods across namespaces         | No |
+| `/api/network/topology`          | GET        | Cluster topology graph (nodes + edges)  | No |
+| `/api/threats/falco`             | POST       | Falco webhook — ingest threat events   | 10/min per IP |
+| `/api/threats/ws/threats`        | WebSocket  | Real-time threat stream                | No |
+| `/api/cni/nodes`                 | GET        | Per-node Calico agent status           | No |
+| `/api/cni/bgp-peers`             | GET        | BGP peer list + session state          | No |
+| `/api/cni/ippools`               | GET        | IP pool definitions                    | No |
+| `/api/cni/ipam/utilization`      | GET        | Allocated vs. free IPs per pool        | No |
+| `/api/cni/policies`              | GET        | Calico NetworkPolicy + GlobalNetworkPolicy | No |
+| `/api/cni/policies/coverage`      | GET        | Per-pod policy coverage analysis (exposed vs. covered) | No |
+| `/api/cni/topology`              | GET        | BGP mesh + overlay topology            | No |
+| `/api/cni/metrics/felix`         | GET        | Felix performance counters             | No |
+| `/api/cni/diagnostics/connectivity` | POST    | On-demand connectivity test            | No |
 
 ## Architecture
 
@@ -304,17 +310,23 @@ All data sources have mock fallbacks — the dashboard works without a live clus
 │   │   ├── App.css              # Dark-theme styles + CNI panel styles
 │   │   ├── Topology.tsx         # Cytoscape.js topology graph
 │   │   ├── components/
-│   │   │   ├── CniHealthPanel.tsx     # Per-node Felix/BIRD status cards
-│   │   │   ├── IpamPanel.tsx          # IP pool utilization + block table
-│   │   │   ├── PolicyInspectorPanel.tsx  # Searchable policy table
-│   │   │   ├── CniTopologyPanel.tsx   # BGP mesh + overlay topology
-│   │   │   ├── DiagnosticsPanel.tsx   # Connectivity test runner
-│   │   │   ├── DashboardPanel.tsx     # CNI Command Center overview
-│   │   │   ├── ThreatPanel.tsx        # Real-time threat stream
-│   │   │   └── shared (DataSourceBadge, EmptyState, Icon, Skeleton, ErrorBoundary)
-│   │   └── types.ts             # TypeScript interfaces (+ CNI types)
-│   ├── package.json
-│   └── nginx.conf               # SPA proxy config
+│   │   │   ├── CniHealthPanel.tsx         # Per-node Felix/BIRD status cards
+│   │   │   ├── IpamPanel.tsx              # IP pool utilization + block table
+│   │   │   ├── PolicyInspectorPanel.tsx   # Searchable policy table
+│   │   │   ├── PolicyCoveragePanel.tsx    # Per-pod policy coverage analysis
+│   │   │   ├── CniTopologyPanel.tsx       # BGP mesh + overlay topology
+│   │   │   ├── DiagnosticsPanel.tsx       # Connectivity test runner
+│   │   │   ├── DashboardPanel.tsx         # CNI Command Center overview
+│   │   │   ├── ThreatPanel.tsx            # Real-time threat stream
+│   │   │   └── shared/ (DataSourceBadge, EmptyState, Icon, Skeleton, ErrorBoundary)
+│   │   ├── types.ts             # TypeScript interfaces (+ CNI types)
+│   │   └── utils.ts             # Utility functions (ns colors, priority colors, etc.)
+│   ├── Topology.tsx             # Cytoscape.js interactive topology graph
+│   ├── Topology.css             # Topology graph styles
+│   ├── nginx.conf               # SPA reverse proxy config
+│   ├── docker-entrypoint.sh     # Runtime env injection for nginx build
+│   ├── Dockerfile               # Multi-stage build (Vite → nginx)
+│   └── package.json
 ├── k8s/                          # K8s deployment manifests
 │   ├── deploy-backend.yaml      # Backend deployment + service
 │   ├── deploy-frontend.yaml     # Frontend deployment + service
