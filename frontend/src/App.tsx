@@ -10,10 +10,12 @@ import { PolicyCoveragePanel } from './components/PolicyCoveragePanel'
 import { CniTopologyPanel } from './components/CniTopologyPanel'
 import { DiagnosticsPanel } from './components/DiagnosticsPanel'
 import { ThreatPanel } from './components/ThreatPanel'
+import { SecurityPanel } from './components/SecurityPanel'
 import type {
   Pod, ThreatEvent, CalicoNodeStatus, BGPPeer, IPPool, IPAMBlockSummary,
   CniPolicy, CniTopologyNode, CniTopologyEdge, FelixMetrics,
   DataSourceStatus, ApiResponse, PodCoverageItem,
+  RbacBinding, PrivilegedPod,
 } from './types'
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || ''
@@ -34,18 +36,31 @@ const TABS: TabDef[] = [
   { id: 'topology', label: 'Topology', icon: <Icon name="network" /> },
   { id: 'diagnostics', label: 'Diagnostics', icon: <Icon name="play" /> },
   { id: 'threats', label: 'Threats', icon: <Icon name="alert-triangle" /> },
+  { id: 'security', label: 'Security', icon: <Icon name="shield" /> },
 ]
 
 function App() {
-  const [activeTab, setActiveTab] = useState('dashboard')
+  const [activeTab, setActiveTab] = useState(() => localStorage.getItem('k8s-dashboard-tab') || 'dashboard')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  // ── Persistent tab state ──
+  const handleTabChange = useCallback((tabId: string) => {
+    setActiveTab(tabId)
+    localStorage.setItem('k8s-dashboard-tab', tabId)
+  }, [])
   const refreshIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const wsRef = useRef<WebSocket | null>(null)
   const threatIdRef = useRef(1)
 
   // Shared state
   const [pods, setPods] = useState<Pod[]>([])
+
+  // Security state
+  const [rbacBindings, setRbacBindings] = useState<RbacBinding[]>([])
+  const [privilegedPods, setPrivilegedPods] = useState<PrivilegedPod[]>([])
+  const [rbacBindingsStatus, setRbacBindingsStatus] = useState<DataSourceStatus>('unknown')
+  const [privilegedPodsStatus, setPrivilegedPodsStatus] = useState<DataSourceStatus>('unknown')
 
   // CNI state
   const [cniNodes, setCniNodes] = useState<CalicoNodeStatus[]>([])
@@ -169,6 +184,26 @@ function App() {
         setPolicyCoverage(d.data || [])
       }
 
+      // Fetch RBAC bindings & privileged pods
+      const [rbacRes, privRes] = await Promise.all([
+        fetchWithRetry(`${API_BASE_URL}/mock/rbac`),
+        fetchWithRetry(`${API_BASE_URL}/mock/privileged`),
+      ])
+      if (rbacRes?.ok) {
+        const d = await rbacRes.json()
+        setRbacBindings(d || [])
+        setRbacBindingsStatus('mock')
+      } else {
+        setRbacBindingsStatus('error')
+      }
+      if (privRes?.ok) {
+        const d = await privRes.json()
+        setPrivilegedPods(d || [])
+        setPrivilegedPodsStatus('mock')
+      } else {
+        setPrivilegedPodsStatus('error')
+      }
+
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Connection lost'
       setError(`Data fetch failed: ${msg}`)
@@ -263,6 +298,7 @@ function App() {
       case 'ipam':
       case 'policies':
       case 'topology':
+      case 'security':
         fetchData()
         break
       case 'diagnostics':
@@ -278,6 +314,37 @@ function App() {
 
   // ── Keyboard navigation for tabs ──
   const tabIndexMap = useMemo(() => Object.fromEntries(TABS.map((t, i) => [t.id, i])), [])
+
+  // ── Export data as JSON ──────────────────────────────────────
+  const handleExport = useCallback(() => {
+    const data = {
+      exportedAt: new Date().toISOString(),
+      dashboard: {
+        pods,
+        cniNodes,
+        bgpPeers,
+        ipPools,
+        ipamBlocks,
+        cniPolicies,
+        cniTopology,
+        felixMetrics,
+        policyCoverage,
+        rbacBindings,
+        privilegedPods,
+      },
+      threats,
+    }
+
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `k8s-dashboard-export-${new Date().toISOString().slice(0, 10)}.json`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+  }, [pods, cniNodes, bgpPeers, ipPools, ipamBlocks, cniPolicies, cniTopology, felixMetrics, policyCoverage, rbacBindings, privilegedPods, threats])
 
   const handleTabKeyDown = useCallback((e: React.KeyboardEvent) => {
     const currentIdx = tabIndexMap[activeTab]
@@ -327,6 +394,10 @@ function App() {
             <span className={`indicator ${wsConnected ? 'connected' : 'disconnected'}`} role="img" aria-label={wsConnected ? 'Connected' : 'Disconnected'} />
             <span>{wsConnected ? 'Threats Live' : 'Disconnected'}</span>
           </div>
+          <button className="refresh-btn" onClick={handleExport} title="Export all data as JSON" aria-label="Export data">
+            <Icon name="download" size={16} />
+            <span>Export</span>
+          </button>
         </div>
       </header>
 
@@ -348,7 +419,7 @@ function App() {
             key={tab.id}
             id={`tab-${tab.id}`}
             className={`tab ${activeTab === tab.id ? 'active' : ''}`}
-            onClick={() => setActiveTab(tab.id)}
+            onClick={() => handleTabChange(tab.id)}
             role="tab"
             aria-selected={activeTab === tab.id}
             aria-controls={`tabpanel-${tab.id}`}
@@ -447,6 +518,14 @@ function App() {
               )}
               {tab.id === 'threats' && (
                 <ThreatPanel threats={threats} wsConnected={wsConnected} onClear={() => setThreats([])} loading={loading} />
+              )}
+              {tab.id === 'security' && (
+                <SecurityPanel
+                  rbacBindings={rbacBindings}
+                  privilegedPods={privilegedPods}
+                  rbacBindingsStatus={rbacBindingsStatus}
+                  privilegedPodsStatus={privilegedPodsStatus}
+                />
               )}
             </div>
           ))}
