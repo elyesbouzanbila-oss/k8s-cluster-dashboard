@@ -24,10 +24,6 @@ interface DashboardPanelProps {
   wsConnected?: boolean
 }
 
-function isStatusLoading(status: DataSourceStatus | undefined): boolean {
-  return status === 'unknown' || status === undefined
-}
-
 // ── Animated counter hook ──────────────────────────────────────
 function useCountUp(target: number, duration = 800, enabled = true) {
   const [value, setValue] = useState(0)
@@ -294,10 +290,12 @@ export function DashboardPanel({
   cniNodesStatus, ipamStatus, policiesStatus, felixStatus, loading,
   onNavigate, threatsCount = 0, threatsCritical = 0, wsConnected,
 }: DashboardPanelProps) {
-  const isLoading = loading ||
-    isStatusLoading(cniNodesStatus) ||
-    isStatusLoading(ipamStatus) ||
-    isStatusLoading(policiesStatus)
+  // Show content as soon as ANY data arrives, rather than waiting for
+  // ALL endpoints to respond. This prevents the dashboard from getting
+  // stuck on skeleton placeholders when one endpoint fails silently.
+  const hasAnyData = cniNodes.length > 0 || ipPools > 0 ||
+    ipamBlocks.length > 0 || policies.length > 0 || bgpPeers > 0
+  const isLoading = loading && !hasAnyData
 
   const isReady = (n: CalicoNodeStatus) => n.calico_ready ?? n.felix_ready ?? false
   const healthyNodes = cniNodes.filter(isReady)

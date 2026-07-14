@@ -100,6 +100,8 @@ function App() {
         const d: ApiResponse<CalicoNodeStatus[]> = await nodesRes.json()
         setCniNodes(d.data || [])
         setCniNodesStatus(d.status === 'success' ? 'live' : d.status === 'mock' ? 'mock' : 'error')
+      } else {
+        setCniNodesStatus('error')
       }
       if (poolsRes.ok) {
         const d: ApiResponse<IPPool[]> = await poolsRes.json()
@@ -109,11 +111,15 @@ function App() {
         const d: ApiResponse<IPAMBlockSummary[]> = await ipamRes.json()
         setIpamBlocks(d.data || [])
         setIpamStatus(d.status === 'success' ? 'live' : d.status === 'mock' ? 'mock' : 'error')
+      } else {
+        setIpamStatus('error')
       }
       if (policiesRes.ok) {
         const d: ApiResponse<CniPolicy[]> = await policiesRes.json()
         setCniPolicies(d.data || [])
         setPoliciesStatus(d.status === 'success' ? 'live' : d.status === 'mock' ? 'mock' : 'error')
+      } else {
+        setPoliciesStatus('error')
       }
       if (bgpRes.ok) {
         const d: ApiResponse<BGPPeer[]> = await bgpRes.json()
@@ -126,6 +132,8 @@ function App() {
         const d: ApiResponse<{ nodes: CniTopologyNode[]; edges: CniTopologyEdge[] }> = await topoRes.json()
         setCniTopology(d.data || null)
         setTopologyStatus(d.status === 'success' ? 'live' : d.status === 'mock' ? 'mock' : 'error')
+      } else {
+        setTopologyStatus('error')
       }
 
       // Fetch Felix metrics
@@ -134,6 +142,8 @@ function App() {
         const d: ApiResponse<FelixMetrics> = await felixRes.json()
         setFelixMetrics(d.data || null)
         setFelixStatus(d.status === 'success' ? 'live' : d.status === 'mock' ? 'mock' : 'error')
+      } else {
+        setFelixStatus('error')
       }
 
       // Fetch policy coverage
