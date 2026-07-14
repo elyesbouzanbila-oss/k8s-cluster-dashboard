@@ -367,6 +367,10 @@ function App() {
                   policiesStatus={policiesStatus}
                   felixStatus={felixStatus}
                   loading={loading}
+                  onNavigate={setActiveTab}
+                  threatsCount={threats.length}
+                  threatsCritical={threats.filter(t => t.priority === 'Critical').length}
+                  wsConnected={wsConnected}
                 />
               )}
               {tab.id === 'cni-health' && (
