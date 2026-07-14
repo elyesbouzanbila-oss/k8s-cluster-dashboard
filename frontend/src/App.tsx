@@ -79,56 +79,72 @@ function App() {
     return () => clearInterval(interval)
   }, [])
 
+  // ── Helper: fetch with retry ──
+  const fetchWithRetry = useCallback(async (url: string, retries = 2): Promise<Response | null> => {
+    for (let attempt = 0; attempt <= retries; attempt++) {
+      try {
+        const res = await fetch(url)
+        if (res.ok || attempt === retries) return res
+        // Wait briefly before retry (100ms, 200ms)
+        await new Promise(r => setTimeout(r, 100 * 2 ** attempt))
+      } catch {
+        if (attempt === retries) return null
+        await new Promise(r => setTimeout(r, 100 * 2 ** attempt))
+      }
+    }
+    return null
+  }, [])
+
   // ── Silent refresh (background) ──
   const silentRefresh = useCallback(async () => {
     try {
       // Always fetch pods and CNI data
       const [podsRes, nodesRes, poolsRes, ipamRes, policiesRes, bgpRes] = await Promise.all([
-        fetch(`${API_BASE_URL}/api/network/pods`),
-        fetch(`${API_BASE_URL}/api/cni/nodes`),
-        fetch(`${API_BASE_URL}/api/cni/ippools`),
-        fetch(`${API_BASE_URL}/api/cni/ipam/utilization`),
-        fetch(`${API_BASE_URL}/api/cni/policies`),
-        fetch(`${API_BASE_URL}/api/cni/bgp-peers`),
+        fetchWithRetry(`${API_BASE_URL}/api/network/pods`),
+        fetchWithRetry(`${API_BASE_URL}/api/cni/nodes`),
+        fetchWithRetry(`${API_BASE_URL}/api/cni/ippools`),
+        fetchWithRetry(`${API_BASE_URL}/api/cni/ipam/utilization`),
+        fetchWithRetry(`${API_BASE_URL}/api/cni/policies`),
+        fetchWithRetry(`${API_BASE_URL}/api/cni/bgp-peers`),
       ])
 
-      if (podsRes.ok) {
+      if (podsRes?.ok) {
         const d = await podsRes.json()
         setPods(d.items || [])
       }
-      if (nodesRes.ok) {
+      if (nodesRes?.ok) {
         const d: ApiResponse<CalicoNodeStatus[]> = await nodesRes.json()
         setCniNodes(d.data || [])
         setCniNodesStatus(d.status === 'success' ? 'live' : d.status === 'mock' ? 'mock' : 'error')
       } else {
         setCniNodesStatus('error')
       }
-      if (poolsRes.ok) {
+      if (poolsRes?.ok) {
         const d: ApiResponse<IPPool[]> = await poolsRes.json()
         setIpPools(d.data || [])
       }
-      if (ipamRes.ok) {
+      if (ipamRes?.ok) {
         const d: ApiResponse<IPAMBlockSummary[]> = await ipamRes.json()
         setIpamBlocks(d.data || [])
         setIpamStatus(d.status === 'success' ? 'live' : d.status === 'mock' ? 'mock' : 'error')
       } else {
         setIpamStatus('error')
       }
-      if (policiesRes.ok) {
+      if (policiesRes?.ok) {
         const d: ApiResponse<CniPolicy[]> = await policiesRes.json()
         setCniPolicies(d.data || [])
         setPoliciesStatus(d.status === 'success' ? 'live' : d.status === 'mock' ? 'mock' : 'error')
       } else {
         setPoliciesStatus('error')
       }
-      if (bgpRes.ok) {
+      if (bgpRes?.ok) {
         const d: ApiResponse<BGPPeer[]> = await bgpRes.json()
         setBgpPeers(d.data || [])
       }
 
       // Fetch topology
-      const topoRes = await fetch(`${API_BASE_URL}/api/cni/topology`)
-      if (topoRes.ok) {
+      const topoRes = await fetchWithRetry(`${API_BASE_URL}/api/cni/topology`)
+      if (topoRes?.ok) {
         const d: ApiResponse<{ nodes: CniTopologyNode[]; edges: CniTopologyEdge[] }> = await topoRes.json()
         setCniTopology(d.data || null)
         setTopologyStatus(d.status === 'success' ? 'live' : d.status === 'mock' ? 'mock' : 'error')
@@ -137,8 +153,8 @@ function App() {
       }
 
       // Fetch Felix metrics
-      const felixRes = await fetch(`${API_BASE_URL}/api/cni/metrics/felix`)
-      if (felixRes.ok) {
+      const felixRes = await fetchWithRetry(`${API_BASE_URL}/api/cni/metrics/felix`)
+      if (felixRes?.ok) {
         const d: ApiResponse<FelixMetrics> = await felixRes.json()
         setFelixMetrics(d.data || null)
         setFelixStatus(d.status === 'success' ? 'live' : d.status === 'mock' ? 'mock' : 'error')
@@ -147,8 +163,8 @@ function App() {
       }
 
       // Fetch policy coverage
-      const coverageRes = await fetch(`${API_BASE_URL}/api/cni/policies/coverage`)
-      if (coverageRes.ok) {
+      const coverageRes = await fetchWithRetry(`${API_BASE_URL}/api/cni/policies/coverage`)
+      if (coverageRes?.ok) {
         const d: ApiResponse<PodCoverageItem[]> = await coverageRes.json()
         setPolicyCoverage(d.data || [])
       }
