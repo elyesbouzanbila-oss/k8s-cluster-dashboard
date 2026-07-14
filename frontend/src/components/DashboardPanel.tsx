@@ -318,7 +318,6 @@ export function DashboardPanel({
 
   // ── Last updated timer ─────────────────────────────────────
   const [lastUpdated, setLastUpdated] = useState(new Date())
-  const [refreshTick, setRefreshTick] = useState(0)
 
   useEffect(() => {
     if (!loading) {
@@ -326,10 +325,10 @@ export function DashboardPanel({
     }
   }, [cniNodes, bgpPeers, loading])
 
+  // Re-render every 10s to keep relative timestamps fresh
+  const [, forceUpdate] = useState(0)
   useEffect(() => {
-    const interval = setInterval(() => {
-      setRefreshTick(t => t + 1)
-    }, 5000)
+    const interval = setInterval(() => forceUpdate(t => t + 1), 10000)
     return () => clearInterval(interval)
   }, [])
 
