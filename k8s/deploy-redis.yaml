@@ -14,12 +14,7 @@ spec:
       labels:
         app: dashboard-redis
     spec:
-      nodeSelector:
-        node-role.kubernetes.io/control-plane: ""
-      tolerations:
-        - key: node-role.kubernetes.io/control-plane
-          operator: Exists
-          effect: NoSchedule
+      # No nodeSelector — Redis is a stateless cache that can run on any node.
       volumes:
         - name: redis-data
           persistentVolumeClaim:
