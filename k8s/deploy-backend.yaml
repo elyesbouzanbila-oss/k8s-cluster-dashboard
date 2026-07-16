@@ -15,12 +15,8 @@ spec:
         app: dashboard-backend
     spec:
       serviceAccountName: dashboard-sa
-      nodeSelector:
-        node-role.kubernetes.io/control-plane: ""
-      tolerations:
-        - key: node-role.kubernetes.io/control-plane
-          operator: Exists
-          effect: NoSchedule
+      # No nodeSelector — the backend can use in-cluster auth from any node
+      # via its service account (dashboard-sa).
       containers:
         - name: backend
           image: dashboard-backend:latest
