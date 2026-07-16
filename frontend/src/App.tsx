@@ -52,6 +52,7 @@ function App() {
   const refreshIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const wsRef = useRef<WebSocket | null>(null)
   const threatIdRef = useRef(1)
+  const hasInitialData = useRef(false) // tracks whether initial fetch has completed
 
   // Shared state
   const [pods, setPods] = useState<Pod[]>([])
@@ -233,6 +234,10 @@ function App() {
   const MAX_RECONNECT_ATTEMPTS = 10
 
   const connectWebSocket = useCallback(() => {
+    // Don't reconnect if already connected
+    if (wsRef.current && (wsRef.current.readyState === WebSocket.OPEN || wsRef.current.readyState === WebSocket.CONNECTING)) {
+      return
+    }
     reconnectRef.current = 0
     if (wsRef.current) {
       wsRef.current.onclose = null
@@ -288,29 +293,33 @@ function App() {
     }
   }, [silentRefresh])
 
-  // Load data on tab change
+  // Load data on initial mount
   useEffect(() => {
-    switch (activeTab) {
-      case 'dashboard':
-        fetchData()
-        break
-      case 'cni-health':
-      case 'ipam':
-      case 'policies':
-      case 'topology':
-      case 'security':
-        fetchData()
-        break
-      case 'diagnostics':
-        // pods already loaded, just ensure they're fresh
-        if (pods.length === 0) fetchData()
-        break
-      case 'threats':
-        connectWebSocket()
-        break
+    fetchData()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  // On tab switch: silently refresh data (no loading overlay),
+  // preserving existing tab state. Only threats connect WebSocket.
+  useEffect(() => {
+    // Mark initial data as loaded after first fetch completes
+    if (!hasInitialData.current) return
+
+    // Background refresh — never show loading overlay on tab switch
+    silentRefresh()
+
+    if (activeTab === 'threats') {
+      connectWebSocket()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab])
+
+  // Mark initial data as loaded when silentRefresh completes
+  useEffect(() => {
+    if (!hasInitialData.current && (cniNodes.length > 0 || cniNodesStatus !== 'unknown')) {
+      hasInitialData.current = true
+    }
+  }, [cniNodes, cniNodesStatus])
 
   // ── Keyboard navigation for tabs ──
   const tabIndexMap = useMemo(() => Object.fromEntries(TABS.map((t, i) => [t.id, i])), [])
