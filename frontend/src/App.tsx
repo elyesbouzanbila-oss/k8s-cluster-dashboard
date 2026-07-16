@@ -184,22 +184,22 @@ function App() {
         setPolicyCoverage(d.data || [])
       }
 
-      // Fetch RBAC bindings & privileged pods
+      // Fetch RBAC bindings & privileged pods (live API with mock fallback)
       const [rbacRes, privRes] = await Promise.all([
-        fetchWithRetry(`${API_BASE_URL}/mock/rbac`),
-        fetchWithRetry(`${API_BASE_URL}/mock/privileged`),
+        fetchWithRetry(`${API_BASE_URL}/api/security/rbac`),
+        fetchWithRetry(`${API_BASE_URL}/api/security/privileged-pods`),
       ])
       if (rbacRes?.ok) {
-        const d = await rbacRes.json()
-        setRbacBindings(d || [])
-        setRbacBindingsStatus('mock')
+        const d: ApiResponse<RbacBinding[]> = await rbacRes.json()
+        setRbacBindings(d.data || [])
+        setRbacBindingsStatus(d.status === 'success' ? 'live' : d.status === 'mock' ? 'mock' : 'error')
       } else {
         setRbacBindingsStatus('error')
       }
       if (privRes?.ok) {
-        const d = await privRes.json()
-        setPrivilegedPods(d || [])
-        setPrivilegedPodsStatus('mock')
+        const d: ApiResponse<PrivilegedPod[]> = await privRes.json()
+        setPrivilegedPods(d.data || [])
+        setPrivilegedPodsStatus(d.status === 'success' ? 'live' : d.status === 'mock' ? 'mock' : 'error')
       } else {
         setPrivilegedPodsStatus('error')
       }
