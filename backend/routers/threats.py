@@ -1,5 +1,6 @@
 import hashlib
 import hmac
+import json
 import asyncio
 from urllib.parse import urlparse
 
@@ -25,20 +26,21 @@ falco_limiter = Limiter(key_func=get_remote_address)
 @falco_limiter.limit("10/minute")
 async def falco_webhook(
     request: Request,
-    event: FalcoEvent,
     settings: Settings = Depends(get_settings_dep),
 ) -> dict:
     """Receive Falco events via webhook.
 
-    Authenticated via HMAC-SHA256 signature using FALCO_WEBHOOK_SECRET.
-    Falcosidekick can be configured with `webhook.CustomHeaders` to send
-    the `X-Falco-Signature` header.
+    Accepts both Falco's native JSON payload and the standard Falcosidekick
+    webhook format.  Authenticated via HMAC-SHA256 signature.
 
     Rate-limited to 10 requests per minute per IP.
     """
+    body = await request.body()
+    raw = json.loads(body)
+
+    # Signature check — read the raw bytes before parsing
     if settings.FALCO_WEBHOOK_SECRET:
         sig = request.headers.get("X-Falco-Signature", "")
-        body = await request.body()
         expected = hmac.new(
             settings.FALCO_WEBHOOK_SECRET.encode(),
             body,
@@ -50,6 +52,19 @@ async def falco_webhook(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Invalid Falco signature",
             )
+
+    # Build FalcoEvent from whatever fields Falco sends
+    try:
+        event = FalcoEvent(
+            output=raw.get("output", "") or "",
+            priority=raw.get("priority", "") or "",
+            rule=raw.get("rule", "") or "",
+            time=raw.get("time", "") or "",
+            output_fields=raw.get("output_fields", raw.get("fields", {}) or {}),
+        )
+    except Exception as exc:
+        logger.error(f"Failed to parse Falco event: {exc} — raw body: {body.decode(errors='replace')[:500]}")
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc))
 
     logger.info("Falco event received", extra={"rule": event.rule, "priority": event.priority})
     service = ThreatService(settings)
