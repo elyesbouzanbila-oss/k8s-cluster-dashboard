@@ -1,3 +1,4 @@
+import warnings
 from functools import lru_cache
 from typing import Optional
 
@@ -10,7 +11,11 @@ _PLACEHOLDER = "your-secret-api-key-change-this"
 class Settings(BaseSettings):
     REDIS_URL: str = "redis://redis:6379/0"
     REDIS_PASSWORD: Optional[str] = None
-    API_KEY: str
+    # API_KEY is no longer validated at startup — the frontend communicates with the
+    # backend through the same-origin nginx proxy so no API key is needed in the browser.
+    # In production, put the backend behind an authenticating reverse proxy (nginx+OIDC,
+    # Istio, oauth2-proxy, etc.) instead.
+    API_KEY: str = ""
     FRONTEND_URL: str = "http://localhost:5173"
 
     # Separate secret for the Falco webhook (not exposed to browsers)
@@ -30,11 +35,13 @@ class Settings(BaseSettings):
 
     @field_validator("API_KEY")
     @classmethod
-    def reject_placeholder(cls, v: str) -> str:
+    def warn_placeholder(cls, v: str) -> str:
         if v == _PLACEHOLDER:
-            raise ValueError(
+            warnings.warn(
                 f"API_KEY is still the placeholder {_PLACEHOLDER!r} — set a real value "
-                "via the API_KEY environment variable or .env file"
+                "via the API_KEY environment variable or .env file. "
+                "The API key is no longer required for normal operation, but having it "
+                "at the placeholder value is insecure."
             )
         return v
 

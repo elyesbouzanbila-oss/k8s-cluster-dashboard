@@ -14,16 +14,15 @@ spec:
       labels:
         app: dashboard-frontend
     spec:
-      nodeSelector:
-        node-role.kubernetes.io/control-plane: ""
-      tolerations:
-        - key: node-role.kubernetes.io/control-plane
-          operator: Exists
-          effect: NoSchedule
+      # No nodeSelector — the frontend (static files + nginx proxy) can run
+      # on any node. Only the backend needs to be on the control-plane node
+      # for in-cluster API access (and that's handled by its own deployment).
       containers:
         - name: frontend
           image: dashboard-frontend:latest
-          imagePullPolicy: Never
+          # Use IfNotPresent so the image is either loaded locally (kind load)
+          # or pulled from a registry. Change to Always if you push to a registry.
+          imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 5173
               protocol: TCP

@@ -27,7 +27,9 @@ spec:
           # imagePullPolicy: Never — local/kind cluster only! In production,
           # remove this line or change to Always / IfNotPresent so the pod
           # pulls from a real container registry.
-          imagePullPolicy: Never
+          # Use IfNotPresent so the image is either loaded locally (kind load)
+          # or pulled from a registry. Change to Always if you push to a registry.
+          imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8000
               protocol: TCP
@@ -39,6 +41,10 @@ spec:
                 secretKeyRef:
                   name: dashboard-api-key
                   key: api-key
+            # FRONTEND_URL is used by the CORS middleware. Since all browser
+            # requests go through the same-origin nginx proxy on the frontend pod,
+            # CORS is not enforced for normal operation. Set this to the external
+            # URL if you need direct backend access from a different origin.
             - name: FRONTEND_URL
               value: "http://dashboard-frontend:5173"
             - name: REDIS_URL
