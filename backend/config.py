@@ -1,6 +1,7 @@
 import warnings
 from functools import lru_cache
 from typing import Optional
+from urllib.parse import quote_plus
 
 from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -49,10 +50,14 @@ class Settings(BaseSettings):
     def _embed_redis_password(self) -> "Settings":
         """Embed REDIS_PASSWORD into REDIS_URL so the redis client doesn't need
         separate password handling. No-op if REDIS_PASSWORD is not set or if
-        the URL already contains credentials (has '@' before the host)."""
+        the URL already contains credentials (has '@' before the host).
+
+        URL-encodes the password to handle special characters (e.g. '+' from
+        base64-generated passwords) that would otherwise break URL parsing."""
         if self.REDIS_PASSWORD and "@" not in self.REDIS_URL:
+            encoded = quote_plus(self.REDIS_PASSWORD)
             self.REDIS_URL = self.REDIS_URL.replace(
-                "redis://", f"redis://:{self.REDIS_PASSWORD}@"
+                "redis://", f"redis://:{encoded}@"
             )
         return self
 
